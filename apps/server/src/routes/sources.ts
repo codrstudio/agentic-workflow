@@ -14,6 +14,13 @@ import { type Project } from "../schemas/project.js";
 const sources = new Hono();
 
 const INLINE_THRESHOLD = 50 * 1024; // 50KB
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
+
+const ALLOWED_EXTENSIONS: Record<string, Source["type"]> = {
+  ".md": "markdown",
+  ".txt": "text",
+  ".pdf": "pdf",
+};
 
 function projectDir(slug: string): string {
   return path.join(config.projectsDir, slug);
@@ -178,6 +185,84 @@ sources.post("/hub/projects/:slug/sources", async (c) => {
     updated_at: now,
     tags,
   };
+
+  const all = await loadSources(slug);
+  all.push(source);
+  await saveSources(slug, all);
+
+  return c.json(source, 201);
+});
+
+// POST /hub/projects/:slug/sources/upload — upload file source
+sources.post("/hub/projects/:slug/sources/upload", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const body = await c.req.parseBody();
+  const file = body["file"];
+
+  if (!file || !(file instanceof File)) {
+    return c.json({ error: "Missing file field" }, 400);
+  }
+
+  // Check file size
+  if (file.size > MAX_UPLOAD_SIZE) {
+    return c.json({ error: "Payload Too Large" }, 413);
+  }
+
+  // Check extension
+  const originalName = file.name;
+  const extMatch = originalName.match(/(\.[^.]+)$/);
+  const ext = extMatch ? extMatch[1]!.toLowerCase() : "";
+  const sourceType = ALLOWED_EXTENSIONS[ext];
+
+  if (!sourceType) {
+    return c.json(
+      { error: `Unsupported file extension: ${ext || "(none)"}. Allowed: .md, .txt, .pdf` },
+      400
+    );
+  }
+
+  const id = randomUUID();
+  const now = new Date().toISOString();
+  const fileName = `${id}${ext}`;
+  const filePath = `files/${fileName}`;
+
+  // Ensure files directory exists and write file
+  const dir = filesDir(slug);
+  await ensureDir(dir);
+
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  await writeFile(path.join(dir, fileName), buffer);
+
+  const source: Source = {
+    id,
+    project_id: project.id,
+    name: originalName,
+    type: sourceType,
+    content: undefined,
+    file_path: filePath,
+    url: undefined,
+    size_bytes: file.size,
+    created_at: now,
+    updated_at: now,
+    tags: [],
+  };
+
+  // Parse optional tags from form body
+  const tagsRaw = body["tags"];
+  if (typeof tagsRaw === "string" && tagsRaw.trim()) {
+    try {
+      const parsed = JSON.parse(tagsRaw);
+      if (Array.isArray(parsed)) {
+        source.tags = parsed.filter((t): t is string => typeof t === "string");
+      }
+    } catch {
+      // ignore invalid tags JSON
+    }
+  }
 
   const all = await loadSources(slug);
   all.push(source);
