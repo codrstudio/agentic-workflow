@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { UpdatePrompt } from "@/components/update-prompt";
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
           <Button variant="outline">Learn More</Button>
         </div>
       </div>
+      <UpdatePrompt />
     </div>
   );
 }
