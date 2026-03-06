@@ -1,0 +1,29 @@
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
+
+export interface Project {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  settings: {
+    default_agent: string;
+    max_sources: number;
+    params: Record<string, string>;
+  };
+}
+
+export const projectKeys = {
+  all: ["projects"] as const,
+  list: () => [...projectKeys.all, "list"] as const,
+  detail: (slug: string) => [...projectKeys.all, "detail", slug] as const,
+};
+
+export function useProjects() {
+  return useQuery({
+    queryKey: projectKeys.list(),
+    queryFn: () => apiFetch<Project[]>("/hub/projects"),
+  });
+}
