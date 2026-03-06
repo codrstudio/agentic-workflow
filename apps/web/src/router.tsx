@@ -12,6 +12,7 @@ import { ProjectsPage } from "@/pages/projects";
 import { ProjectSourcesPage } from "@/pages/project-sources";
 import { ProjectChatPage } from "@/pages/project-chat";
 import { ProjectArtifactsPage } from "@/pages/project-artifacts";
+import { ProjectNav } from "@/components/layout/project-nav";
 
 interface RouterContext {
   breadcrumb?: string;
@@ -72,7 +73,12 @@ const projectsRoute = createRoute({
 const projectRoute = createRoute({
   getParentRoute: () => projectsRoute,
   path: "$projectId",
-  component: Outlet,
+  component: () => (
+    <>
+      <ProjectNav />
+      <Outlet />
+    </>
+  ),
   staticData: { breadcrumb: "$projectId" },
 });
 
