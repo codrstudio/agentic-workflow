@@ -7,6 +7,7 @@ import { ProjectGridSkeleton } from "@/components/project-card-skeleton";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { ProjectFormDialog } from "@/components/project-form-dialog";
+import { ProjectDeleteDialog } from "@/components/project-delete-dialog";
 
 export function ProjectsPage() {
   const matches = useMatches();
@@ -23,6 +24,8 @@ function ProjectListView() {
   const { data: projects, isLoading, isError, error } = useProjects();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingProject, setDeletingProject] = useState<Project | undefined>();
 
   function openCreate() {
     setEditingProject(undefined);
@@ -32,6 +35,11 @@ function ProjectListView() {
   function openEdit(project: Project) {
     setEditingProject(project);
     setDialogOpen(true);
+  }
+
+  function openDelete(project: Project) {
+    setDeletingProject(project);
+    setDeleteDialogOpen(true);
   }
 
   return (
@@ -73,7 +81,7 @@ function ProjectListView() {
       {!isLoading && !isError && projects && projects.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
-            <ProjectCard key={project.id} project={project} onEdit={openEdit} />
+            <ProjectCard key={project.id} project={project} onEdit={openEdit} onDelete={openDelete} />
           ))}
         </div>
       )}
@@ -82,6 +90,12 @@ function ProjectListView() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         project={editingProject}
+      />
+
+      <ProjectDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        project={deletingProject}
       />
     </div>
   );
