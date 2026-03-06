@@ -8,6 +8,7 @@ import { sources } from "./routes/sources.js";
 import { sessions } from "./routes/sessions.js";
 import { artifacts } from "./routes/artifacts.js";
 import { sprints } from "./routes/sprints.js";
+import { harness } from "./routes/harness.js";
 
 const app = new Hono();
 
@@ -25,5 +26,6 @@ app.route("/api/v1", sources);
 app.route("/api/v1", sessions);
 app.route("/api/v1", artifacts);
 app.route("/api/v1", sprints);
+app.route("/api/v1", harness);
 
 export { app };
