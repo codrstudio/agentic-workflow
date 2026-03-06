@@ -6,6 +6,7 @@ import { health } from "./routes/health.js";
 import { projects } from "./routes/projects.js";
 import { sources } from "./routes/sources.js";
 import { sessions } from "./routes/sessions.js";
+import { artifacts } from "./routes/artifacts.js";
 
 const app = new Hono();
 
@@ -21,5 +22,6 @@ app.route("/api/v1", health);
 app.route("/api/v1", projects);
 app.route("/api/v1", sources);
 app.route("/api/v1", sessions);
+app.route("/api/v1", artifacts);
 
 export { app };
