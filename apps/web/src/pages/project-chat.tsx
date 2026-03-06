@@ -25,9 +25,9 @@ export function ProjectChatPage() {
       {
         onSuccess: (session) => {
           navigate({
-            to: "/projects/$projectId/chat/$sessionId" as string,
+            to: "/projects/$projectId/chat/$sessionId",
             params: { projectId, sessionId: session.id },
-          } as never);
+          });
         },
       },
     );
@@ -35,9 +35,9 @@ export function ProjectChatPage() {
 
   const handleSessionClick = (session: { id: string }) => {
     navigate({
-      to: "/projects/$projectId/chat/$sessionId" as string,
+      to: "/projects/$projectId/chat/$sessionId",
       params: { projectId, sessionId: session.id },
-    } as never);
+    });
   };
 
   const hasSessions = !isLoading && !isError && sessions && sessions.length > 0;

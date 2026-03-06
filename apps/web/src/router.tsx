@@ -12,6 +12,7 @@ import { ProjectsPage } from "@/pages/projects";
 import { ProjectSourcesPage } from "@/pages/project-sources";
 import { ProjectChatPage } from "@/pages/project-chat";
 import { ProjectArtifactsPage } from "@/pages/project-artifacts";
+import { ChatSessionPage } from "@/pages/chat-session";
 import { ProjectNav } from "@/components/layout/project-nav";
 
 interface RouterContext {
@@ -110,6 +111,14 @@ const projectChatRoute = createRoute({
   staticData: { breadcrumb: "Chat" },
 });
 
+// /projects/$projectId/chat/$sessionId
+const chatSessionRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/chat/$sessionId",
+  component: ChatSessionPage,
+  staticData: { breadcrumb: "Conversa" },
+});
+
 // /projects/$projectId/artifacts
 const projectArtifactsRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -127,6 +136,7 @@ const routeTree = rootRoute.addChildren([
         projectIndexRoute,
         projectSourcesRoute,
         projectChatRoute,
+        chatSessionRoute,
         projectArtifactsRoute,
       ]),
     ]),
