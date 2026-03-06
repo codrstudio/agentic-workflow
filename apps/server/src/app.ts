@@ -9,6 +9,7 @@ import { sessions } from "./routes/sessions.js";
 import { artifacts } from "./routes/artifacts.js";
 import { sprints } from "./routes/sprints.js";
 import { harness } from "./routes/harness.js";
+import { reviews } from "./routes/reviews.js";
 
 const app = new Hono();
 
@@ -27,5 +28,6 @@ app.route("/api/v1", sessions);
 app.route("/api/v1", artifacts);
 app.route("/api/v1", sprints);
 app.route("/api/v1", harness);
+app.route("/api/v1", reviews);
 
 export { app };
