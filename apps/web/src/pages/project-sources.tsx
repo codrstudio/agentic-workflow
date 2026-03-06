@@ -3,6 +3,8 @@ import { useParams } from "@tanstack/react-router";
 import { FileText, Plus, Search } from "lucide-react";
 import { useSources, type Source } from "@/hooks/use-sources";
 import { SourceCard, SourceGridSkeleton } from "@/components/source-card";
+import { SourceViewerSheet } from "@/components/source-viewer-sheet";
+import { AddSourceDialog } from "@/components/add-source-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,14 @@ export function ProjectSourcesPage() {
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Source["type"] | "all">("all");
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+
+  const handleSourceClick = (source: Source) => {
+    setSelectedSourceId(source.id);
+    setViewerOpen(true);
+  };
 
   const filtered = useMemo(() => {
     if (!sources) return [];
@@ -57,7 +67,7 @@ export function ProjectSourcesPage() {
           </p>
         </div>
         {!isMobile && (
-          <Button size="sm">
+          <Button size="sm" onClick={() => setAddDialogOpen(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
             Add Source
           </Button>
@@ -108,7 +118,7 @@ export function ProjectSourcesPage() {
           title="No sources yet"
           description="Add reference materials, documents, or notes to provide context for your AI conversations."
           actionLabel="Add Source"
-          onAction={() => {}}
+          onAction={() => setAddDialogOpen(true)}
           className="min-h-[50vh]"
         />
       )}
@@ -127,7 +137,7 @@ export function ProjectSourcesPage() {
       {!isLoading && !isError && filtered.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((source) => (
-            <SourceCard key={source.id} source={source} />
+            <SourceCard key={source.id} source={source} onClick={handleSourceClick} />
           ))}
         </div>
       )}
@@ -136,12 +146,30 @@ export function ProjectSourcesPage() {
       {isMobile && (
         <button
           type="button"
+          onClick={() => setAddDialogOpen(true)}
           className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
           aria-label="Add Source"
         >
           <Plus className="h-6 w-6" />
         </button>
       )}
+
+      {/* Source viewer/editor sheet */}
+      <SourceViewerSheet
+        sourceId={selectedSourceId}
+        open={viewerOpen}
+        onOpenChange={(open) => {
+          setViewerOpen(open);
+          if (!open) setSelectedSourceId(null);
+        }}
+      />
+
+      {/* Add source dialog */}
+      <AddSourceDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        projectSlug={projectId}
+      />
     </div>
   );
 }

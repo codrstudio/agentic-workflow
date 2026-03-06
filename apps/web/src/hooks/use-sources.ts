@@ -49,6 +49,49 @@ export function useCreateSource(projectSlug: string) {
   });
 }
 
+export function useSource(projectSlug: string, id: string | null) {
+  return useQuery({
+    queryKey: sourceKeys.detail(projectSlug, id ?? ""),
+    queryFn: () => apiFetch<Source>(`/hub/projects/${projectSlug}/sources/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useUpdateSource(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; name?: string; content?: string; tags?: string[] }) =>
+      apiFetch<Source>(`/hub/projects/${projectSlug}/sources/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: sourceKeys.all(projectSlug) });
+      queryClient.invalidateQueries({ queryKey: sourceKeys.detail(projectSlug, variables.id) });
+    },
+  });
+}
+
+export function useUploadSource(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formData: FormData) =>
+      fetch(`/api/v1/hub/projects/${projectSlug}/sources/upload`, {
+        method: "POST",
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error ?? `Upload failed: ${res.status}`);
+        }
+        return res.json() as Promise<Source>;
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: sourceKeys.all(projectSlug) });
+    },
+  });
+}
+
 export function useDeleteSource(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
