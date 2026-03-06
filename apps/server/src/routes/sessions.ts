@@ -107,11 +107,18 @@ sessions.get("/hub/projects/:slug/sessions", async (c) => {
       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
   );
 
-  // Strip messages for list response
-  const result = all.map(({ messages, ...rest }) => ({
-    ...rest,
-    message_count: messages.length,
-  }));
+  // Strip messages for list response, include last message preview
+  const result = all.map(({ messages, ...rest }) => {
+    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+    return {
+      ...rest,
+      message_count: messages.length,
+      last_message_preview: lastMsg
+        ? lastMsg.content.replace(/\s+/g, " ").trim().slice(0, 120)
+        : null,
+      last_message_role: lastMsg?.role ?? null,
+    };
+  });
 
   return c.json(result);
 });
