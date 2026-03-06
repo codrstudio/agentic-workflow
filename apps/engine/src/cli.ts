@@ -46,7 +46,7 @@ function logEvent(event: EngineEvent): void {
       break;
     }
     case 'loop:start':
-      console.log(`${ts} ${chalk.magenta('loop:start')}           ${d.features ?? '?'} features`);
+      console.log(`${ts} ${chalk.magenta('loop:start')}           ${d.total ?? '?'} features`);
       break;
     case 'loop:iteration':
       console.log(`${ts} ${chalk.magenta('loop:iteration')}       round ${d.iteration}`);
@@ -55,25 +55,25 @@ function logEvent(event: EngineEvent): void {
       console.log(`${ts} ${chalk.magenta('loop:end')}             ${d.reason}`);
       break;
     case 'feature:start':
-      console.log(`${ts} ${chalk.blue('feature:start')}        ${d.feature}`);
+      console.log(`${ts} ${chalk.blue('feature:start')}        ${d.feature_id} ${d.feature_name}`);
       break;
     case 'feature:pass':
-      console.log(`${ts} ${chalk.green('feature:pass')}         ${d.feature}`);
+      console.log(`${ts} ${chalk.green('feature:pass')}         ${d.feature_id} ${d.feature_name}`);
       break;
     case 'feature:fail':
-      console.log(`${ts} ${chalk.red('feature:fail')}         ${d.feature} (attempt ${d.attempt})`);
+      console.log(`${ts} ${chalk.red('feature:fail')}         ${d.feature_id} ${d.feature_name} (retry ${d.retries})`);
       break;
     case 'feature:skip':
-      console.log(`${ts} ${chalk.yellow('feature:skip')}         ${d.feature}`);
+      console.log(`${ts} ${chalk.yellow('feature:skip')}         ${d.feature_id} ${d.feature_name}`);
       break;
     case 'gutter:retry':
-      console.log(`${ts} ${chalk.yellow('gutter:retry')}         ${d.feature} attempt ${d.attempt}`);
+      console.log(`${ts} ${chalk.yellow('gutter:retry')}         ${d.feature_id} retry ${d.retries}`);
       break;
     case 'gutter:rollback':
-      console.log(`${ts} ${chalk.red('gutter:rollback')}      ${d.feature}`);
+      console.log(`${ts} ${chalk.red('gutter:rollback')}      ${d.feature_id}`);
       break;
     case 'gutter:skip':
-      console.log(`${ts} ${chalk.red('gutter:skip')}          ${d.feature}`);
+      console.log(`${ts} ${chalk.red('gutter:skip')}          ${d.feature_id}`);
       break;
     case 'workflow:chain':
       console.log(`${ts} ${chalk.cyan('workflow:chain')}       ${d.from} -> ${d.to}`);
@@ -152,8 +152,8 @@ async function main(): Promise<void> {
   // Execute workflow
   const execResult = await runner.execute(ctx);
 
-  // Merge worktree into target branch
-  if (execResult.exitCode === 0) {
+  // Merge worktree into target branch (skip if stopped by signal)
+  if (execResult.exitCode === 0 && execResult.reason !== 'stopped') {
     const mergeResult = await runner.spawnMerge(ctx);
 
     if (mergeResult.exitCode === 0 && result.resolvedRepoConfig) {
