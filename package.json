@@ -1,0 +1,12 @@
+{
+  "name": "agentic-workflow",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "build": "npm -w @aw/engine run build",
+    "typecheck": "npm -w @aw/engine run typecheck",
+    "dev": "npm -w @aw/engine run dev",
+    "aw:run": "node apps/engine/dist/cli.js",
+    "aw:status": "node apps/engine/dist/status.js"
+  }
+}

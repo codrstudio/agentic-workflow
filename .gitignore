@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tgz
+
+# Temp
+.tmp/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Runtime workspaces, samples and project data (generated/private)
+context/workspaces/*/
+context/projects/*/
+!.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+.drafts
