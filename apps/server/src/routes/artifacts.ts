@@ -74,6 +74,42 @@ function extensionForType(type: string): string {
   }
 }
 
+function exportExtension(artifact: Artifact): string {
+  if (artifact.type === "code") {
+    // Try to infer extension from artifact name (e.g., "main.ts" → "ts")
+    const dotIndex = artifact.name.lastIndexOf(".");
+    if (dotIndex > 0) {
+      const nameExt = artifact.name.slice(dotIndex + 1).toLowerCase();
+      if (nameExt.length > 0 && nameExt.length <= 10) return nameExt;
+    }
+    return "txt";
+  }
+  return extensionForType(artifact.type);
+}
+
+function contentTypeForExt(ext: string): string {
+  switch (ext) {
+    case "md":
+      return "text/markdown; charset=utf-8";
+    case "json":
+      return "application/json; charset=utf-8";
+    case "yaml":
+    case "yml":
+      return "text/yaml; charset=utf-8";
+    case "ts":
+    case "tsx":
+    case "js":
+    case "jsx":
+    case "mjs":
+    case "cjs":
+      return "text/plain; charset=utf-8";
+    case "mmd":
+      return "text/plain; charset=utf-8";
+    default:
+      return "text/plain; charset=utf-8";
+  }
+}
+
 async function loadContentForArtifact(
   slug: string,
   artifact: Artifact
@@ -122,6 +158,30 @@ artifacts.get("/hub/projects/:slug/artifacts", async (c) => {
   const result = filtered.map(({ content, file_path, ...rest }) => rest);
 
   return c.json(result);
+});
+
+// GET /hub/projects/:slug/artifacts/:id/export — download artifact as file
+artifacts.get("/hub/projects/:slug/artifacts/:id/export", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const all = await loadArtifacts(slug);
+  const artifact = all.find((a) => a.id === id);
+  if (!artifact) return c.json({ error: "Artifact not found" }, 404);
+
+  const content = await loadContentForArtifact(slug, artifact);
+  if (content === undefined) return c.json({ error: "Artifact content not available" }, 404);
+
+  const ext = exportExtension(artifact);
+  const contentType = contentTypeForExt(ext);
+  const safeName = artifact.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const filename = safeName.endsWith(`.${ext}`) ? safeName : `${safeName}.${ext}`;
+
+  c.header("Content-Disposition", `attachment; filename="${filename}"`);
+  c.header("Content-Type", contentType);
+  return c.body(content);
 });
 
 // GET /hub/projects/:slug/artifacts/:id — get artifact with content
