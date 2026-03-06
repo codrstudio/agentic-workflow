@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { Calendar, FileText, MessageSquare, Package } from "lucide-react";
+import { Calendar, FileText, MessageSquare, Package, Pencil } from "lucide-react";
 import type { Project } from "@/hooks/use-projects";
 import { cn } from "@/lib/utils";
 
 interface ProjectCardProps {
   project: Project;
   className?: string;
+  onEdit?: (project: Project) => void;
 }
 
 function formatDate(iso: string): string {
@@ -22,16 +23,30 @@ function truncate(text: string | undefined, maxLen: number): string {
   return text.slice(0, maxLen).trimEnd() + "...";
 }
 
-export function ProjectCard({ project, className }: ProjectCardProps) {
+export function ProjectCard({ project, className, onEdit }: ProjectCardProps) {
   return (
     <Link
       to="/projects/$projectId"
       params={{ projectId: project.slug }}
       className={cn(
-        "group flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:shadow-md",
+        "group relative flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:shadow-md",
         className,
       )}
     >
+      {onEdit && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEdit(project);
+          }}
+          className="absolute top-3 right-3 rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100"
+          title="Editar projeto"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      )}
       <div className="space-y-1">
         <h3 className="font-semibold text-card-foreground group-hover:text-primary transition-colors">
           {project.name}
