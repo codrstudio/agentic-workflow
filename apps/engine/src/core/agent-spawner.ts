@@ -152,8 +152,12 @@ export class AgentSpawner {
       proc.stdin?.write(prompt);
       proc.stdin?.end();
 
-      proc.on('close', (code) => {
+      proc.on('exit', (code) => {
         if (inactivityTimer) clearTimeout(inactivityTimer);
+        // Destroy streams so orphan child processes holding inherited
+        // file descriptors don't keep the pipe open forever.
+        proc.stdout?.destroy();
+        proc.stderr?.destroy();
         logStream.end();
 
         let response: unknown;
