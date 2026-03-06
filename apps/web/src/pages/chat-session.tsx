@@ -1,8 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, Link } from "@tanstack/react-router";
 import { ArrowLeft, MessageSquare, Paperclip } from "lucide-react";
+import { toast } from "sonner";
 import { useSession, sessionKeys } from "@/hooks/use-sessions";
 import { useSources } from "@/hooks/use-sources";
+import { artifactKeys } from "@/hooks/use-artifacts";
 import { MessageBubble, TypingIndicator } from "@/components/message-bubble";
 import { ChatInput } from "@/components/chat-input";
 import { SourceContextSheet } from "@/components/source-context-sheet";
@@ -121,6 +123,28 @@ export function ChatSessionPage() {
         queryClient.invalidateQueries({
           queryKey: sessionKeys.list(projectId),
         });
+        // Show toast and invalidate artifacts cache if artifacts were created
+        if (artifacts.length > 0) {
+          queryClient.invalidateQueries({
+            queryKey: artifactKeys.all(projectId),
+          });
+          const count = artifacts.length;
+          toast.success(
+            count === 1 ? "Artifact criado" : `${count} artifacts criados`,
+            {
+              description: "Veja na aba Artifacts do projeto",
+              action: {
+                label: "Ver artifacts",
+                onClick: () => {
+                  navigate({
+                    to: "/projects/$projectId/artifacts",
+                    params: { projectId },
+                  });
+                },
+              },
+            },
+          );
+        }
       },
       onError: (errorMsg) => {
         setIsStreaming(false);

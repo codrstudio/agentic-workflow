@@ -2,11 +2,12 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { readdir, unlink, appendFile } from "node:fs/promises";
+import { readdir, unlink, appendFile, writeFile } from "node:fs/promises";
 import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
 import { getClaudeClient } from "../lib/claude-client.js";
 import { composePrompt, type ChatMessage } from "../lib/context-composer.js";
+import { extractArtifacts } from "../lib/artifact-detector.js";
 import {
   CreateSessionBody,
   UpdateSessionBody,
@@ -15,6 +16,7 @@ import {
 } from "../schemas/session.js";
 import { type Project } from "../schemas/project.js";
 import { type Source } from "../schemas/source.js";
+import { type Artifact } from "../schemas/artifact.js";
 
 const sessions = new Hono();
 
@@ -268,6 +270,96 @@ async function appendAuditLog(
   await appendFile(jsonlPath(slug, sessionId), line, "utf-8");
 }
 
+const INLINE_THRESHOLD = 50 * 1024; // 50KB
+
+function artifactsJsonPath(slug: string): string {
+  return path.join(projectDir(slug), "artifacts", "artifacts.json");
+}
+
+function artifactFilesDir(slug: string): string {
+  return path.join(projectDir(slug), "artifacts", "files");
+}
+
+function extensionForType(type: string): string {
+  switch (type) {
+    case "document": return "md";
+    case "code": return "txt";
+    case "json": return "json";
+    case "diagram": return "mmd";
+    case "config": return "yaml";
+    default: return "txt";
+  }
+}
+
+async function loadArtifacts(slug: string): Promise<Artifact[]> {
+  try {
+    return await readJSON<Artifact[]>(artifactsJsonPath(slug));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found")) return [];
+    throw err;
+  }
+}
+
+async function saveArtifacts(slug: string, data: Artifact[]): Promise<void> {
+  await ensureDir(path.join(projectDir(slug), "artifacts"));
+  await writeJSON(artifactsJsonPath(slug), data);
+}
+
+async function createChatArtifacts(
+  slug: string,
+  projectId: string,
+  sessionId: string,
+  fullContent: string,
+): Promise<string[]> {
+  const detected = extractArtifacts(fullContent);
+  if (detected.length === 0) return [];
+
+  const all = await loadArtifacts(slug);
+  const createdIds: string[] = [];
+  const now = new Date().toISOString();
+
+  for (const det of detected) {
+    const id = randomUUID();
+    const sizeBytes = Buffer.byteLength(det.content, "utf-8");
+
+    let inlineContent: string | undefined;
+    let filePath: string | undefined;
+
+    if (sizeBytes > INLINE_THRESHOLD) {
+      const ext = extensionForType(det.type);
+      const fileName = `${id}.${ext}`;
+      filePath = `files/${fileName}`;
+      const dir = artifactFilesDir(slug);
+      await ensureDir(dir);
+      await writeFile(path.join(dir, fileName), det.content, "utf-8");
+    } else {
+      inlineContent = det.content;
+    }
+
+    const artifact: Artifact = {
+      id,
+      project_id: projectId,
+      name: det.name,
+      type: det.type,
+      origin: "chat",
+      content: inlineContent,
+      file_path: filePath,
+      session_id: sessionId,
+      version: 1,
+      tags: det.language ? [det.language] : [],
+      created_at: now,
+      updated_at: now,
+    };
+
+    all.push(artifact);
+    createdIds.push(id);
+  }
+
+  await saveArtifacts(slug, all);
+  return createdIds;
+}
+
 // POST /hub/projects/:slug/sessions/:id/messages — send message, stream response via SSE
 sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
   const slug = c.req.param("slug");
@@ -379,13 +471,21 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
         }
       }
 
-      // 5. Save assistant message to session
+      // 5. Detect and create artifacts from response
+      const artifactIds = await createChatArtifacts(
+        slug,
+        project.id,
+        id,
+        fullContent,
+      );
+
+      // 6. Save assistant message to session
       const assistantMessage: Message = {
         id: assistantMessageId,
         role: "assistant",
         content: fullContent,
         created_at: new Date().toISOString(),
-        artifacts: [],
+        artifacts: artifactIds,
       };
 
       // Re-load session to avoid stale data
@@ -396,7 +496,7 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
         await saveSession(slug, freshSession);
       }
 
-      // 6. Append to JSONL audit trail
+      // 7. Append to JSONL audit trail
       await appendAuditLog(slug, id, {
         timestamp: new Date().toISOString(),
         user_message_id: userMessageId,
@@ -404,6 +504,7 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
         user_content: content.trim(),
         assistant_content: fullContent,
         model: "claude-sonnet-4-20250514",
+        artifact_ids: artifactIds,
       });
 
       // Emit message.complete
@@ -411,7 +512,7 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
         event: "message.complete",
         data: JSON.stringify({
           message_id: assistantMessageId,
-          artifacts: [],
+          artifacts: artifactIds,
         }),
       });
     } catch (err) {
