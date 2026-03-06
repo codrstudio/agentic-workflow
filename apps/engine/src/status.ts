@@ -26,6 +26,7 @@ interface SpawnMeta {
 
 interface LoopState {
   status: string;
+  pid?: number;
   iteration: number;
   total: number;
   done: number;
@@ -188,19 +189,20 @@ async function getFileMtime(path: string): Promise<Date | null> {
 // ── Find the active spawn.jsonl (may be in a feature attempt dir) ──
 
 async function findActiveJsonl(step: StepInfo): Promise<{ path: string; label: string } | null> {
-  // For loop steps, find the latest attempt dir
+  // For loop steps, find the latest attempt dir by spawn.jsonl mtime
   if (step.loop) {
     try {
       const entries = await readdir(step.dir);
-      const attemptDirs = entries
-        .filter(e => e.match(/^F-\d{3}-attempt-\d+$/))
-        .sort()
-        .reverse();
+      const attemptDirs = entries.filter(e => e.match(/^F-\d{3}-attempt-\d+$/));
+      const withMtime: { dir: string; path: string; mtime: Date }[] = [];
       for (const attemptDir of attemptDirs) {
         const jsonlPath = join(step.dir, attemptDir, 'spawn.jsonl');
-        if (await state.fileExists(jsonlPath)) {
-          return { path: jsonlPath, label: `${step.name}, ${attemptDir}` };
-        }
+        const mtime = await getFileMtime(jsonlPath);
+        if (mtime) withMtime.push({ dir: attemptDir, path: jsonlPath, mtime });
+      }
+      withMtime.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+      if (withMtime.length > 0) {
+        return { path: withMtime[0]!.path, label: `${step.name}, ${withMtime[0]!.dir}` };
       }
     } catch {
       // ignore
@@ -233,7 +235,16 @@ function formatRelativeMs(ms: number): string {
   return remMins > 0 ? `${hours}h${remMins}m ago` : `${hours}h ago`;
 }
 
-function printActivitySummary(activity: ActivityInfo): void {
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function printActivitySummary(activity: ActivityInfo, loop?: LoopState | null): void {
   const lines: string[] = [];
   const now = Date.now();
 
@@ -259,6 +270,13 @@ function printActivitySummary(activity: ActivityInfo): void {
   if (activity.stepStartedAt) {
     const elapsed = formatDuration(activity.stepStartedAt);
     lines.push(`    step elapsed: ${elapsed}`);
+  }
+
+  // Engine liveness check
+  if (loop?.pid && (loop.status === 'running' || loop.status === 'starting')) {
+    if (!isProcessAlive(loop.pid)) {
+      lines.push(`    engine:       ${chalk.red.bold('◉ engine dead (stale state)')}`);
+    }
   }
 
   if (lines.length > 0) {
@@ -512,7 +530,7 @@ async function main(): Promise<void> {
       printLastMessages(messages, jsonlInfo.label);
     }
     const activity = await getActivityInfo(activeStep, jsonlInfo?.path ?? null);
-    printActivitySummary(activity);
+    printActivitySummary(activity, activeStep.loop);
   }
 
   // ── Section 4: Wave history ──
