@@ -4,6 +4,7 @@ import { Package, Plus, Search } from "lucide-react";
 import { useArtifacts, type ArtifactType } from "@/hooks/use-artifacts";
 import { ArtifactCard, ArtifactGridSkeleton } from "@/components/artifact-card";
 import { ArtifactViewerSheet } from "@/components/artifact-viewer-sheet";
+import { CreateArtifactDialog } from "@/components/create-artifact-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ export function ProjectArtifactsPage() {
   const [originFilter, setOriginFilter] = useState<string>("all");
   const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const filtered = useMemo(() => {
     if (!artifacts) return [];
@@ -90,7 +92,7 @@ export function ProjectArtifactsPage() {
           </p>
         </div>
         {!isMobile && (
-          <Button size="sm">
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
             Criar Artifact
           </Button>
@@ -162,6 +164,7 @@ export function ProjectArtifactsPage() {
           title="No artifacts yet"
           description="Artifacts are documents, code, and data produced by your AI conversations or created manually."
           actionLabel="Criar Artifact"
+          onAction={() => setCreateOpen(true)}
           className="min-h-[50vh]"
         />
       )}
@@ -196,12 +199,20 @@ export function ProjectArtifactsPage() {
       {isMobile && (
         <button
           type="button"
+          onClick={() => setCreateOpen(true)}
           className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 active:scale-95"
           aria-label="Criar Artifact"
         >
           <Plus className="h-6 w-6" />
         </button>
       )}
+
+      {/* Create artifact dialog */}
+      <CreateArtifactDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        projectSlug={projectId}
+      />
 
       {/* Artifact viewer/editor sheet */}
       <ArtifactViewerSheet
