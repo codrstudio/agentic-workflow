@@ -3,6 +3,7 @@ import { useParams } from "@tanstack/react-router";
 import { Package, Plus, Search } from "lucide-react";
 import { useArtifacts, type ArtifactType } from "@/hooks/use-artifacts";
 import { ArtifactCard, ArtifactGridSkeleton } from "@/components/artifact-card";
+import { ArtifactViewerSheet } from "@/components/artifact-viewer-sheet";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,8 @@ export function ProjectArtifactsPage() {
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<QuickTab>("all");
   const [originFilter, setOriginFilter] = useState<string>("all");
+  const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const filtered = useMemo(() => {
     if (!artifacts) return [];
@@ -177,7 +180,14 @@ export function ProjectArtifactsPage() {
       {!isLoading && !isError && filtered.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((artifact) => (
-            <ArtifactCard key={artifact.id} artifact={artifact} />
+            <ArtifactCard
+              key={artifact.id}
+              artifact={artifact}
+              onClick={(a) => {
+                setSelectedArtifactId(a.id);
+                setSheetOpen(true);
+              }}
+            />
           ))}
         </div>
       )}
@@ -192,6 +202,17 @@ export function ProjectArtifactsPage() {
           <Plus className="h-6 w-6" />
         </button>
       )}
+
+      {/* Artifact viewer/editor sheet */}
+      <ArtifactViewerSheet
+        artifactId={selectedArtifactId}
+        projectSlug={projectId}
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) setSelectedArtifactId(null);
+        }}
+      />
     </div>
   );
 }

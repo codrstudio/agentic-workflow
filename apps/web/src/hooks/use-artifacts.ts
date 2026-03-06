@@ -67,6 +67,32 @@ export function useCreateArtifact(projectSlug: string) {
   });
 }
 
+export function useUpdateArtifact(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      id: string;
+      name?: string;
+      content?: string;
+      tags?: string[];
+    }) => {
+      const { id, ...body } = params;
+      return apiFetch<Artifact>(
+        `/hub/projects/${projectSlug}/artifacts/${id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        },
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: artifactKeys.all(projectSlug),
+      });
+    },
+  });
+}
+
 export function useDeleteArtifact(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
