@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { requestLogger } from "./middleware/request-logger.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { health } from "./routes/health.js";
+import { projects } from "./routes/projects.js";
 
 const app = new Hono();
 
@@ -15,5 +16,6 @@ app.onError(errorHandler);
 
 // Routes
 app.route("/api/v1", health);
+app.route("/api/v1", projects);
 
 export { app };
