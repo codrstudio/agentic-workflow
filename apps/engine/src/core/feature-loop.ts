@@ -94,7 +94,9 @@ export class FeatureLoop {
     };
 
     await writeLoopState({ status: 'starting' });
-    await this.emitEvent('loop:start', ctx, { task: taskSlug });
+
+    const initialFeatures = await this.state.loadFeatures(featuresPath) as Feature[];
+    await this.emitEvent('loop:start', ctx, { task: taskSlug, total: initialFeatures.length });
 
     const checkStop = async (): Promise<boolean> => {
       if (this.stopRequested) return true;
@@ -120,7 +122,7 @@ export class FeatureLoop {
         if (await checkStop()) {
           await writeLoopState({ status: 'exited', exit_reason: 'stopped' });
           await this.emitEvent('loop:end', ctx, { reason: 'stopped' });
-          return { exitCode: 0, reason: 'stopped' };
+          return { exitCode: 1, reason: 'stopped' };
         }
 
         const features = await this.state.loadFeatures(featuresPath) as Feature[];
@@ -255,7 +257,7 @@ export class FeatureLoop {
         if (await checkStop()) {
           await writeLoopState({ status: 'exited', exit_reason: 'stopped' });
           await this.emitEvent('loop:end', ctx, { reason: 'stopped' });
-          return { exitCode: 0, reason: 'stopped' };
+          return { exitCode: 1, reason: 'stopped' };
         }
 
         if (sleepBetween > 0) {
@@ -263,7 +265,7 @@ export class FeatureLoop {
             if (await checkStop()) {
               await writeLoopState({ status: 'exited', exit_reason: 'stopped' });
               await this.emitEvent('loop:end', ctx, { reason: 'stopped' });
-              return { exitCode: 0, reason: 'stopped' };
+              return { exitCode: 1, reason: 'stopped' };
             }
             await this.sleep(1000);
           }

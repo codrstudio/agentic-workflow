@@ -10,6 +10,7 @@ import { TemplateRenderer } from './template-renderer.js';
 import { detectNextWave, resolveSprintForWave, setupWave } from './bootstrap.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
 import type { WorkflowState } from '../schemas/workflow-state.js';
+import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
 
 export interface WorkflowRunnerContext {
@@ -93,8 +94,11 @@ export class WorkflowRunner {
 
         const result = await this.executeStep(step, stepIndex, ctx);
 
-        // Update state → completed/failed
-        const finalStatus = result.exitCode === 0 ? 'completed' : 'failed';
+        // Update state — only mark completed if the step actually finished its work
+        const finalStatus =
+          result.reason === 'stopped' ? 'interrupted'
+          : result.exitCode === 0 ? 'completed'
+          : 'failed';
         await this.updateStepState(statePath, i, {
           status: finalStatus,
           completed_at: now(),
@@ -482,6 +486,22 @@ export class WorkflowRunner {
   ): Promise<{ exitCode: number; reason: string }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'ralph-wiggum-loop', task: taskSlug }));
     await mkdir(stepDir, { recursive: true });
+
+    // Reset stale in_progress features (from crash/restart)
+    const featuresPath = join(ctx.sprintDir, 'features.json');
+    const features = await this.state.readJson<Feature[]>(featuresPath);
+    if (features && Array.isArray(features)) {
+      let dirty = false;
+      for (const f of features) {
+        if (f.status === 'in_progress') {
+          (f as Record<string, unknown>).status = 'failing';
+          dirty = true;
+        }
+      }
+      if (dirty) {
+        await this.state.writeJson(featuresPath, features);
+      }
+    }
 
     const loop = new FeatureLoop(this.notifier);
     return loop.execute(taskSlug, {
