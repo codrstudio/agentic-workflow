@@ -45,6 +45,7 @@ import {
 import { McpServerDialog } from "@/components/mcp-server-dialog";
 import { GuardrailsSettings } from "@/components/guardrails-settings";
 import { SpecTemplateEditor } from "@/components/spec-template-editor";
+import { AutonomyConfigPanel } from "@/components/autonomy-config-panel";
 
 function AgentCard({
   agent,
@@ -553,6 +554,10 @@ export function ProjectSettingsPage() {
 
         <div className="border-t pt-6">
           <SpecTemplateEditor projectSlug={projectId} />
+        </div>
+
+        <div className="border-t pt-6">
+          <AutonomyConfigPanel projectSlug={projectId} />
         </div>
 
         <div className="border-t pt-6">
