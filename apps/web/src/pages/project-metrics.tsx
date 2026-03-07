@@ -27,6 +27,7 @@ import { ContextMetricsTab } from "@/components/context-metrics-tab";
 import { BurnoutDashboardTab } from "@/components/burnout-dashboard-tab";
 import { ComplexityDistributionChart } from "@/components/complexity-distribution-chart";
 import { TrustProgressionDashboard } from "@/components/trust-progression-dashboard";
+import { AIProductivityDashboard } from "@/components/ai-productivity-dashboard";
 import { cn } from "@/lib/utils";
 
 // --- Column definitions ---
@@ -69,7 +70,7 @@ const stepColumns: MetricsColumn<StepMetrics>[] = [
 
 // --- Sub-tabs ---
 
-type MetricsTab = "general" | "context" | "wellbeing" | "spec-depth" | "autonomia";
+type MetricsTab = "general" | "context" | "wellbeing" | "spec-depth" | "autonomia" | "produtividade-ai";
 
 const TABS: { value: MetricsTab; label: string }[] = [
   { value: "general", label: "Geral" },
@@ -77,6 +78,7 @@ const TABS: { value: MetricsTab; label: string }[] = [
   { value: "wellbeing", label: "Bem-estar" },
   { value: "spec-depth", label: "Spec Depth" },
   { value: "autonomia", label: "Autonomia" },
+  { value: "produtividade-ai", label: "Produtividade AI" },
 ];
 
 // --- Main Page ---
@@ -285,6 +287,11 @@ export function ProjectMetricsPage() {
       {/* Autonomia tab content */}
       {activeTab === "autonomia" && (
         <TrustProgressionDashboard projectId={projectId} />
+      )}
+
+      {/* Produtividade AI tab content */}
+      {activeTab === "produtividade-ai" && (
+        <AIProductivityDashboard projectId={projectId} />
       )}
     </div>
   );
