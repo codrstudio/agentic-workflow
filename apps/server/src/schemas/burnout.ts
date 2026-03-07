@@ -46,3 +46,43 @@ export const GUARDRAILS_DEFAULTS: WorkGuardrails = {
 };
 
 export const PatchGuardrailsBody = WorkGuardrailsSchema.partial();
+
+export const RiskLevelEnum = z.enum(["low", "moderate", "high", "critical"]);
+
+export const RiskFactorSchema = z.object({
+  factor: z.string(),
+  description: z.string(),
+  current_value: z.number(),
+  threshold: z.number(),
+  triggered: z.boolean(),
+});
+
+export type RiskFactor = z.infer<typeof RiskFactorSchema>;
+
+export const BurnoutIndicatorsSchema = z.object({
+  project_id: z.string(),
+  computed_at: z.string().datetime(),
+  period_days: z.number().int(),
+
+  // Intensity metrics
+  avg_session_duration_minutes: z.number(),
+  total_active_minutes_period: z.number(),
+  sessions_count_period: z.number().int(),
+  avg_messages_per_session: z.number(),
+
+  // Pattern metrics
+  longest_streak_days: z.number().int(),
+  late_sessions_count: z.number().int(),
+  weekend_sessions_count: z.number().int(),
+  avg_context_switches_per_session: z.number(),
+
+  // Verification metrics
+  review_to_generation_ratio: z.number(),
+  verification_minutes_period: z.number(),
+
+  // Risk
+  risk_level: RiskLevelEnum,
+  risk_factors: z.array(RiskFactorSchema),
+});
+
+export type BurnoutIndicators = z.infer<typeof BurnoutIndicatorsSchema>;
