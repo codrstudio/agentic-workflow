@@ -8,7 +8,7 @@ export interface StepInfo {
   type: string;
   task: string;
   agent: string;
-  status: "pending" | "running" | "completed" | "failed";
+  status: "pending" | "running" | "completed" | "failed" | "skipped";
   started_at?: string;
   finished_at?: string;
   exit_code?: number | null;

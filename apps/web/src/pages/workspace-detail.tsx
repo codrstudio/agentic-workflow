@@ -5,11 +5,6 @@ import {
   ArrowLeft,
   Layers,
   Clock,
-  CheckCircle2,
-  XCircle,
-  Circle,
-  Loader2,
-  ChevronRight,
 } from "lucide-react";
 import { useHarnessStatus, type StepInfo, type WaveInfo } from "@/hooks/use-harness";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +16,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { StepTimeline, StepStatusIcon, StepTypeBadge, formatDuration } from "@/components/step-timeline";
 
 type HarnessStatusType = "running" | "completed" | "failed" | "idle";
 
@@ -55,43 +51,6 @@ function StatusBadge({ status }: { status: HarnessStatusType }) {
         </span>
       )}
       {cfg.label}
-    </Badge>
-  );
-}
-
-function StepStatusIcon({ status }: { status: StepInfo["status"] }) {
-  switch (status) {
-    case "completed":
-      return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-    case "failed":
-      return <XCircle className="h-5 w-5 text-red-500" />;
-    case "running":
-      return <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />;
-    case "pending":
-      return <Circle className="h-5 w-5 text-muted-foreground" />;
-  }
-}
-
-function formatDuration(ms: number | null | undefined): string {
-  if (ms == null) return "-";
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}m ${remainingSeconds}s`;
-}
-
-function StepTypeBadge({ type }: { type: string }) {
-  const colors: Record<string, string> = {
-    "spawn-agent": "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30",
-    "spawn-agent-call": "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/30",
-    "ralph-wiggum-loop": "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
-    "chain-workflow": "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-  };
-
-  return (
-    <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", colors[type] ?? "")}>
-      {type}
     </Badge>
   );
 }
@@ -141,66 +100,6 @@ function StepDetailPanel({ step }: { step: StepInfo }) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function StepTimelinePlaceholder({
-  steps,
-  selectedStep,
-  onSelectStep,
-}: {
-  steps: StepInfo[];
-  selectedStep: StepInfo | null;
-  onSelectStep: (step: StepInfo) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-0">
-      {steps.map((step, idx) => (
-        <div key={step.number} className="flex gap-3">
-          {/* Vertical line + icon */}
-          <div className="flex flex-col items-center">
-            <StepStatusIcon status={step.status} />
-            {idx < steps.length - 1 && (
-              <div className="w-px flex-1 bg-border min-h-[24px]" />
-            )}
-          </div>
-
-          {/* Step card */}
-          <button
-            onClick={() => onSelectStep(step)}
-            className={cn(
-              "flex-1 flex items-center justify-between gap-2 rounded-lg border p-3 mb-2 text-left transition-colors hover:border-primary/40 hover:bg-accent/50",
-              selectedStep?.number === step.number && "border-primary bg-accent"
-            )}
-          >
-            <div className="flex flex-col gap-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-sm truncate">
-                  Step {step.number}: {step.name}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <StepTypeBadge type={step.type} />
-                {step.duration_ms != null && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {formatDuration(step.duration_ms)}
-                  </span>
-                )}
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 md:hidden" />
-          </button>
-        </div>
-      ))}
-
-      {steps.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Activity className="h-8 w-8 opacity-30 mb-2" />
-          <p className="text-sm">No steps in this wave</p>
-        </div>
-      )}
     </div>
   );
 }
@@ -299,7 +198,7 @@ export function WorkspaceDetailPage() {
       <div className="flex gap-6">
         {/* StepTimeline area */}
         <div className="flex-1 min-w-0">
-          <StepTimelinePlaceholder
+          <StepTimeline
             steps={activeWave?.steps ?? []}
             selectedStep={selectedStep}
             onSelectStep={handleSelectStep}
