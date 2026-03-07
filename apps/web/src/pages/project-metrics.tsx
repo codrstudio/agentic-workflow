@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   BarChart3,
   Zap,
@@ -24,6 +24,7 @@ import {
   formatDuration,
 } from "@/components/metrics-table";
 import { ContextMetricsTab } from "@/components/context-metrics-tab";
+import { BurnoutDashboardTab } from "@/components/burnout-dashboard-tab";
 import { cn } from "@/lib/utils";
 
 // --- Column definitions ---
@@ -66,11 +67,12 @@ const stepColumns: MetricsColumn<StepMetrics>[] = [
 
 // --- Sub-tabs ---
 
-type MetricsTab = "general" | "context";
+type MetricsTab = "general" | "context" | "wellbeing";
 
 const TABS: { value: MetricsTab; label: string }[] = [
   { value: "general", label: "Geral" },
   { value: "context", label: "Context" },
+  { value: "wellbeing", label: "Bem-estar" },
 ];
 
 // --- Main Page ---
@@ -80,7 +82,13 @@ export function ProjectMetricsPage() {
     from: "/_authenticated/projects/$projectId/metrics",
   });
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<MetricsTab>("general");
+  const search = useSearch({
+    from: "/_authenticated/projects/$projectId/metrics",
+  });
+  const initialTab = (search.tab as MetricsTab) || "general";
+  const [activeTab, setActiveTab] = useState<MetricsTab>(
+    TABS.some((t) => t.value === initialTab) ? initialTab : "general"
+  );
 
   const {
     data: metrics,
@@ -258,6 +266,11 @@ export function ProjectMetricsPage() {
       {/* Context tab content */}
       {activeTab === "context" && (
         <ContextMetricsTab projectId={projectId} />
+      )}
+
+      {/* Wellbeing tab content */}
+      {activeTab === "wellbeing" && (
+        <BurnoutDashboardTab projectId={projectId} />
       )}
     </div>
   );

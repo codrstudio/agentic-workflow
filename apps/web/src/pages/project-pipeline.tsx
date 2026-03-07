@@ -8,6 +8,7 @@ import type { GateTransition } from "@/hooks/use-quality-gates";
 import { EmptyState } from "@/components/empty-state";
 import { PipelineStepper, computePhaseStatus } from "@/components/pipeline-stepper";
 import { CognitivePhaseIndicator } from "@/components/cognitive-phase-indicator";
+import { BurnoutRiskWidget } from "@/components/burnout-risk-widget";
 import { PhaseContentView } from "@/components/phase-content-view";
 import { GateDetailSheet } from "@/components/gate-detail-sheet";
 import { GateSummaryBanner } from "@/components/gate-summary-banner";
@@ -121,6 +122,11 @@ export function ProjectPipelinePage() {
           gates={summaryGates}
           onGateClick={(transition) => setSelectedGate(transition)}
         />
+      )}
+
+      {/* Burnout risk widget */}
+      {currentSprint && (
+        <BurnoutRiskWidget projectId={projectId} />
       )}
 
       {/* Sprint overview */}

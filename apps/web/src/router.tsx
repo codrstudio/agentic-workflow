@@ -175,6 +175,9 @@ const projectMetricsRoute = createRoute({
   path: "/metrics",
   component: ProjectMetricsPage,
   staticData: { breadcrumb: "Metrics" },
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: (search.tab as string) || undefined,
+  }),
 });
 
 // /projects/$projectId/settings

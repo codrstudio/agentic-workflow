@@ -329,6 +329,39 @@ burnout.get("/hub/projects/:slug/burnout/indicators", async (c) => {
   return c.json(indicators);
 });
 
+// GET /hub/projects/:slug/burnout/activity-summary — daily activity breakdown by phase
+burnout.get("/hub/projects/:slug/burnout/activity-summary", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const periodDaysParam = c.req.query("period_days");
+  const periodDays = periodDaysParam ? parseInt(periodDaysParam, 10) : 7;
+  if (isNaN(periodDays) || periodDays < 1) {
+    return c.json({ error: "period_days must be a positive integer" }, 400);
+  }
+
+  const logs = await loadLogsForPeriod(slug, periodDays);
+
+  // Group by date and phase
+  const dailyMap = new Map<string, Record<string, number>>();
+  for (const log of logs) {
+    const date = log.ended_at.slice(0, 10);
+    if (!dailyMap.has(date)) {
+      dailyMap.set(date, {});
+    }
+    const dayEntry = dailyMap.get(date)!;
+    dayEntry[log.phase] = (dayEntry[log.phase] ?? 0) + log.duration_minutes;
+  }
+
+  // Build sorted array of daily summaries
+  const days = [...dailyMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, phases]) => ({ date, ...phases }));
+
+  return c.json({ period_days: periodDays, days });
+});
+
 // --- Guardrails ---
 
 function guardrailsPath(slug: string): string {
