@@ -28,3 +28,309 @@
   - Cada spec inclui: objetivo, schema DB, API endpoints, telas, componentes, criterios de aceite, rastreabilidade
   - Items nao incluidos neste sprint (para sprint 4+): multi-agent orchestration, human approval workflows, config versioning, report export, multi-tenancy, voice channels
   - Artefatos: 6 arquivos .md em sprints/sprint-3/2-specs/
+[2026-03-07 15:53:52] Step 3 (derive-specs): Completed. ok
+[2026-03-07 15:59:53] Step 4 (derive-prps): Failed (exit 1). agent_failed
+[2026-03-07 16:10:00] Step 4 — derive-prps: COMPLETED (retry).
+  - 6 PRPs derivados (PRP-13 a PRP-18) a partir das specs S-013 a S-018
+  - PRP-13: Dashboard de custos granular — F-049 a F-053 (5 features)
+  - PRP-14: Analytics de tendencia — F-054 a F-058 (5 features)
+  - PRP-15: Trace timeline — F-059 a F-062 (4 features)
+  - PRP-16: Knowledge base RAG — F-063 a F-066 (4 features)
+  - PRP-17: Takeover de conversa — F-067 a F-070 (4 features)
+  - PRP-18: Templates de agente + wizard — F-071 a F-074 (4 features)
+  - Total: 26 features (F-049 a F-074) para sprint 3
+  - Formato: seguindo convencoes de PRP-01..PRP-12 (sprints 1-2)
+  - Cada PRP inclui: Execution Mode, Contexto (estado atual/desejado), Especificacao (features atomicas), Limites, Dependencias, Validacao, Rastreabilidade
+  - features.json criado com 26 features, dependencias mapeadas, testes definidos
+  - Artefatos: 6 PRPs em sprints/sprint-3/3-prps/ + features.json
+[2026-03-07 16:36:01] Step 4 (derive-prps): Completed. ok
+[2026-03-07] Step 5 — plan-features: COMPLETED.
+  - features.json validado contra 6 PRPs (PRP-13 a PRP-18) e ranking.json
+  - 26 features (F-049 a F-074) confirmadas, cobrindo 100% dos PRPs
+  - PRP-13 custos (score 10): F-049..F-053 (5 features)
+  - PRP-14 analytics (score 9): F-054..F-058 (5 features)
+  - PRP-15 trace (score 9): F-059..F-062 (4 features)
+  - PRP-16 knowledge RAG (score 9): F-063..F-066 (4 features)
+  - PRP-17 takeover (score 8): F-067..F-070 (4 features)
+  - PRP-18 templates (score 7): F-071..F-074 (4 features)
+  - Dependencies formam DAGs validos sem ciclos
+  - Prioridades respeitam ranking (infra/schema primeiro, depois endpoints, depois UI)
+  - features.json ja existia do step 4 — validado sem necessidade de correcao
+[2026-03-07 16:38:45] Step 5 (plan-features): Completed. ok
+[2026-03-07] F-049 — Tabela cost_daily + populacao incremental: COMPLETED.
+  - Criadas tabelas cost_daily (com indices em date e agent_id) e budget_alerts em db/index.ts
+  - Criado modulo db/costs.ts com funcao trackCost() usando INSERT ON CONFLICT DO UPDATE
+  - Integrado trackCost() em heartbeat/index.ts (operation=heartbeat)
+  - Integrado trackCost() em conversations/index.ts (operation=conversation) — tambem adicionada captura de UsageData do stream
+  - Integrado trackCost() em cron/executor.ts (operation=cron)
+  - Agregacao incremental: tokens_in, tokens_out, cost_usd somados, calls incrementado por 1
+  - Typecheck: sem erros nos arquivos modificados (erros pre-existentes em system.ts/users.ts/tools nao afetados)
+[2026-03-07] F-050 — Endpoints de custos + API module: COMPLETED.
+  - Criado routes/costs.ts com endpoints: GET /costs/summary, GET /costs/trend
+  - CRUD completo de budget-alerts: GET, POST, PATCH, DELETE /budget-alerts
+  - GET /costs/summary retorna totalCostUsd, totalTokensIn, totalTokensOut, totalCalls, byAgent[], byOperation[]
+  - GET /costs/trend retorna points[] com serie temporal agrupada por dia
+  - Budget alerts suportam scope (global ou agent_id), threshold, period (daily/weekly/monthly), enabled toggle
+  - checkBudgetAlerts() em db/costs.ts verifica alertas excedidos apos cada trackCost() e gera notificacao budget_exceeded
+  - Registrado costRoutes em routes/index.ts
+  - Criado api/costs.ts no Hub com queryOptions (costSummaryQueryOptions, costTrendQueryOptions, budgetAlertsQueryOptions) e funcoes de mutacao
+  - Typecheck: sem erros novos (erros pre-existentes por falta de node_modules no worktree)
+[2026-03-07] F-051 — Pagina /costs com cards de resumo e filtros: COMPLETED.
+  - Criada rota routes/_authenticated/costs.tsx com filtros de periodo (date range) e agente em query params
+  - Criado componente components/costs/cost-summary-cards.tsx com 3 cards: Custo Total, Total de Chamadas, Tokens Consumidos
+  - Filtros: inputs type=date para periodo + Select para agente (dados de agentsQueryOptions)
+  - Query params: ?from=YYYY-MM-DD&to=YYYY-MM-DD&agent=id (URL compartilhavel)
+  - Adicionado "Custos" (icone DollarSign) ao menu lateral em app-sidebar.tsx
+  - Card de custos no dashboard agora linka para /costs (href="/costs")
+  - Atualizado routeTree.gen.ts com rota /costs
+  - Layout responsivo: grid-cols-1 mobile, sm:grid-cols-3 desktop nos cards
+  - Typecheck: sem erros novos (mesmos erros pre-existentes por falta de node_modules)
+[2026-03-07] F-052 — Graficos de custos (tendencia, por agente, por operacao): COMPLETED.
+  - Instalado recharts como dependencia do hub
+  - Criado componente shadcn chart.tsx (ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend)
+  - Criado cost-trend-chart.tsx: AreaChart com gradiente mostrando serie temporal de custos por dia
+  - Criado cost-by-agent-chart.tsx: BarChart horizontal com breakdown de custo por agente
+  - Criado cost-by-operation-chart.tsx: PieChart donut com breakdown por operacao e total central
+  - Integrado na pagina /costs: trend chart full-width, agent+operation charts em grid 2 colunas desktop
+  - Layout responsivo: grid-cols-1 mobile (stack), md:grid-cols-2 desktop para agent/operation charts
+  - Dados do trend chart via costTrendQueryOptions (GET /costs/trend)
+  - Dados de agent/operation via costSummaryQueryOptions existente (byAgent, byOperation)
+  - Typecheck: sem erros novos (1 erro pre-existente na Select onValueChange)
+[2026-03-07] F-053 — Alertas de orcamento (CRUD + notificacao automatica): COMPLETED.
+  - Criado budget-alert-list.tsx: lista com Table (desktop) + Cards (mobile), colunas escopo/limite/periodo/status/acoes
+  - Criado budget-alert-form.tsx: Dialog com formulario para criar/editar alertas (escopo, limite USD, periodo)
+  - Toggle ativar/desativar via Switch com mutation PATCH /budget-alerts/:id
+  - Excluir alerta via botao com mutation DELETE /budget-alerts/:id
+  - Integrado BudgetAlertList na pagina /costs (apos graficos)
+  - Notificacao automatica ao exceder alerta ja implementada no backend (db/costs.ts checkBudgetAlerts -> insertNotification)
+  - Typecheck: sem erros novos (1 erro pre-existente na Select onValueChange)
+[2026-03-07] F-054 — Tabela analytics_daily + populacao incremental: COMPLETED.
+  - Criada tabela analytics_daily em db/index.ts com colunas: heartbeats (total/ok/error/skipped), conversations, messages (in/out), cron (total/ok/error), response_ms_sum, response_ms_count, avg_response_ms
+  - Indices criados em date e agent_id
+  - Criado modulo db/analytics.ts com trackHeartbeat(), trackConversation(), trackCron()
+  - avg_response_ms calculado via soma/count: response_ms_sum e response_ms_count mantidos internamente, avg_response_ms = sum/count no UPDATE
+  - Integrado trackHeartbeat() em heartbeat/index.ts: skipWithReason (skipped), ok-token (ok), duplicate (skipped), sent (ok), failed (error) — com durationMs quando disponivel
+  - Integrado trackConversation() em conversations/index.ts: 1 conversation + messagesIn/messagesOut + durationMs por sendMessage()
+  - Integrado trackCron() em cron/executor.ts: ok ou error + durationMs no catch e apos execucao com sucesso
+  - INSERT ON CONFLICT DO UPDATE agrega corretamente via incremento dos contadores
+  - Typecheck: sem erros novos (apenas erro pre-existente de better-sqlite3 por falta de node_modules no worktree)
+[2026-03-07] F-055 — Endpoints de analytics + API module: COMPLETED.
+  - Criado routes/analytics.ts com 3 endpoints: GET /analytics/overview, GET /analytics/trend, GET /analytics/agents
+  - GET /analytics/overview: agrega heartbeats (total/ok/error/skipped/errorRate), conversations (total/messagesIn/messagesOut), cron (total/ok/error/errorRate), avgResponseMs + comparison vs periodo anterior
+  - comparison calcula deltas de heartbeatErrorRate, conversations e avgResponseMs comparando com periodo de mesma duracao imediatamente anterior
+  - GET /analytics/trend: serie temporal por metrica (heartbeats/conversations/errors/response_time) com GROUP BY date
+  - GET /analytics/agents: ranking com heartbeats, errorRate, conversations, avgResponseMs, costUsd (join com cost_daily)
+  - Todos endpoints suportam filtros ?from=, ?to=, ?agent_id= (overview/trend) e ?from=, ?to= (agents)
+  - Registrado analyticsRoutes em routes/index.ts
+  - Criado api/analytics.ts no Hub com analyticsOverviewQueryOptions, analyticsTrendQueryOptions, analyticsAgentsQueryOptions
+  - Interfaces tipadas: AnalyticsOverview, AnalyticsTrend, AgentRanking, AgentRankingEntry
+  - Typecheck: sem erros novos (erros pre-existentes por falta de node_modules no worktree)
+[2026-03-07] F-056 — Pagina /analytics com cards de resumo e deltas: COMPLETED.
+  - Criada rota routes/_authenticated/analytics.tsx com filtros de periodo (date range) e agente em query params
+  - Criado componente components/analytics/analytics-summary-cards.tsx com 4 cards: Heartbeats (ok count + error rate), Conversas (total + delta + msgs), Taxa de Erro (combinada heartbeat+cron + delta em pp), Tempo de Resposta (media + delta em ms)
+  - DeltaIndicator com logica invertida: para erro e tempo, valores negativos sao verdes (melhoria), positivos sao vermelhos (piora)
+  - Filtros: inputs type=date para periodo + Select para agente, todos em query params (URL compartilhavel)
+  - Adicionado "Analytics" (icone TrendingUp) ao menu lateral em app-sidebar.tsx
+  - Atualizado routeTree.gen.ts com rota /analytics
+  - Layout responsivo: grid-cols-1 mobile, sm:grid-cols-2, lg:grid-cols-4 desktop nos cards
+  - Typecheck: sem erros novos (1 erro pre-existente na Select onValueChange, mesmo de costs.tsx)
+[2026-03-07] F-057 — Graficos de tendencia (tabs por metrica): COMPLETED.
+  - Criado componente components/analytics/analytics-trend-chart.tsx com 4 tabs: Heartbeats, Conversas, Erros, Tempo de Resposta
+  - Tab Heartbeats: StackedAreaChart com series ok (verde), error (vermelho), skipped (cinza) + gradientes + legenda
+  - Tab Conversas: LineChart com total, messagesIn, messagesOut (linhas dashed para msgs)
+  - Tab Erros: BarChart com heartbeatErrors e cronErrors lado a lado
+  - Tab Tempo de Resposta: AreaChart com linha + area preenchida, formatacao ms/s no eixo Y e tooltip
+  - Tabs usam shadcn Tabs (base-ui) com estado local (useState) — sem reload ao alternar
+  - Dados via analyticsTrendQueryOptions com metric param (heartbeats/conversations/errors/response_time)
+  - Tabs com overflow-x-auto para scroll horizontal no mobile
+  - Graficos responsivos: aspect-auto h-[250px] w-full via ChartContainer
+  - Integrado na pagina /analytics apos os summary cards
+  - Typecheck: sem erros novos (mesmos 2 erros pre-existentes na Select onValueChange)
+[2026-03-07] F-058 — Ranking de agentes (tabela comparativa): COMPLETED.
+  - Criado componente components/analytics/agent-ranking-table.tsx com tabela ordenavel
+  - Colunas: agente, heartbeats, taxa de erro (badge com cor semantica), conversas, resp. media, custo (link para /costs?agent=X)
+  - Ordenacao client-side por qualquer coluna (click no header toggle asc/desc)
+  - Taxa de erro: badge verde (<=5%), amarelo (<=15%), vermelho (>15%)
+  - Link de custo navega para /costs?agent=X usando TanStack Router Link
+  - Layout responsivo: Table no desktop, Cards no mobile
+  - Dados via analyticsAgentsQueryOptions (GET /analytics/agents) com filtro de periodo
+  - Integrado na pagina /analytics apos trend chart
+  - Typecheck: sem erros novos (mesmos 2 erros pre-existentes na Select onValueChange)
+[2026-03-07] F-059 — Servico de trace + parsing de spawn.jsonl: COMPLETED.
+  - Criado modulo src/traces/index.ts com funcao getTrace(type, id) e tipos TraceStep/Trace
+  - Heartbeat traces: parseia heartbeat_log (id, agent_id, tokens, duration, preview, status)
+  - Conversation traces: parseia ai-sessions/{sdk_session_id}.jsonl para extrair tool calls (ModelMessage[]) ou fallback para messages.jsonl
+  - Cron traces: parseia cron_run_log (id, agent_id, tokens, duration, summary/error)
+  - Steps com type (text/tool_call/tool_result), timestamp, durationMs, tokens, toolName, toolInput, toolOutput
+  - Textos truncados a 500 chars via funcao truncate()
+  - Tipos exportados: TraceStep, Trace, TraceType
+  - Typecheck: sem erros novos (mesmos erros pre-existentes por falta de node_modules)
+[2026-03-07] F-060 — Endpoint /traces/:type/:id: COMPLETED.
+  - Criado routes/traces.ts com endpoint GET /traces/:type/:id
+  - Validacao de type (heartbeat/conversation/cron), retorna 400 para tipos invalidos
+  - Retorna 404 se trace nao encontrado
+  - Retorna Trace completo: id, agentId, type, startedAt, durationMs, totalTokensIn/Out, costUsd, model, steps[]
+  - Registrado traceRoutes em routes/index.ts
+  - Criado api/traces.ts no Hub com interface Trace, TraceStep, TraceType e traceQueryOptions
+  - traceQueryOptions recebe { type, id } e retorna queryOptions com queryKey ["traces", type, id]
+  - Typecheck: sem erros novos (mesmos erros pre-existentes por falta de node_modules)
+[2026-03-07] F-061 — TraceDrawer + TraceTimeline + TraceStepItem: COMPLETED.
+  - Criado trace-step-item.tsx: step expandivel com icones por tipo (MessageSquare/Wrench/CheckCircle), barra de duracao proporcional, JSON formatado em <pre> para tool input/output
+  - Criado trace-header.tsx: resumo com tipo/id/agente, 4 metric cards (duracao, custo, tokens in, tokens out), modelo e timestamp
+  - Criado trace-timeline.tsx: timeline vertical com ScrollArea, renderiza TraceStepItem para cada step
+  - Criado trace-drawer.tsx: Sheet side=right desktop, Sheet side=bottom mobile (85dvh), loading skeleton, query com enabled=open
+  - Vaul nao instalado no projeto — usado Sheet side=bottom como alternativa equivalente para mobile
+  - Typecheck: sem erros novos (mesmos 2 erros pre-existentes na Select onValueChange)
+[2026-03-07] F-062 — Integracao com heartbeat, conversa e cron history: COMPLETED.
+  - Heartbeat timeline: botao Activity (icone) em cada entrada, click abre TraceDrawer com type=heartbeat e id do log
+  - Chat messages: icone Activity no hover de mensagens do assistente, click abre TraceDrawer com type=conversation e id=sessionId
+  - Cron run history: botao Activity em cada execucao, click abre TraceDrawer com type=cron e id do run
+  - Bug fix: rota cron runs retornava {rows} mas frontend esperava {runs} — corrigido mapeamento + paginacao page→offset
+  - Bug fix: CronRunEntry no Hub nao tinha campo id — adicionado para suportar trace
+  - TraceDrawer renderizado uma vez por componente pai (estado {open, id} local)
+  - MessageList recebe sessionId do conversation page e repassa para MessageBubble
+  - Typecheck: sem erros novos (mesmos 2 erros pre-existentes na Select onValueChange)
+[2026-03-07] F-063 — Tabela knowledge_docs + pipeline de upload/conversao: COMPLETED.
+  - Criada tabela knowledge_docs em db/index.ts com colunas: id, agent_id, filename, slug, content_type, size_bytes, chunks, status, error, created_at
+  - Indice idx_knowledge_docs_agent em agent_id, constraint UNIQUE(agent_id, slug)
+  - Criado modulo src/knowledge/index.ts com pipeline completo:
+    - uploadKnowledgeDoc(): valida limites (10MB, 50 docs), converte para markdown (pdf-parse para PDF, direto para TXT/MD), salva em knowledge/ do agente, insere registro, dispara reindexAgent()
+    - deleteKnowledgeDoc(): remove arquivo, registro e dispara reindex para limpar embeddings stale
+    - listKnowledgeDocs(), getKnowledgeDoc(), getKnowledgeDocCount()
+    - KnowledgeError com statusCode para respostas HTTP adequadas
+  - Adicionado pdf-parse como dependencia do backbone
+  - Conversao PDF usa dynamic import (carregado apenas quando necessario)
+  - Status lifecycle: processing -> indexed (ou error)
+  - Reindex apos upload/exclusao via getAgentMemoryManager().sync({ force: true })
+  - Typecheck: sem erros novos (apenas pdf-parse por falta de node_modules, mesmo padrao dos demais)
+[2026-03-07] F-064 — Endpoints de knowledge + API module: COMPLETED.
+  - Criado routes/knowledge.ts com 4 endpoints: GET /agents/:id/knowledge, POST /agents/:id/knowledge (multipart), GET /agents/:id/knowledge/:docId, DELETE /agents/:id/knowledge/:docId
+  - POST usa c.req.parseBody() do Hono para multipart, valida campo 'file', delega a uploadKnowledgeDoc()
+  - GET list retorna { docs: [...] } com campos camelCase (formatDoc helper)
+  - GET detail retorna doc individual com campos camelCase
+  - DELETE delega a deleteKnowledgeDoc(), retorna { status: "deleted" } (padrao do codebase)
+  - KnowledgeError tratado com statusCode correto em POST e DELETE
+  - Registrado knowledgeRoutes em routes/index.ts
+  - Criado api/knowledge.ts no Hub com knowledgeDocsQueryOptions, knowledgeDocQueryOptions, uploadKnowledgeDoc (FormData multipart), deleteKnowledgeDoc
+  - Upload no Hub usa fetch direto com FormData (sem Content-Type manual, browser seta boundary)
+  - Typecheck: sem erros novos (mesmos erros pre-existentes por falta de node_modules)
+[2026-03-07] F-065 — Aba Knowledge na pagina do agente + upload dialog: COMPLETED.
+  - Nova aba "Knowledge" adicionada na pagina /agents/:id com icone BookOpen, entre Memoria e Agenda
+  - Criado knowledge-tab.tsx: lista documentos em Table (desktop) / Cards (mobile), cards de resumo (documentos + chunks totais), empty state com acao de upload
+  - Criado knowledge-upload-dialog.tsx: Dialog com drag-and-drop zone, preview de arquivo (nome + tamanho), barra de progresso animada, validacao client-side (10MB, extensoes .pdf/.txt/.md)
+  - Criado knowledge-doc-drawer.tsx: Sheet responsivo (right desktop, bottom mobile 85dvh) com detalhes: filename, slug, tamanho, chunks, tipo, status (Badge por status), erro (se houver), data
+  - Exclusao de documentos via ConfirmDialog com feedback toast
+  - Status badges: "Indexado" (default), "Processando..." (secondary), "Erro" (destructive)
+  - Upload usa api/knowledge.ts (uploadKnowledgeDoc) com FormData + JWT auth
+  - Typecheck: sem erros novos (mesmos 2 erros pre-existentes na Select onValueChange)
+[2026-03-07] F-066 — Integracao com pipeline de embeddings (reindex): COMPLETED.
+  - Corrigido reindexAndUpdateDoc() para contar apenas chunks do documento especifico (antes usava contagem total do agente)
+  - Adicionados metodos countFileChunks() e removeFile() ao MemoryManager para operacoes por arquivo
+  - deleteKnowledgeDoc() agora remove explicitamente chunks do sqlite-vec, FTS5 e files antes do sync
+  - Atualizada descricao do memory_search tool para mencionar knowledge base documents
+  - Pipeline completo: upload -> conversao -> salva .md -> sync (chunking + embedding) -> atualiza chunks/status
+  - Exclusao: remove arquivo -> remove registro -> removeFile (chunks_vec + FTS5 + files) -> sync
+  - Agente consulta knowledge base via memory_search tool (busca hibrida vetor 0.7 + texto 0.3)
+  - Typecheck: sem erros novos nos arquivos modificados
+[2026-03-07] F-068 — Endpoints takeover/release + adaptacao messages: COMPLETED.
+  - Adicionado SessionTakeoverEvent em events/index.ts e BackboneEventMap
+  - SSE hub (events/sse.ts) agora broadcast session:takeover para canal "system"
+  - Adicionados setTakeoverStmt e clearTakeoverStmt em conversations/index.ts
+  - Funcoes setTakeover() e releaseTakeover() exportadas de conversations/index.ts
+  - POST /conversations/:sessionId/takeover: seta takeover_by do JWT, emite SSE session:takeover, gera notificacao takeover_started
+  - POST /conversations/:sessionId/release: limpa takeover_by/at, emite SSE session:takeover, gera notificacao takeover_ended
+  - POST /conversations/:sessionId/messages ja adaptado em F-067 (nao aciona agente se takeover ativo)
+  - Hub api/conversations.ts: Session interface com takeover_by/at, takeoverConversation(), releaseConversation(), sessionQueryOptions()
+  - Typecheck: sem erros novos (apenas pre-existentes por falta de node_modules)
+[2026-03-07] F-067 — Schema takeover + logica backend: COMPLETED.
+  - Adicionadas colunas takeover_by (TEXT) e takeover_at (TEXT) a tabela sessions via migracao idempotente (ALTER TABLE ... try/catch)
+  - Interface Session atualizada com takeover_by e takeover_at (nullable)
+  - Todas as queries SELECT atualizadas para incluir as novas colunas
+  - PersistentMessage extendida com campo opcional metadata: Record<string, unknown>
+  - sendMessage() verifica session.takeover_by antes de acionar runAgent():
+    - Se operador (userId === takeover_by): salva como assistant + metadata { operator: true, operatorSlug }, yield result event, retorna sem agent
+    - Se usuario externo (takeover_by != null, userId != takeover_by): salva como user normalmente, retorna sem agent
+    - Se sem takeover: fluxo normal
+  - Typecheck: sem erros novos (apenas pre-existentes por falta de node_modules)
+[2026-03-07] F-069 — UI de takeover (banner, botoes, mensagens operador): COMPLETED.
+  - ConversationMessage e ChatMessage extendidos com campo metadata?: Record<string, unknown>
+  - Criado components/conversations/takeover-button.tsx: botao "Assumir conversa" (icone UserCheck) com Dialog de confirmacao
+  - Criado components/conversations/takeover-banner.tsx: banner com operador, duracao (timer atualiza a cada 10s), botao "Devolver ao agente" (icone Bot) com Dialog de confirmacao
+  - Criado components/conversations/operator-message.tsx: mensagem com visual distinto — left-aligned (lado do assistente), bg-primary, badge "Operador", icone User, slug do operador acima da mensagem
+  - Atualizado message-list.tsx: renderiza OperatorMessage para msg.metadata?.operator === true, MessageBubble para demais
+  - Atualizado conversations.$id.tsx: useQuery sessionQueryOptions para takeover state, mutations takeover/release, TakeoverButton no header (visivel quando sem takeover), TakeoverBanner abaixo do header (visivel durante takeover), handleSend adaptado para modo operador (otimista, sem streaming display), getCurrentUserSlug() decode JWT para comparar com takeover_by
+  - Input funciona normalmente durante takeover (operador digita e envia normalmente)
+  - Typecheck: sem erros novos (apenas 2 erros pre-existentes em analytics.tsx e costs.tsx)
+[2026-03-07] F-070 — Indicadores na lista de sessoes + SSE: COMPLETED.
+  - Adicionado takeover_by/takeover_at a interface Conversation em api/conversations.ts
+  - Badge "Operador" (icone User) em ConversationItem quando takeover_by != null
+  - Botao toggle "Com operador" no header de filtros da pagina /conversations
+  - operatorFilter filtra conversas: !operatorFilter || !!c.takeover_by
+  - SSE handler em use-sse.ts: case session:takeover invalida queries ["conversations"] e ["conversations", sessionId, "session"]
+  - Typecheck: sem erros novos (apenas 2 erros pre-existentes em analytics.tsx e costs.tsx)
+[2026-03-07] F-071 — Templates no filesystem (5 templates iniciais): COMPLETED.
+  - Criado diretorio context/.templates/agents/ com 5 subdiretorios de template
+  - atendente: TEMPLATE.md (Headphones, atendimento, heartbeat_enabled: false), SOUL.md, CONVERSATION.md, HEARTBEAT.md (vazio)
+  - vendedor: TEMPLATE.md (ShoppingCart, vendas, heartbeat_enabled: false), SOUL.md, CONVERSATION.md, HEARTBEAT.md (vazio)
+  - suporte-tecnico: TEMPLATE.md (LifeBuoy, suporte, heartbeat_enabled: false), SOUL.md, CONVERSATION.md, HEARTBEAT.md (vazio)
+  - monitor-sistemas: TEMPLATE.md (Monitor, operacoes, heartbeat_enabled: true, 00:00-23:59), SOUL.md, CONVERSATION.md, HEARTBEAT.md (com conteudo completo de monitoramento)
+  - assistente-pessoal: TEMPLATE.md (User, produtividade, heartbeat_enabled: false), SOUL.md, CONVERSATION.md, HEARTBEAT.md (vazio)
+  - Todos SOUL.md com personalidade profissional em pt-BR adequada ao caso de uso
+  - Todos CONVERSATION.md com instrucoes de comportamento em pt-BR
+  - HEARTBEAT.md do monitor-sistemas com procedimento completo: verificacoes, classificacao de alertas, formato de alerta
+  - Demais HEARTBEAT.md com apenas o titulo (heartbeat desabilitado, sem instrucoes)
+[2026-03-07] F-072 — Endpoints de templates + API module: COMPLETED.
+  - Criado routes/templates.ts com 3 endpoints:
+    - GET /templates/agents: lista slugs de context/.templates/agents/, parseia TEMPLATE.md, retorna { templates: [...] }
+    - GET /templates/agents/:slug: retorna metadata + preview completo (SOUL.md, CONVERSATION.md, HEARTBEAT.md)
+    - POST /agents/from-template: recebe { template, owner, slug, name, description, enabled }, cria agente com createAgent(), copia SOUL.md/CONVERSATION.md/HEARTBEAT.md do template
+  - parseArray() helper para parsing de campos YAML array ([item1, item2]) que o parser minimalista nao suporta
+  - active_hours "HH:MM-HH:MM" parseado em active-hours-start/active-hours-end para o registry
+  - templateRoutes registrado em routes/index.ts
+  - Criado api/templates.ts no Hub com: AgentTemplate, AgentTemplateDetail, CreateFromTemplatePayload interfaces
+  - agentTemplatesQueryOptions(), agentTemplateQueryOptions(slug), createAgentFromTemplate(data)
+  - Typecheck: sem erros novos (apenas 2 erros pre-existentes em analytics.tsx e costs.tsx)
+
+[2026-03-07] F-073 — Galeria de templates + rota /agents/new: COMPLETED.
+  - Criado components/agents/template-card.tsx: card com icone Lucide dinamico (mapa estatico), nome, descricao (2 linhas), badge de categoria, botao "Usar este template"
+  - Criado components/agents/template-gallery.tsx: busca client-side por nome/descricao, agrupamento por categoria, grid sm:2-cols lg:3-cols
+  - Substituido agents.new.tsx: galeria como pagina inicial, search param ?template=scratch para modo "Criar do zero" (mostra AgentForm), ?template=<slug> para selecao de template (F-074)
+  - Botao "Novo agente" em /agents ja navegava para /agents/new (mantido)
+  - Opcao "Criar do zero" disponivel no fim da galeria com navegacao para ?template=scratch
+  - routeTree.gen.ts ja tinha a rota /_authenticated/agents/new registrada
+  - Typecheck: sem erros novos (apenas 2 erros pre-existentes)
+[2026-03-07] F-074 — Wizard de criacao em 3 steps: COMPLETED.
+  - Criado components/agents/create-from-template-wizard.tsx com 3 steps:
+    - Step 1 (Preview): dados do template, SOUL.md renderizado via react-markdown, ScrollArea, badge categoria/heartbeat, skills sugeridas
+    - Step 2 (Personalizar): nome (obrigatorio), slug (auto-gerado do nome, editavel), descricao (pre-preenchida do template), owner (select system + usuarios)
+    - Step 3 (Confirmar): resumo do agente com dl/dd, mensagem sobre arquivos copiados do template, erro de backend se houver
+  - Stepper visual com icones numerados e check para steps concluidos, linha conectora entre steps
+  - Slug auto-gerado via toSlug() (lowercase, remove acentos, kebab-case) — para de seguir nome quando editado manualmente
+  - Validacao manual nos campos obrigatorios (nome, slug formato kebab-case)
+  - Navegacao Voltar/Proximo/Criar, botao desabilitado durante mutation
+  - Criacao via createAgentFromTemplate (POST /agents/from-template), redirect para /agents/$id?tab=config apos sucesso
+  - Typecheck: sem erros novos (apenas 2 erros pre-existentes em analytics.tsx e costs.tsx)
+  - Criado components/agents/template-card.tsx: card com icone Lucide dinamico (mapa estatico), nome, descricao (2 linhas), badge de categoria, botao "Usar este template"
+  - Criado components/agents/template-gallery.tsx: busca client-side por nome/descricao, agrupamento por categoria, grid sm:2-cols lg:3-cols
+  - Substituido agents.new.tsx: galeria como pagina inicial, search param ?template=scratch para modo "Criar do zero" (mostra AgentForm), ?template=<slug> para selecao de template (F-074)
+  - Botao "Novo agente" em /agents ja navegava para /agents/new (mantido)
+  - Opcao "Criar do zero" disponivel no fim da galeria com navegacao para ?template=scratch
+  - routeTree.gen.ts ja tinha a rota /_authenticated/agents/new registrada
+  - Typecheck: sem erros novos (apenas 2 erros pre-existentes)
+[2026-03-07 19:08:13] Step 6 (ralph-wiggum-loop): Completed. completed
+[2026-03-07 19:20:00] Step 7 — wave-limit: COMPLETED.
+  - Decisao: CONTINUE (stop: false)
+  - Wave atual: 3 (limite: 5) — criterio nao atingido
+  - Sprint 2: 18 features | Sprint 3: 26 features — rendimentos crescentes, nao decrescentes
+  - Skip rate Sprint 3: 0/26 (0%) — criterio de falha nao atingido
+  - Discoveries com score > 5 nao implementadas: 15+ (D-004 score 8, D-009 score 8, D-025 score 8, D-033 score 8, G-008 score 8, G-025 score 8, e outros)
+  - Valor restante alto: multi-agent orchestration, human approval workflows, audit logs, config versioning
+  - Nenhum criterio de parada atingido → encadear wave 4
+[2026-03-07 19:20:00] Step 7 (wave-limit): Completed. stop:false
+[2026-03-07 19:14:30] Step 7 (wave-limit): Completed. decide:continue
+[2026-03-07] Step 8 — merge-worktree: COMPLETED.
+  - Merge de harness/wave-3 -> hub-harness realizado sem conflitos (estrategia ort)
+  - 30 commits mergeados (F-049 a F-074 + artefatos de sprint-3)
+  - 104 arquivos alterados, 12083 insercoes, 60 delecoes
+  - Worktree desregistrada do git (node_modules residual no diretorio e esperado)
+  - Branch harness/wave-3 deletado localmente
