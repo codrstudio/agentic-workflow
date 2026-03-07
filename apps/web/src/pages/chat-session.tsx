@@ -109,18 +109,27 @@ export function ChatSessionPage() {
     }
   }, [session?.messages]);
 
-  // Initialize selected sources from session or default profile
+  // Initialize selected sources from session or default profile + pinned/auto-include
   useEffect(() => {
     if (session?.source_ids && session.source_ids.length > 0) {
       setSelectedSourceIds(session.source_ids);
-    } else if (profiles && profiles.length > 0 && selectedSourceIds.length === 0) {
-      const defaultProfile = profiles.find((p) => p.is_default);
+    } else if (sources && sources.length > 0 && selectedSourceIds.length === 0) {
+      // Collect pinned and auto_include sources
+      const autoIds = sources
+        .filter((s) => s.pinned || s.auto_include)
+        .map((s) => s.id);
+
+      // Check for default profile
+      const defaultProfile = profiles?.find((p) => p.is_default);
       if (defaultProfile) {
         setSelectedProfileId(defaultProfile.id);
-        setSelectedSourceIds([...defaultProfile.source_ids]);
+        const merged = [...new Set([...defaultProfile.source_ids, ...autoIds])];
+        setSelectedSourceIds(merged);
+      } else if (autoIds.length > 0) {
+        setSelectedSourceIds(autoIds);
       }
     }
-  }, [session?.source_ids, profiles]);
+  }, [session?.source_ids, profiles, sources]);
 
   const allMessages = localMessages;
   const hasMessages = allMessages.length > 0 || isStreaming;
