@@ -6,7 +6,9 @@ import {
   Layers,
   Clock,
 } from "lucide-react";
-import { useHarnessStatus, type StepInfo, type WaveInfo } from "@/hooks/use-harness";
+import { useHarnessStatus, useStepDetail, type StepInfo, type WaveInfo } from "@/hooks/use-harness";
+import { useSprintFeatures } from "@/hooks/use-sprints";
+import { LoopProgressCard } from "@/components/loop-progress-card";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -55,7 +57,26 @@ function StatusBadge({ status }: { status: HarnessStatusType }) {
   );
 }
 
-function StepDetailPanel({ step }: { step: StepInfo }) {
+function StepDetailPanel({
+  step,
+  projectSlug,
+  waveNumber,
+}: {
+  step: StepInfo;
+  projectSlug: string;
+  waveNumber: number;
+}) {
+  const isLoop = step.type === "ralph-wiggum-loop";
+  const { data: stepDetail } = useStepDetail(
+    projectSlug,
+    waveNumber,
+    step.number,
+    isLoop
+  );
+  // Fetch features from the latest sprint for loop progress
+  // Convention: sprint number matches wave or defaults to latest
+  const { data: features } = useSprintFeatures(projectSlug, waveNumber);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
@@ -100,6 +121,11 @@ function StepDetailPanel({ step }: { step: StepInfo }) {
           </div>
         )}
       </div>
+
+      {/* LoopProgressCard for ralph-wiggum-loop steps */}
+      {isLoop && stepDetail?.loop && features && (
+        <LoopProgressCard loop={stepDetail.loop} features={features} />
+      )}
     </div>
   );
 }
@@ -209,7 +235,11 @@ export function WorkspaceDetailPage() {
         <div className="hidden md:block w-80 shrink-0">
           {selectedStep ? (
             <div className="sticky top-4 rounded-lg border bg-card p-4 shadow-sm">
-              <StepDetailPanel step={selectedStep} />
+              <StepDetailPanel
+                step={selectedStep}
+                projectSlug={projectId}
+                waveNumber={activeWaveNumber!}
+              />
             </div>
           ) : (
             <div className="sticky top-4 rounded-lg border bg-card p-6 shadow-sm flex flex-col items-center justify-center text-muted-foreground">
@@ -233,9 +263,13 @@ export function WorkspaceDetailPage() {
               {selectedStep?.type ?? ""}
             </SheetDescription>
           </SheetHeader>
-          {selectedStep && (
+          {selectedStep && activeWaveNumber && (
             <div className="p-4 overflow-y-auto">
-              <StepDetailPanel step={selectedStep} />
+              <StepDetailPanel
+                step={selectedStep}
+                projectSlug={projectId}
+                waveNumber={activeWaveNumber}
+              />
             </div>
           )}
         </SheetContent>
