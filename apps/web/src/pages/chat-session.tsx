@@ -4,6 +4,7 @@ import { ArrowLeft, Eye, MessageSquare, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, sessionKeys } from "@/hooks/use-sessions";
 import { useSources } from "@/hooks/use-sources";
+import { useContextProfiles } from "@/hooks/use-context-profiles";
 import { useReviews, useCreateReview, reviewKeys } from "@/hooks/use-reviews";
 import { artifactKeys } from "@/hooks/use-artifacts";
 import { MessageBubble, TypingIndicator } from "@/components/message-bubble";
@@ -44,6 +45,7 @@ export function ChatSessionPage() {
   });
   const { data: session, isLoading, isError, error } = useSession(projectId, sessionId);
   const { data: sources } = useSources(projectId);
+  const { data: profiles } = useContextProfiles(projectId);
   const { data: reviews } = useReviews(projectId);
   const createReview = useCreateReview(projectId);
   const navigate = useNavigate();
@@ -58,6 +60,7 @@ export function ChatSessionPage() {
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [sourceSheetOpen, setSourceSheetOpen] = useState(false);
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [streamStartTime, setStreamStartTime] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -105,12 +108,18 @@ export function ChatSessionPage() {
     }
   }, [session?.messages]);
 
-  // Initialize selected sources from session
+  // Initialize selected sources from session or default profile
   useEffect(() => {
-    if (session?.source_ids) {
+    if (session?.source_ids && session.source_ids.length > 0) {
       setSelectedSourceIds(session.source_ids);
+    } else if (profiles && profiles.length > 0 && selectedSourceIds.length === 0) {
+      const defaultProfile = profiles.find((p) => p.is_default);
+      if (defaultProfile) {
+        setSelectedProfileId(defaultProfile.id);
+        setSelectedSourceIds([...defaultProfile.source_ids]);
+      }
     }
-  }, [session?.source_ids]);
+  }, [session?.source_ids, profiles]);
 
   const allMessages = localMessages;
   const hasMessages = allMessages.length > 0 || isStreaming;
@@ -430,6 +439,10 @@ export function ChatSessionPage() {
         sources={sources ?? []}
         selectedIds={selectedSourceIds}
         onSelectionChange={setSelectedSourceIds}
+        projectSlug={projectId}
+        profiles={profiles ?? []}
+        selectedProfileId={selectedProfileId}
+        onProfileChange={setSelectedProfileId}
       />
     </div>
   );
