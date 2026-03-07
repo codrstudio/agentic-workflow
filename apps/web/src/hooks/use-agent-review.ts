@@ -43,10 +43,12 @@ export type AgentReviewState = "idle" | "running" | "completed";
 export function useReviewAgentsConfig(projectSlug: string) {
   return useQuery({
     queryKey: ["projects", projectSlug, "review-agents"],
-    queryFn: () =>
-      apiFetch<ReviewAgent[]>(
+    queryFn: async () => {
+      const data = await apiFetch<{ agents: ReviewAgent[] }>(
         `/hub/projects/${projectSlug}/review-agents`
-      ),
+      );
+      return data.agents;
+    },
   });
 }
 

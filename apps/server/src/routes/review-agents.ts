@@ -109,6 +109,12 @@ async function saveConfig(
 
 const reviewAgents = new Hono();
 
+// GET /hub/projects/:slug/review-agents/defaults
+reviewAgents.get("/hub/projects/:slug/review-agents/defaults", async (c) => {
+  const agents = AGENT_TYPES.map((t) => DEFAULT_AGENTS[t]);
+  return c.json({ agents });
+});
+
 // GET /hub/projects/:slug/review-agents
 reviewAgents.get("/hub/projects/:slug/review-agents", async (c) => {
   const slug = c.req.param("slug");

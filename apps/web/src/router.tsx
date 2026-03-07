@@ -19,6 +19,7 @@ import { WorkspaceDetailPage } from "@/pages/workspace-detail";
 import { ProjectReviewsPage } from "@/pages/project-reviews";
 import { ProjectMetricsPage } from "@/pages/project-metrics";
 import { ReviewPanelPage } from "@/pages/review-panel";
+import { ProjectSettingsPage } from "@/pages/project-settings";
 import { ProjectNav } from "@/components/layout/project-nav";
 
 interface RouterContext {
@@ -165,6 +166,14 @@ const projectMetricsRoute = createRoute({
   staticData: { breadcrumb: "Metrics" },
 });
 
+// /projects/$projectId/settings
+const projectSettingsRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/settings",
+  component: ProjectSettingsPage,
+  staticData: { breadcrumb: "Settings" },
+});
+
 // /harness
 const harnessRoute = createRoute({
   getParentRoute: () => authenticatedLayout,
@@ -196,6 +205,7 @@ const routeTree = rootRoute.addChildren([
         projectReviewsRoute,
         reviewPanelRoute,
         projectMetricsRoute,
+        projectSettingsRoute,
       ]),
     ]),
     harnessRoute.addChildren([harnessDetailRoute]),
