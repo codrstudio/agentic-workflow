@@ -24,3 +24,25 @@ export type SessionActivityLog = z.infer<typeof SessionActivityLogSchema>;
 export const CreateActivityLogBody = SessionActivityLogSchema;
 
 export type CreateActivityLogBody = z.infer<typeof CreateActivityLogBody>;
+
+export const WorkGuardrailsSchema = z.object({
+  session_duration_limit: z.number().int().min(1).default(120),
+  daily_active_limit: z.number().int().min(1).default(480),
+  break_reminder_interval: z.number().int().min(1).default(45),
+  late_hour_threshold: z.number().int().min(0).max(23).default(22),
+  weekend_alerts_enabled: z.boolean().default(true),
+  context_switch_warning_threshold: z.number().int().min(1).default(5),
+});
+
+export type WorkGuardrails = z.infer<typeof WorkGuardrailsSchema>;
+
+export const GUARDRAILS_DEFAULTS: WorkGuardrails = {
+  session_duration_limit: 120,
+  daily_active_limit: 480,
+  break_reminder_interval: 45,
+  late_hour_threshold: 22,
+  weekend_alerts_enabled: true,
+  context_switch_warning_threshold: 5,
+};
+
+export const PatchGuardrailsBody = WorkGuardrailsSchema.partial();

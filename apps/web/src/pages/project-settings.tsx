@@ -43,6 +43,7 @@ import {
   type McpStatus,
 } from "@/hooks/use-mcp-servers";
 import { McpServerDialog } from "@/components/mcp-server-dialog";
+import { GuardrailsSettings } from "@/components/guardrails-settings";
 
 function AgentCard({
   agent,
@@ -543,6 +544,10 @@ export function ProjectSettingsPage() {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="border-t pt-6">
+          <GuardrailsSettings projectSlug={projectId} />
         </div>
 
         <div className="border-t pt-6">
