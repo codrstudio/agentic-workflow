@@ -4,6 +4,7 @@ import {
   createRoute,
   redirect,
   Outlet,
+  useParams,
 } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/app-shell";
 import { useAuthStore } from "@/stores/auth.store";
@@ -22,6 +23,18 @@ import { ReviewPanelPage } from "@/pages/review-panel";
 import { ProjectSettingsPage } from "@/pages/project-settings";
 import { McpServerDetailPage } from "@/pages/mcp-server-detail";
 import { ProjectNav } from "@/components/layout/project-nav";
+import { ResumeBanner } from "@/components/resume-banner";
+
+function ProjectLayout() {
+  const { projectId } = useParams({ strict: false }) as { projectId: string };
+  return (
+    <>
+      <ProjectNav />
+      <ResumeBanner projectSlug={projectId} />
+      <Outlet />
+    </>
+  );
+}
 
 interface RouterContext {
   breadcrumb?: string;
@@ -82,12 +95,7 @@ const projectsRoute = createRoute({
 const projectRoute = createRoute({
   getParentRoute: () => projectsRoute,
   path: "$projectId",
-  component: () => (
-    <>
-      <ProjectNav />
-      <Outlet />
-    </>
-  ),
+  component: ProjectLayout,
   staticData: { breadcrumb: "$projectId" },
 });
 
