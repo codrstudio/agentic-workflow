@@ -15,6 +15,7 @@ import { ProjectArtifactsPage } from "@/pages/project-artifacts";
 import { ChatSessionPage } from "@/pages/chat-session";
 import { ProjectPipelinePage } from "@/pages/project-pipeline";
 import { HarnessOverviewPage } from "@/pages/harness-overview";
+import { WorkspaceDetailPage } from "@/pages/workspace-detail";
 import { ProjectReviewsPage } from "@/pages/project-reviews";
 import { ProjectMetricsPage } from "@/pages/project-metrics";
 import { ProjectNav } from "@/components/layout/project-nav";
@@ -163,11 +164,11 @@ const harnessRoute = createRoute({
   staticData: { breadcrumb: "Harness" },
 });
 
-// /harness/$projectId — placeholder for workspace detail (F-042)
+// /harness/$projectId — workspace detail (F-042)
 const harnessDetailRoute = createRoute({
   getParentRoute: () => harnessRoute,
   path: "$projectId",
-  component: () => <div className="p-6">Workspace detail (coming soon)</div>,
+  component: WorkspaceDetailPage,
   staticData: { breadcrumb: "$projectId" },
 });
 
