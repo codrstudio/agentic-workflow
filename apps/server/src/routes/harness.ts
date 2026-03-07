@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
+import { EventEmitter } from "node:events";
 import path from "node:path";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { readJSON, listDirs } from "../lib/fs-utils.js";
@@ -332,5 +334,116 @@ harness.get(
     });
   }
 );
+
+// --- SSE events for harness ---
+
+const HARNESS_EVENT_TYPES = [
+  "step.start",
+  "step.complete",
+  "step.fail",
+  "loop.iteration",
+  "wave.complete",
+] as const;
+
+type HarnessEventType = (typeof HARNESS_EVENT_TYPES)[number];
+
+interface HarnessEvent {
+  type: HarnessEventType;
+  project: string;
+  wave?: number;
+  step?: number;
+  data?: Record<string, unknown>;
+  timestamp: string;
+}
+
+// In-memory event bus — per-project channels
+const eventBus = new EventEmitter();
+eventBus.setMaxListeners(100); // allow many SSE clients
+
+// POST /hub/projects/:slug/harness/events — push event (engine -> server)
+harness.post("/hub/projects/:slug/harness/events", async (c) => {
+  const slug = c.req.param("slug");
+  const body = await c.req.json<{
+    type: string;
+    wave?: number;
+    step?: number;
+    data?: Record<string, unknown>;
+  }>();
+
+  if (
+    !body.type ||
+    !HARNESS_EVENT_TYPES.includes(body.type as HarnessEventType)
+  ) {
+    return c.json(
+      {
+        error: `Invalid event type. Must be one of: ${HARNESS_EVENT_TYPES.join(", ")}`,
+      },
+      400
+    );
+  }
+
+  const event: HarnessEvent = {
+    type: body.type as HarnessEventType,
+    project: slug,
+    wave: body.wave,
+    step: body.step,
+    data: body.data,
+    timestamp: new Date().toISOString(),
+  };
+
+  eventBus.emit(`harness:${slug}`, event);
+
+  return c.json({ ok: true });
+});
+
+// GET /hub/projects/:slug/harness/events — SSE stream (server -> frontend)
+harness.get("/hub/projects/:slug/harness/events", (c) => {
+  const slug = c.req.param("slug");
+
+  return streamSSE(c, async (stream) => {
+    // Send initial connection event
+    await stream.writeSSE({
+      event: "connected",
+      data: JSON.stringify({
+        project: slug,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    const listener = async (event: HarnessEvent) => {
+      try {
+        await stream.writeSSE({
+          event: event.type,
+          data: JSON.stringify(event),
+        });
+      } catch {
+        // Client disconnected — cleanup handled below
+      }
+    };
+
+    eventBus.on(`harness:${slug}`, listener);
+
+    // Keep connection open until client disconnects
+    stream.onAbort(() => {
+      eventBus.off(`harness:${slug}`, listener);
+    });
+
+    // Keep the stream alive with periodic comments (heartbeat)
+    // This prevents proxies/load balancers from closing idle connections
+    while (true) {
+      try {
+        await stream.writeSSE({
+          event: "heartbeat",
+          data: JSON.stringify({ timestamp: new Date().toISOString() }),
+        });
+        await stream.sleep(30000);
+      } catch {
+        break;
+      }
+    }
+
+    eventBus.off(`harness:${slug}`, listener);
+  });
+});
 
 export { harness };
