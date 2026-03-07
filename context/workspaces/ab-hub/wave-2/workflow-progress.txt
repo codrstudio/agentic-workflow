@@ -50,3 +50,188 @@
   - Corrigiu prp_path para caminhos absolutos (convencao Sprint 1)
   - Validou DAG: sem ciclos, sem dependencias faltando, ordem de prioridades respeita dependencias
   - Artefato: features.json atualizado em sprints/sprint-2/
+[2026-03-07 13:37:00] Step 5 (plan-features): Completed. ok
+[2026-03-07] Step 6 — F-031 (Endpoint /system/dashboard + API module): COMPLETE.
+  - Novo endpoint GET /system/dashboard em routes/system.ts
+  - Agrega: agents (total/enabled/heartbeatEnabled), heartbeats today (total/ok/error/skipped/costToday), conversations (totalSessions/today), cronJobs (total/enabled/nextRuns), jobs (running/completed/failed), recentActivity (UNION heartbeat_log + cron_run_log + sessions, ORDER BY ts DESC LIMIT 20), system (uptime/version)
+  - Filtro today usa date(ts) = date('now') para heartbeats e conversations
+  - Criou api/dashboard.ts no Hub com DashboardData interface e dashboardQueryOptions() com queryKey ['dashboard']
+  - Typecheck passou (apenas erros pre-existentes de node_modules ausentes)
+[2026-03-07] Step 6 — F-044 (Schema DB + endpoints de notificacoes): COMPLETE.
+  - Tabelas notifications e push_subscriptions criadas em db/index.ts com indices (ts DESC, read, type)
+  - Novo routes/notifications.ts com 7 endpoints: GET /notifications (filtros unread/type, paginacao limit/offset), GET /notifications/count, PATCH /:id/read, POST /read-all, DELETE /:id, POST /push/subscribe, DELETE /push/subscribe
+  - Funcao exportada insertNotification() que faz INSERT + emit SSE notification:new (para uso pelo gerador F-045)
+  - Evento SSE notification:new tipado em events/index.ts (NotificationNewEvent) e wired no SSE hub (sse.ts)
+  - Rota montada em routes/index.ts (protegida por JWT)
+  - Criou api/notifications.ts no Hub com notificationsQueryOptions(), notificationCountQueryOptions(), markNotificationRead(), markAllNotificationsRead(), deleteNotification(), subscribeToPush(), unsubscribeFromPush()
+  - Typecheck passou (apenas erros pre-existentes de node_modules ausentes)
+[2026-03-07] Step 6 — F-041 (Endpoint /jobs/:id/stream + API module): COMPLETE.
+  - Novo endpoint SSE GET /jobs/:id/stream em routes/jobs.ts
+  - Para jobs em execucao: envia stdout/stderr acumulados + stream em tempo real via listeners no child process + evento status via eventBus
+  - Para jobs concluidos: retorna stdout/stderr acumulados + evento status e encerra conexao
+  - Eventos SSE: stdout (line + ts), stderr (line + ts), status (status + exitCode + finishedAt)
+  - Adicionou getJobSession() no jobs/engine.ts para acesso ao session com _child
+  - Criou api/jobs.ts no Hub com JobSummary interface, jobsQueryOptions(agentId?) e jobQueryOptions(id)
+  - Typecheck passou (apenas erros pre-existentes de node_modules ausentes)
+[2026-03-07] Step 6 — F-035 (Tab LLM com selector de plano): COMPLETE.
+  - Reestruturou /settings com 4 tabs navegaveis por URL via search params (?tab=llm|web-search|users|system)
+  - Tab LLM como default exibe planos como cards em grid responsivo (2 colunas desktop, 1 mobile)
+  - Criou components/settings/llm-plan-card.tsx com: titulo, descricao, badge Ativo, modelos por role, effort badge, thinking badge
+  - Plano ativo destacado com ring-2 ring-primary e badge "Ativo"
+  - Botao "Ativar este plano" faz PATCH /settings/llm, toast de sucesso/erro, invalida query ["settings", "llm"]
+  - Atualizou api/settings.ts com tipos LlmConfig/LlmPlan/LlmProfile e llmSettingsQueryOptions() + activateLlmPlan()
+  - Tabs Web Search, Usuarios e Sistema como placeholders EmptyState (para F-036, F-038, F-037)
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-032 (DashboardPage com StatCards): COMPLETE.
+  - Removeu redirect de / para /agents em routes/index.tsx
+  - Criou routes/_authenticated/index.tsx com DashboardPage usando dashboardQueryOptions()
+  - Criou components/dashboard/stat-card.tsx com StatCard (icon, value, subtitle, status color, click navegavel)
+  - 6 cards em grid responsivo (grid-cols-2 lg:grid-cols-3): Agentes, Heartbeats, Custos, Conversas, Cron Jobs, Jobs
+  - Card heartbeats com status dinamico: ok (<=10% erro), warning (>10%), error (>25%)
+  - Cards clicaveis navegam para /agents, /conversations, /cron, /jobs
+  - SSE invalida ['dashboard'] em heartbeat:status e job:status (use-sse.ts)
+  - Regenerou routeTree.gen.ts com TanStack Router CLI
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-033 (ActivityTimeline com filtros): COMPLETE.
+  - Criou components/dashboard/activity-timeline.tsx com timeline vertical
+  - Icone por tipo (Activity, Calendar, MessageSquare) para heartbeat, cron, conversa
+  - Badge de status com variantes (secondary=ok, destructive=error, outline=skipped)
+  - Timestamp relativo via funcao timeAgo (agora, Xmin, Xh, Xd)
+  - Preview truncado (80 chars) expandivel com click
+  - Filtro por tipo via botoes toggle (heartbeat/cron/conversa), clica para ativar/desativar
+  - Linha vertical conectando eventos na timeline
+  - Integrado na DashboardPage abaixo dos StatCards
+  - SSE ja invalida ['dashboard'] em heartbeat:status e job:status (implementado em F-032)
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-045 (Gerador de notificacoes no backend): COMPLETE.
+  - Adicionou dependencia web-push com @types/web-push no backbone
+  - Criou src/notifications/push.ts: VAPID config opcional, sendPushToAll() com cleanup de subscriptions expiradas
+  - Criou src/notifications/index.ts: emitNotification() que faz INSERT + SSE + push (se severity error/warning)
+  - Instrumentou heartbeat/index.ts: catch block emite notificacao heartbeat_error
+  - Instrumentou cron/executor.ts: catch block emite cron_error, execucao ok emite cron_ok
+  - Instrumentou jobs/engine.ts: finalizeJob emite job_failed (failed/timeout) ou job_completed
+  - Push desabilitado graciosamente se VAPID keys ausentes (log informativo no startup)
+  - Typecheck passou sem erros
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-046 (NotificationBell + popover no header): COMPLETE.
+  - Criou components/notifications/notification-bell.tsx com Bell icon, badge vermelho de nao lidas, dropdown com 5 recentes
+  - Cada item mostra icone por severidade (error=vermelho, warning=amarelo, info=azul), titulo, agente, hora relativa, bolinha azul nao lida
+  - Click na notificacao marca como lida (PATCH) e navega para contexto (agente/jobs/cron)
+  - Rodape com "Marcar todas" e "Ver todas" (navega para /notifications)
+  - SSE notification:new invalida queries ["notifications"] no invalidateByEvent (use-sse.ts) + no componente via useSSEEvent
+  - Toast sonner para notificacoes de severidade error
+  - Integrou NotificationBell no breadcrumb-bar.tsx antes do botao de tema
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-042 (Lista de jobs em /jobs): COMPLETE.
+  - Criou routes/_authenticated/jobs.tsx com tabela desktop e cards mobile
+  - Tabela com colunas: status badge colorido, agente badge, comando truncado com tooltip, inicio relativo, duracao, CPU%, memoria formatada
+  - Filtros: toggle group por status (todos/rodando/concluidos/falhos) + select por agente
+  - SSE job:status ja invalidava ["jobs"] em use-sse.ts (implementado anteriormente)
+  - Layout responsivo: Table com hidden sm:block para desktop, cards com sm:hidden para mobile
+  - Adicionou "Jobs" com icone Cpu ao menu lateral (app-sidebar.tsx)
+  - Click na linha preparado para drawer (F-043 implementara rota /jobs/:id)
+  - Regenerou routeTree.gen.ts com TanStack Router CLI
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-036 (Tab Web Search): COMPLETE.
+  - Criou components/settings/web-search-settings.tsx com Select (DuckDuckGo, Brave, Nenhum)
+  - Save automatico ao mudar selecao via PATCH /settings/web-search com mutation
+  - Toast de confirmacao (sucesso/erro) via sonner
+  - Adicionou webSearchSettingsQueryOptions() e updateWebSearchProvider() em api/settings.ts
+  - Substituiu placeholder EmptyState pelo componente WebSearchSettings na tab web-search
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-037 (Tab Sistema info + env vars): COMPLETE.
+  - Criou components/settings/system-info.tsx com 5 cards somente leitura em grid responsivo (2 colunas)
+  - Cards: Versao, Node.js, Plataforma, API Keys (presente/ausente com badges), Diretorio de Contexto
+  - API keys mostram apenas status presente/ausente com icones CheckCircle/XCircle, sem expor valores
+  - Adicionou systemInfoQueryOptions() e systemEnvQueryOptions() em api/settings.ts
+  - Substituiu placeholder EmptyState da tab Sistema pelo componente SystemInfo
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-038 (Lista de usuarios em /settings/users): COMPLETE.
+  - Atualizou api/users.ts com interface User completa (displayName, email, permissions com canCreateAgents/canCreateChannels/maxAgents)
+  - Criou components/users/permission-badges.tsx com badges coloridos para permissoes (azul=Criar agentes, verde=Criar canais)
+  - Criou components/users/users-list.tsx com tabela desktop e cards mobile
+  - Tabela com colunas: Nome (com avatar initials), Slug (monoespaco), Email, Permissoes (badges), Max Agentes
+  - Sysuser com badge especial "Sistema" (icone Shield) e opacity reduzida, nao clicavel
+  - Cards mobile com avatar, nome, slug, email, permissoes e max agentes
+  - Substituiu placeholder EmptyState da tab Usuarios pelo componente UsersList
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-034 (UpcomingCronJobs + navegacao dashboard): COMPLETE.
+  - Criou components/dashboard/upcoming-cron-jobs.tsx com tabela compacta de proximos 5 cron jobs
+  - Cada item mostra icone Calendar, badge agente, slug do job, horario relativo futuro (timeUntil)
+  - Link 'Ver todos' com seta navega para /cron
+  - Estado vazio com mensagem "Nenhum cron job agendado"
+  - Adicionou 'Dashboard' como primeiro item do menu lateral (app-sidebar.tsx) com icone LayoutDashboard
+  - Corrigiu matchRoute para usar exact match no '/' (evita highlight em todas as rotas)
+  - Integrou UpcomingCronJobs na DashboardPage em grid 2 colunas ao lado do ActivityTimeline
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-043 (Detalhe do job com TerminalOutput): COMPLETE.
+  - Criou components/jobs/terminal-output.tsx com fundo escuro (bg-zinc-950), fonte monoespaco, stderr em vermelho, auto-scroll toggle
+  - SSE streaming via EventSource conecta em /jobs/:id/stream para jobs ativos (stdout/stderr em tempo real)
+  - Limite de 10.000 linhas visiveis no terminal
+  - Auto-scroll detecta scroll manual e exibe botao para reativar
+  - Criou rota /jobs/$id como drawer (Sheet) sobre a lista de jobs
+  - Header com status badge, agente, PID, botoes Cancelar (POST /jobs/:id/kill) e Limpar (DELETE /jobs/:id com ConfirmDialog)
+  - Metricas em cards: duracao, CPU, memoria, exit code
+  - Adicionou killJob() e deleteJob() em api/jobs.ts
+  - Converteu jobs.tsx em layout route com Outlet para suportar drawer como rota filha
+  - Click na linha da tabela/card navega para /jobs/$id abrindo o drawer
+  - SSE job:status invalida queries ["jobs"] (inclui ["jobs", id]) automaticamente
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-039 (Formulario criar/editar usuario): COMPLETE.
+  - Criou components/users/user-form.tsx com Dialog, validacao manual (useState + validate pattern existente)
+  - Campos: slug (kebab-case 3-30 chars), nome (2-100), email (opcional, formato), senha (min 6), confirmar senha, switches permissoes, max agentes
+  - Criacao via POST /users com createUser(), edicao via PATCH /users/:slug com updateUser()
+  - Slug readonly na edicao com mensagem explicativa
+  - Senha opcional na edicao (vazio = nao alterar)
+  - Botao "Novo usuario" adicionado na users-list, click na linha abre edicao (sysuser nao editavel)
+  - Key prop no UserForm garante reinicializacao correta ao trocar entre criar/editar
+  - Adicionou createUser() e updateUser() em api/users.ts com tipos CreateUserPayload/UpdateUserPayload
+  - Toast sucesso/erro, invalidacao de query ["users"], fecha dialog
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-047 (Central de notificacoes /notifications): COMPLETE.
+  - Criou routes/_authenticated/notifications.tsx com lista paginada (50/pagina)
+  - Filtros: toggle por tipo (Todos/Heartbeat/Cron/Jobs), select estado (Todas/Nao lidas), select agente
+  - Cada item: icone por severidade, titulo, corpo expandivel com click, badge agente, timestamp relativo
+  - Acoes por item: marcar como lida (Check), excluir (Trash2) com toast
+  - Bulk "Marcar todas como lidas" no header via markAllNotificationsRead()
+  - Paginacao com controles prev/next e indicador "X-Y de Z"
+  - SSE notification:new invalida queries ["notifications"] via useSSEEvent
+  - Adicionou suporte a filtro agent_id no backend GET /notifications
+  - Adicionou agent_id param em api/notifications.ts notificationsQueryOptions()
+  - Adicionou "Notificacoes" com icone Bell ao menu lateral (app-sidebar.tsx)
+  - Regenerou routeTree.gen.ts
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-040 (Excluir usuario + endpoint agentes do usuario): COMPLETE.
+  - Criou endpoint GET /users/:slug/agents em routes/users.ts que filtra listAgents() por owner === slug
+  - Retorna array com id, slug, enabled, description (truncada 100 chars)
+  - Adicionou deleteUser() e userAgentsQueryOptions() em api/users.ts no Hub
+  - Adicionou botao Excluir no dialog de edicao com ConfirmDialog (mensagem inclui contagem de agentes)
+  - Botao Excluir oculto para usuario system (isSystemUser check)
+  - Mostra contagem de agentes do usuario no dialog de edicao
+  - DELETE /users/:slug ja existia no backbone com protecao contra exclusao do system
+  - Typecheck backbone passou sem erros
+  - Build hub passou sem erros (npm run build:hub)
+[2026-03-07] Step 6 — F-048 (Push notifications PWA): COMPLETE.
+  - Criou endpoint GET /push/vapid-key em routes/notifications.ts que retorna VAPID public key (ou 404 se nao configurado)
+  - Criou public/push-handler.js com listeners push (showNotification) e notificationclick (navega para URL relevante)
+  - Configurou importScripts no workbox (vite.config.ts) para incluir push-handler.js no service worker
+  - Criou components/notifications/push-permission-banner.tsx: banner discreto com "Ativar notificacoes" / dismiss
+  - Banner verifica VAPID key via vapidKeyQueryOptions() — nao aparece se VAPID ausente
+  - Preferencia salva em localStorage (push-permission-choice): accepted/denied/dismissed
+  - Se permission ja granted, registra subscription silenciosamente via POST /push/subscribe
+  - Push payload inclui url para navegacao contextual no click
+  - Adicionou vapidKeyQueryOptions() em api/notifications.ts com staleTime Infinity
+  - Integrou PushPermissionBanner no layout autenticado (_authenticated.tsx) abaixo do BreadcrumbBar
+  - Typecheck backbone passou sem erros
+  - Build hub passou sem erros (npm run build:hub)
+  - SPRINT 2 COMPLETO: 18/18 features passing
+[2026-03-07 15:24:37] Step 6 (ralph-wiggum-loop): Completed. completed
+[2026-03-07] Step 7 — wave-limit: COMPLETE.
+  - Decisao: CONTINUE
+  - Wave atual: 2 (limite: 5) — criterio nao atingido
+  - Features Sprint 1: 30, Sprint 2: 18 — ambos > 3, sem rendimentos decrescentes
+  - Taxa de falha: 0/18 skipped (0%) — criterio nao atingido
+  - 15 discoveries pendentes com score > 5 (2x score 9, 6x score 8, 5x score 7, 2x score 6)
+  - Destaques pendentes: D-014/G-014 custos (9), D-004 governanca (8), D-022/G-021 analytics (8), G-008 auditabilidade (8)
+  - 10 discoveries implementadas nesta wave: D-015, D-016, D-018, D-019, D-021, G-015, G-016, G-018, G-019, G-020
+  - Nenhum criterio de parada atingido — workflow deve encadear wave 3
