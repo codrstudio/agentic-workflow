@@ -54,6 +54,31 @@ export interface ComplianceDecisionsResponse {
   total: number;
 }
 
+export interface FeatureAttribution {
+  feature_id: string;
+  origin: "ai_generated" | "ai_assisted" | "human_written" | "mixed";
+  human_oversight_count: number;
+  has_human_edit: boolean;
+  ai_models_used: string[];
+}
+
+export interface IPAttributionReport {
+  project_id: string;
+  generated_at: string;
+  period: { from: string; to: string };
+  total_code_artifacts: number;
+  ai_generated_count: number;
+  ai_assisted_count: number;
+  human_written_count: number;
+  mixed_count: number;
+  human_oversight_actions: number;
+  features_with_human_review: number;
+  features_with_human_edit: number;
+  feature_attributions: FeatureAttribution[];
+  protectable_ratio: number;
+  recommendation: string;
+}
+
 export const complianceKeys = {
   all: (slug: string) => ["compliance", slug] as const,
   snapshot: (slug: string, periodDays?: number) =>
@@ -94,6 +119,25 @@ export function useComplianceDecisions(
       apiFetch<ComplianceDecisionsResponse>(
         `/hub/projects/${slug}/compliance/decisions${qs ? `?${qs}` : ""}`
       ),
+  });
+}
+
+export function useCreateIpReport(slug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { from: string; to: string }) =>
+      apiFetch<IPAttributionReport>(
+        `/hub/projects/${slug}/compliance/ip-report`,
+        {
+          method: "POST",
+          body: JSON.stringify(body),
+        }
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: complianceKeys.all(slug),
+      });
+    },
   });
 }
 

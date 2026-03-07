@@ -66,3 +66,44 @@ export const CreateDecisionLogBody = z.object({
 });
 
 export type CreateDecisionLogBody = z.infer<typeof CreateDecisionLogBody>;
+
+// --- IP Attribution Report ---
+
+export const FeatureAttributionSchema = z.object({
+  feature_id: z.string(),
+  origin: z.enum(["ai_generated", "ai_assisted", "human_written", "mixed"]),
+  human_oversight_count: z.number().int().nonnegative(),
+  has_human_edit: z.boolean(),
+  ai_models_used: z.array(z.string()),
+});
+
+export type FeatureAttribution = z.infer<typeof FeatureAttributionSchema>;
+
+export const IPAttributionReportSchema = z.object({
+  project_id: z.string(),
+  generated_at: z.string().datetime(),
+  period: z.object({
+    from: z.string(),
+    to: z.string(),
+  }),
+  total_code_artifacts: z.number().int().nonnegative(),
+  ai_generated_count: z.number().int().nonnegative(),
+  ai_assisted_count: z.number().int().nonnegative(),
+  human_written_count: z.number().int().nonnegative(),
+  mixed_count: z.number().int().nonnegative(),
+  human_oversight_actions: z.number().int().nonnegative(),
+  features_with_human_review: z.number().int().nonnegative(),
+  features_with_human_edit: z.number().int().nonnegative(),
+  feature_attributions: z.array(FeatureAttributionSchema),
+  protectable_ratio: z.number().min(0).max(1),
+  recommendation: z.string(),
+});
+
+export type IPAttributionReport = z.infer<typeof IPAttributionReportSchema>;
+
+export const CreateIpReportBody = z.object({
+  from: z.string(),
+  to: z.string(),
+});
+
+export type CreateIpReportBody = z.infer<typeof CreateIpReportBody>;

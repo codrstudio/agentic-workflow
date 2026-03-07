@@ -7,15 +7,19 @@ import { config } from "../lib/config.js";
 import {
   ComplianceDecisionLogSchema,
   CreateDecisionLogBody,
+  CreateIpReportBody,
   ShadowAiRiskEnum,
   type ComplianceDecisionLog,
   type ComplianceSnapshot,
+  type FeatureAttribution,
+  type IPAttributionReport,
   type ShadowAiRisk,
 } from "../schemas/compliance.js";
 import { type ArtifactOrigin } from "../schemas/artifact-origin.js";
 import { type DelegationEvent } from "../schemas/delegation-event.js";
 import { type Review } from "../schemas/review.js";
 import { type Project } from "../schemas/project.js";
+import { type FeatureProductivityRecord } from "../schemas/feature-productivity.js";
 
 const compliance = new Hono();
 
@@ -373,6 +377,180 @@ compliance.get("/hub/projects/:slug/compliance/snapshot", async (c) => {
   await writeJSON(snapshotPath, snapshot);
 
   return c.json(snapshot);
+});
+
+// --- Feature Productivity Records ---
+
+async function loadAllFeatureProductivityRecords(
+  slug: string
+): Promise<FeatureProductivityRecord[]> {
+  const dir = path.join(projectDir(slug), "productivity", "feature-records");
+  let files: string[];
+  try {
+    files = (await readdir(dir)).filter((f) => f.endsWith(".json"));
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.code === "ENOENT") return [];
+    throw err;
+  }
+  const results: FeatureProductivityRecord[] = [];
+  for (const file of files) {
+    try {
+      const record = await readJSON<FeatureProductivityRecord>(
+        path.join(dir, file)
+      );
+      results.push(record);
+    } catch {
+      // skip malformed files
+    }
+  }
+  return results;
+}
+
+function generateRecommendation(
+  protectableRatio: number,
+  total: number,
+  aiGeneratedCount: number,
+  featuresWithHumanReview: number,
+  featuresTotal: number
+): string {
+  if (total === 0) {
+    return "No code artifacts found in the specified period. Register feature productivity records to generate an IP attribution report.";
+  }
+  if (protectableRatio >= 0.8) {
+    return `Excellent IP protection posture. ${Math.round(protectableRatio * 100)}% of artifacts have human authorship or meaningful human oversight (ai_assisted, human_written, or mixed). ${featuresWithHumanReview} of ${featuresTotal} features have human review. This codebase has strong grounds for copyright protection.`;
+  }
+  if (protectableRatio >= 0.5) {
+    return `Moderate IP protection. ${Math.round(protectableRatio * 100)}% of artifacts include human authorship or review. ${aiGeneratedCount} artifact(s) are purely AI-generated without documented human oversight. Consider increasing human review coverage before asserting copyright claims. Legal review recommended.`;
+  }
+  return `Low IP protection ratio (${Math.round(protectableRatio * 100)}%). The majority of artifacts are AI-generated (${aiGeneratedCount} of ${total}). Under current legal frameworks (EU AI Act, US Copyright Office guidance), purely AI-generated content may not qualify for copyright protection. Substantial human authorship or creative oversight should be documented. Legal counsel is strongly advised before any IP claims.`;
+}
+
+// POST /hub/projects/:slug/compliance/ip-report — generate IP attribution report on-demand
+compliance.post("/hub/projects/:slug/compliance/ip-report", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = CreateIpReportBody.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      { error: "Validation failed", details: parsed.error.flatten() },
+      400
+    );
+  }
+
+  const { from, to } = parsed.data;
+  const fromStr = from.length === 10 ? `${from}T00:00:00.000Z` : from;
+  const toStr = to.length === 10 ? `${to}T23:59:59.999Z` : to;
+
+  // Load and filter feature productivity records by period
+  const allRecords = await loadAllFeatureProductivityRecords(slug);
+  const periodRecords = allRecords.filter((r) => {
+    return r.created_at >= fromStr && r.created_at <= toStr;
+  });
+
+  // Count by origin
+  let ai_generated_count = 0;
+  let ai_assisted_count = 0;
+  let human_written_count = 0;
+  let mixed_count = 0;
+
+  for (const r of periodRecords) {
+    if (r.origin === "ai_generated") ai_generated_count++;
+    else if (r.origin === "ai_assisted") ai_assisted_count++;
+    else if (r.origin === "human_written") human_written_count++;
+    else if (r.origin === "mixed") mixed_count++;
+  }
+
+  const total_code_artifacts = periodRecords.length;
+  const protectable_count = ai_assisted_count + human_written_count + mixed_count;
+  const protectable_ratio =
+    total_code_artifacts > 0 ? protectable_count / total_code_artifacts : 0;
+
+  // Load delegation events for human oversight actions in the period
+  const allEvents = await loadAllDelegationEvents(slug);
+  const humanOversightTypes = new Set([
+    "sign_off_completed",
+    "approval_granted",
+    "review_requested",
+  ]);
+  const human_oversight_actions = allEvents.filter(
+    (e) =>
+      e.created_at >= fromStr &&
+      e.created_at <= toStr &&
+      humanOversightTypes.has(e.event_type)
+  ).length;
+
+  // Load reviews for human review/edit info
+  const allReviews = await loadAllReviews(slug);
+  const periodReviews = allReviews.filter(
+    (r) =>
+      (r.created_at >= fromStr && r.created_at <= toStr) ||
+      (r.updated_at >= fromStr && r.updated_at <= toStr)
+  );
+  const features_with_human_review = periodReviews.filter(
+    (r) => r.status === "approved"
+  ).length;
+  // A feature has human edit if its review has flagged items (indicating reviewer edited/flagged something)
+  const features_with_human_edit = periodReviews.filter(
+    (r) => r.items.some((item) => item.status === "flagged" || item.comment)
+  ).length;
+
+  // Build feature_attributions from productivity records
+  const feature_attributions: FeatureAttribution[] = periodRecords.map((r) => {
+    return {
+      feature_id: r.feature_id,
+      origin: r.origin,
+      human_oversight_count: r.review_rounds,
+      has_human_edit: r.rework_count > 0,
+      ai_models_used: [],
+    };
+  });
+
+  const recommendation = generateRecommendation(
+    protectable_ratio,
+    total_code_artifacts,
+    ai_generated_count,
+    features_with_human_review,
+    periodRecords.length
+  );
+
+  const now = new Date();
+  const report: IPAttributionReport = {
+    project_id: slug,
+    generated_at: now.toISOString(),
+    period: { from, to },
+    total_code_artifacts,
+    ai_generated_count,
+    ai_assisted_count,
+    human_written_count,
+    mixed_count,
+    human_oversight_actions,
+    features_with_human_review,
+    features_with_human_edit,
+    feature_attributions,
+    protectable_ratio,
+    recommendation,
+  };
+
+  // Persist report
+  const reportPath = path.join(
+    projectDir(slug),
+    "compliance",
+    "ip-reports",
+    `${now.toISOString().slice(0, 10)}.json`
+  );
+  await writeJSON(reportPath, report);
+
+  return c.json(report, 201);
 });
 
 export { compliance };
