@@ -22,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useSessionMetrics, metricsKeys } from "@/hooks/use-metrics";
 import { SessionMetricsBar } from "@/components/session-metrics-bar";
 import { SessionDurationAlert } from "@/components/session-duration-alert";
+import { VerificationTaxIndicator } from "@/components/verification-tax-indicator";
 import type { SessionMetricsData } from "@/components/session-metrics-bar";
 import type { ChatMessage } from "@/hooks/use-sessions";
 
@@ -455,6 +456,9 @@ export function ChatSessionPage() {
 
         {!hasMessages && <div ref={messagesEndRef} />}
       </div>
+
+      {/* Verification Tax Indicator */}
+      <VerificationTaxIndicator projectId={projectId} />
 
       {/* Session Metrics Bar */}
       {metricsData && <SessionMetricsBar metrics={metricsData} />}

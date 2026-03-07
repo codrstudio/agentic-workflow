@@ -18,6 +18,7 @@ import type { GateSummaryItem } from "@/components/gate-summary-banner";
 import { EscalationBanner, ApprovalGateDialog } from "@/components/approval-gate";
 import { usePhaseAutonomyConfigs } from "@/hooks/use-phase-autonomy";
 import type { PipelinePhase as AutonomyPhase } from "@/hooks/use-phase-autonomy";
+import { ROISummaryWidget } from "@/components/roi-summary-widget";
 
 export function ProjectPipelinePage() {
   const { projectId } = useParams({
@@ -181,9 +182,12 @@ export function ProjectPipelinePage() {
         />
       )}
 
-      {/* Burnout risk widget */}
+      {/* Burnout risk widget + ROI summary */}
       {currentSprint && (
-        <BurnoutRiskWidget projectId={projectId} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <BurnoutRiskWidget projectId={projectId} />
+          <ROISummaryWidget projectId={projectId} />
+        </div>
       )}
 
       {/* Sprint overview */}
