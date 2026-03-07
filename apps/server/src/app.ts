@@ -16,6 +16,7 @@ import { context } from "./routes/context.js";
 import { reviewAgents } from "./routes/review-agents.js";
 import { agentReview } from "./routes/agent-review.js";
 import { mcpServers } from "./routes/mcp-servers.js";
+import { qualityGates } from "./routes/quality-gates.js";
 
 const app = new Hono();
 
@@ -41,5 +42,6 @@ app.route("/api/v1", context);
 app.route("/api/v1", reviewAgents);
 app.route("/api/v1", agentReview);
 app.route("/api/v1", mcpServers);
+app.route("/api/v1", qualityGates);
 
 export { app };
