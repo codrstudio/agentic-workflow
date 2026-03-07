@@ -8,6 +8,7 @@ import {
   PatchFeatureProductivityBody,
   type FeatureProductivityRecord,
 } from "../schemas/feature-productivity.js";
+import { type AIProductivitySnapshot } from "../schemas/productivity-snapshot.js";
 import { type Project } from "../schemas/project.js";
 
 const productivity = new Hono();
@@ -242,6 +243,242 @@ productivity.get(
     }
 
     return c.json(record);
+  }
+);
+
+// --- Snapshot helpers ---
+
+function snapshotsDir(slug: string): string {
+  return path.join(projectDir(slug), "productivity", "snapshots");
+}
+
+function snapshotPath(slug: string, date: string): string {
+  return path.join(snapshotsDir(slug), `${date}.json`);
+}
+
+async function loadSnapshot(
+  slug: string,
+  date: string
+): Promise<AIProductivitySnapshot | null> {
+  try {
+    return await readJSON<AIProductivitySnapshot>(snapshotPath(slug, date));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found")) return null;
+    throw err;
+  }
+}
+
+function isAiOrigin(origin: string): boolean {
+  return origin === "ai_generated" || origin === "ai_assisted";
+}
+
+function isHumanOrigin(origin: string): boolean {
+  return origin === "human_written";
+}
+
+function computeSnapshot(
+  records: FeatureProductivityRecord[],
+  slug: string,
+  periodDays: number
+): AIProductivitySnapshot {
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - periodDays * 86400000);
+
+  const periodRecords = records.filter((r) => {
+    const date = r.completed_at || r.created_at;
+    return new Date(date).getTime() >= cutoff.getTime();
+  });
+
+  const aiRecords = periodRecords.filter((r) => isAiOrigin(r.origin));
+  const humanRecords = periodRecords.filter((r) => isHumanOrigin(r.origin));
+  const mixedRecords = periodRecords.filter((r) => r.origin === "mixed");
+
+  const totalFeatures = periodRecords.length;
+  const aiFeatures = aiRecords.length + mixedRecords.length;
+  const humanFeatures = humanRecords.length;
+
+  // ai_rework_ratio: % of AI outputs that needed correction (rework_count > 0)
+  const aiAll = [...aiRecords, ...mixedRecords];
+  const aiReworkRatio =
+    aiAll.length > 0
+      ? aiAll.filter((r) => r.rework_count > 0).length / aiAll.length
+      : 0;
+
+  // human_rework_ratio: % of human outputs that needed correction
+  const humanReworkRatio =
+    humanRecords.length > 0
+      ? humanRecords.filter((r) => r.rework_count > 0).length /
+        humanRecords.length
+      : 0;
+
+  // first_pass_accuracy: % of AI features accepted without modification
+  const firstPassAccuracy =
+    aiAll.length > 0
+      ? aiAll.filter((r) => r.first_pass_accepted).length / aiAll.length
+      : 0;
+
+  // defect_introduction_rate: features with defects / total features
+  const defectRateAi =
+    aiAll.length > 0
+      ? aiAll.filter((r) => r.defects_found > 0).length / aiAll.length
+      : 0;
+  const defectRateHuman =
+    humanRecords.length > 0
+      ? humanRecords.filter((r) => r.defects_found > 0).length /
+        humanRecords.length
+      : 0;
+
+  // Hours aggregation
+  // Estimate: generation_time = total_duration - review_rounds * avg_review_time
+  // Heuristic: review time per round ~ 0.5h, rework time ~ 1h per rework
+  const AVG_REVIEW_HOURS_PER_ROUND = 0.5;
+  const AVG_REWORK_HOURS = 1.0;
+  // Heuristic: manual feature takes 2x the AI duration
+  const MANUAL_MULTIPLIER = 2.0;
+
+  let totalGenerationHours = 0;
+  let totalReviewHours = 0;
+  let totalReworkHours = 0;
+  let totalTimeSavedHours = 0;
+  let totalAiCostUsd = 0;
+
+  for (const r of periodRecords) {
+    const duration = r.total_duration_hours ?? 0;
+    const reviewHours = r.review_rounds * AVG_REVIEW_HOURS_PER_ROUND;
+    const reworkHours = r.rework_count * AVG_REWORK_HOURS;
+    const generationHours = Math.max(0, duration - reviewHours - reworkHours);
+
+    totalReviewHours += reviewHours;
+    totalReworkHours += reworkHours;
+    totalGenerationHours += generationHours;
+    totalAiCostUsd += r.ai_cost_usd;
+
+    if (isAiOrigin(r.origin) || r.origin === "mixed") {
+      totalTimeSavedHours += duration * (MANUAL_MULTIPLIER - 1);
+    }
+  }
+
+  // verification_tax_ratio: review_time / generation_time
+  const verificationTaxRatio =
+    totalGenerationHours > 0
+      ? totalReviewHours / totalGenerationHours
+      : 0;
+
+  // net_roi_hours: time_saved - time_reviewing - rework_time
+  const netRoiHours =
+    totalTimeSavedHours - totalReviewHours - totalReworkHours;
+
+  return {
+    project_id: slug,
+    period_days: periodDays,
+    snapshot_date: now.toISOString(),
+    total_features: totalFeatures,
+    ai_features: aiFeatures,
+    human_features: humanFeatures,
+    ai_rework_ratio: round4(aiReworkRatio),
+    human_rework_ratio: round4(humanReworkRatio),
+    first_pass_accuracy: round4(firstPassAccuracy),
+    defect_introduction_rate_ai: round4(defectRateAi),
+    defect_introduction_rate_human: round4(defectRateHuman),
+    verification_tax_ratio: round4(verificationTaxRatio),
+    net_roi_hours: round4(netRoiHours),
+    total_ai_cost_usd: round4(totalAiCostUsd),
+    total_generation_hours: round4(totalGenerationHours),
+    total_review_hours: round4(totalReviewHours),
+    total_rework_hours: round4(totalReworkHours),
+    total_time_saved_hours: round4(totalTimeSavedHours),
+    created_at: now.toISOString(),
+  };
+}
+
+function round4(n: number): number {
+  return Math.round(n * 10000) / 10000;
+}
+
+function toDateStr(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function getWeekStart(d: Date): Date {
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday
+  const ws = new Date(d);
+  ws.setDate(diff);
+  ws.setHours(0, 0, 0, 0);
+  return ws;
+}
+
+// GET /hub/projects/:slug/productivity/snapshot?period_days=30
+productivity.get(
+  "/hub/projects/:slug/productivity/snapshot",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    const periodDays = parseInt(c.req.query("period_days") || "30", 10);
+    const records = await loadAllFeatureRecords(slug);
+    const snapshot = computeSnapshot(records, slug, periodDays);
+
+    // Persist snapshot
+    const dateStr = toDateStr(new Date());
+    await writeJSON(snapshotPath(slug, dateStr), snapshot);
+
+    return c.json(snapshot);
+  }
+);
+
+// GET /hub/projects/:slug/productivity/history?from&to&granularity=weekly
+productivity.get(
+  "/hub/projects/:slug/productivity/history",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    const fromParam = c.req.query("from");
+    const toParam = c.req.query("to");
+    const now = new Date();
+    const from = fromParam ? new Date(fromParam) : new Date(now.getTime() - 90 * 86400000);
+    const to = toParam ? new Date(toParam) : now;
+
+    const records = await loadAllFeatureRecords(slug);
+
+    // Generate weekly snapshots
+    const weeks: Array<{ week_start: string; snapshot: AIProductivitySnapshot }> = [];
+    const weekStart = getWeekStart(from);
+    const endDate = to;
+
+    const current = new Date(weekStart);
+    while (current.getTime() <= endDate.getTime()) {
+      const weekEnd = new Date(current.getTime() + 7 * 86400000);
+      const periodStart = current;
+
+      // Filter records within this week
+      const weekRecords = records.filter((r) => {
+        const date = new Date(r.completed_at || r.created_at);
+        return (
+          date.getTime() >= periodStart.getTime() &&
+          date.getTime() < weekEnd.getTime()
+        );
+      });
+
+      if (weekRecords.length > 0) {
+        const snapshot = computeSnapshot(weekRecords, slug, 7);
+        // Override snapshot_date to the week start for consistency
+        snapshot.snapshot_date = current.toISOString();
+        snapshot.period_days = 7;
+        weeks.push({
+          week_start: toDateStr(current),
+          snapshot,
+        });
+      }
+
+      current.setTime(current.getTime() + 7 * 86400000);
+    }
+
+    return c.json({ history: weeks, from: toDateStr(from), to: toDateStr(to), granularity: "weekly" });
   }
 );
 
