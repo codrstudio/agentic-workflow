@@ -74,6 +74,40 @@ export const PromptVersionSchema = z.object({
 
 export type PromptVersion = z.infer<typeof PromptVersionSchema>;
 
+export const PromptUsageRecordSchema = z.object({
+  id: z.string().uuid(),
+  prompt_id: z.string().uuid(),
+  version: z.number().int().min(1),
+  session_id: z.string().optional(),
+  used_at: z.string().datetime(),
+  variables_filled: z.record(z.string(), z.string()).default({}),
+  outcome: z.enum(["success", "failure", "unknown"]).default("unknown"),
+  user_rating: z.number().int().min(1).max(5).optional(),
+});
+
+export type PromptUsageRecord = z.infer<typeof PromptUsageRecordSchema>;
+
+export const CreateUsageBody = z.object({
+  version: z.number().int().min(1).optional(),
+  session_id: z.string().optional(),
+  variables_filled: z.record(z.string(), z.string()).default({}),
+  outcome: z.enum(["success", "failure", "unknown"]).default("unknown"),
+  user_rating: z.number().int().min(1).max(5).optional(),
+});
+
+export type CreateUsageBody = z.infer<typeof CreateUsageBody>;
+
+export const PromptMetricsSchema = z.object({
+  prompt_id: z.string().uuid(),
+  total_uses: z.number().int(),
+  avg_rating: z.number().nullable(),
+  success_rate: z.number().nullable(),
+  versions_count: z.number().int(),
+  last_used: z.string().datetime().nullable(),
+});
+
+export type PromptMetrics = z.infer<typeof PromptMetricsSchema>;
+
 export const RenderPromptBody = z.object({
   variables: z.record(z.string(), z.string()),
 });

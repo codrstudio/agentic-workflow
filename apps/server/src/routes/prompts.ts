@@ -10,8 +10,10 @@ import {
   PatchPromptBody,
   RenderPromptBody,
   PromptVersionSchema,
+  CreateUsageBody,
   type PromptArtifact,
   type PromptVersion,
+  type PromptUsageRecord,
 } from "../schemas/prompt.js";
 import { type Project } from "../schemas/project.js";
 
@@ -376,6 +378,233 @@ prompts.post("/hub/projects/:slug/prompts/:id/render", async (c) => {
   return c.json({
     rendered_content: rendered,
     tokens_estimated: estimateTokens(rendered),
+  });
+});
+
+// --- F-112: Versioning + Usage Tracking + Metrics ---
+
+function usageDir(slug: string, promptId: string): string {
+  return path.join(promptsDir(slug), "usage", promptId);
+}
+
+async function loadAllVersions(slug: string, promptId: string): Promise<PromptVersion[]> {
+  const dir = versionsDir(slug, promptId);
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.code === "ENOENT") return [];
+    throw err;
+  }
+
+  const vFiles = entries.filter((f) => f.startsWith("v") && f.endsWith(".json"));
+  const results: PromptVersion[] = [];
+  for (const file of vFiles) {
+    try {
+      const version = await readJSON<PromptVersion>(path.join(dir, file));
+      results.push(version);
+    } catch {
+      // skip invalid files
+    }
+  }
+  // Sort by version descending (most recent first)
+  results.sort((a, b) => b.version - a.version);
+  return results;
+}
+
+async function loadAllUsageRecords(slug: string, promptId: string): Promise<PromptUsageRecord[]> {
+  const dir = usageDir(slug, promptId);
+  let entries: string[];
+  try {
+    entries = await readdir(dir);
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.code === "ENOENT") return [];
+    throw err;
+  }
+
+  const jsonFiles = entries.filter((f) => f.endsWith(".json"));
+  const results: PromptUsageRecord[] = [];
+  for (const file of jsonFiles) {
+    try {
+      const record = await readJSON<PromptUsageRecord>(path.join(dir, file));
+      results.push(record);
+    } catch {
+      // skip invalid files
+    }
+  }
+  return results;
+}
+
+// GET /hub/projects/:slug/prompts/:id/versions — list all versions
+prompts.get("/hub/projects/:slug/prompts/:id/versions", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const id = c.req.param("id");
+  const prompt = await loadPrompt(slug, id);
+  if (!prompt || prompt.is_deleted) {
+    return c.json({ error: "Prompt not found" }, 404);
+  }
+
+  const versions = await loadAllVersions(slug, id);
+  return c.json(versions);
+});
+
+// POST /hub/projects/:slug/prompts/:id/restore/:version — restore old version
+prompts.post("/hub/projects/:slug/prompts/:id/restore/:version", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const id = c.req.param("id");
+  const prompt = await loadPrompt(slug, id);
+  if (!prompt || prompt.is_deleted) {
+    return c.json({ error: "Prompt not found" }, 404);
+  }
+
+  const versionNum = parseInt(c.req.param("version"), 10);
+  if (isNaN(versionNum) || versionNum < 1) {
+    return c.json({ error: "Invalid version number" }, 400);
+  }
+
+  // Load the target version
+  let targetVersion: PromptVersion | null = null;
+  try {
+    targetVersion = await readJSON<PromptVersion>(versionPath(slug, id, versionNum));
+  } catch {
+    return c.json({ error: "Version not found" }, 404);
+  }
+
+  const now = new Date().toISOString();
+  const newVersionNum = prompt.version + 1;
+
+  // Create new version with old content
+  const newVersionRecord: PromptVersion = {
+    prompt_id: id,
+    version: newVersionNum,
+    content: targetVersion.content,
+    variables: targetVersion.variables,
+    change_note: `Restored from v${versionNum}`,
+    created_at: now,
+  };
+  await ensureDir(versionsDir(slug, id));
+  await writeJSON(versionPath(slug, id, newVersionNum), newVersionRecord);
+
+  // Update the prompt artifact
+  const updated: PromptArtifact = {
+    ...prompt,
+    content: targetVersion.content,
+    variables: targetVersion.variables,
+    version: newVersionNum,
+    updated_at: now,
+  };
+  await writeJSON(promptPath(slug, id), updated);
+
+  return c.json(updated, 201);
+});
+
+// POST /hub/projects/:slug/prompts/:id/usage — record usage
+prompts.post("/hub/projects/:slug/prompts/:id/usage", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const id = c.req.param("id");
+  const prompt = await loadPrompt(slug, id);
+  if (!prompt || prompt.is_deleted) {
+    return c.json({ error: "Prompt not found" }, 404);
+  }
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = CreateUsageBody.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      { error: "Validation failed", details: parsed.error.flatten() },
+      400
+    );
+  }
+
+  const now = new Date().toISOString();
+  const recordId = randomUUID();
+
+  const record: PromptUsageRecord = {
+    id: recordId,
+    prompt_id: id,
+    version: parsed.data.version ?? prompt.version,
+    session_id: parsed.data.session_id,
+    used_at: now,
+    variables_filled: parsed.data.variables_filled,
+    outcome: parsed.data.outcome,
+    user_rating: parsed.data.user_rating,
+  };
+
+  await ensureDir(usageDir(slug, id));
+  await writeJSON(path.join(usageDir(slug, id), `${recordId}.json`), record);
+
+  return c.json(record, 201);
+});
+
+// GET /hub/projects/:slug/prompts/:id/metrics — prompt metrics
+prompts.get("/hub/projects/:slug/prompts/:id/metrics", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const id = c.req.param("id");
+  const prompt = await loadPrompt(slug, id);
+  if (!prompt || prompt.is_deleted) {
+    return c.json({ error: "Prompt not found" }, 404);
+  }
+
+  const usageRecords = await loadAllUsageRecords(slug, id);
+  const versions = await loadAllVersions(slug, id);
+
+  const totalUses = usageRecords.length;
+
+  // Average rating (only from records with a rating)
+  const ratedRecords = usageRecords.filter((r) => r.user_rating != null);
+  const avgRating =
+    ratedRecords.length > 0
+      ? Math.round(
+          (ratedRecords.reduce((sum, r) => sum + r.user_rating!, 0) /
+            ratedRecords.length) *
+            100
+        ) / 100
+      : null;
+
+  // Success rate (only from records with known outcome)
+  const knownOutcomes = usageRecords.filter((r) => r.outcome !== "unknown");
+  const successRate =
+    knownOutcomes.length > 0
+      ? Math.round(
+          (knownOutcomes.filter((r) => r.outcome === "success").length /
+            knownOutcomes.length) *
+            100
+        ) / 100
+      : null;
+
+  // Last used
+  const sortedByDate = [...usageRecords].sort(
+    (a, b) => new Date(b.used_at).getTime() - new Date(a.used_at).getTime()
+  );
+  const lastUsed = sortedByDate.length > 0 ? sortedByDate[0]!.used_at : null;
+
+  return c.json({
+    prompt_id: id,
+    total_uses: totalUses,
+    avg_rating: avgRating,
+    success_rate: successRate,
+    versions_count: versions.length,
+    last_used: lastUsed,
   });
 });
 
