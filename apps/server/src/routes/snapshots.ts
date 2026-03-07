@@ -4,6 +4,7 @@ import path from "node:path";
 import { readdir } from "node:fs/promises";
 import { readJSON, writeJSON } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
+import { spawnClaudeStream } from "../lib/claude-client.js";
 import { type Project } from "../schemas/project.js";
 import { type ChatSession } from "../schemas/session.js";
 import { type Artifact } from "../schemas/artifact.js";
@@ -167,9 +168,164 @@ async function loadFeatures(slug: string): Promise<{ sprintNumber: number; featu
   return null;
 }
 
-function detectPhase(slug: string, sprintNumber: number): string {
-  // Simple heuristic: check which phases have content
-  return "development";
+async function detectPhase(slug: string, sprintNumber: number): Promise<string> {
+  const sprintDir = path.join(projectDir(slug), "sprints", `sprint-${sprintNumber}`);
+  // Check phases in reverse order (latest = current)
+  const phases = [
+    { dir: "3-prps", name: "development" },
+    { dir: "2-specs", name: "specs" },
+    { dir: "1-brainstorming", name: "brainstorming" },
+  ];
+  for (const phase of phases) {
+    try {
+      const files = await readdir(path.join(sprintDir, phase.dir));
+      if (files.some((f) => f.endsWith(".md") || f.endsWith(".json"))) {
+        return phase.name;
+      }
+    } catch {
+      // dir doesn't exist
+    }
+  }
+  return "planning";
+}
+
+/**
+ * Extract key topics from session messages using simple keyword heuristic.
+ * Looks at the last assistant message for subject keywords.
+ */
+function extractKeyTopics(session: ChatSession): string[] {
+  if (!session.messages || session.messages.length === 0) return [];
+
+  // Find last assistant messages to extract topics
+  const assistantMessages = session.messages.filter((m) => m.role === "assistant");
+  if (assistantMessages.length === 0) return [];
+
+  const lastMsg = assistantMessages[assistantMessages.length - 1]!;
+  const text = lastMsg.content;
+
+  // Extract heading-like patterns and prominent nouns
+  const topics: string[] = [];
+
+  // Look for markdown headings
+  const headingMatches = text.match(/^#{1,3}\s+(.+)$/gm);
+  if (headingMatches) {
+    for (const h of headingMatches.slice(0, 3)) {
+      topics.push(h.replace(/^#+\s+/, "").trim());
+    }
+  }
+
+  // If no headings, extract first sentence fragments as topics
+  if (topics.length === 0) {
+    const sentences = text.split(/[.!?\n]/).filter((s) => s.trim().length > 10);
+    for (const s of sentences.slice(0, 3)) {
+      const trimmed = s.trim();
+      if (trimmed.length > 80) {
+        topics.push(trimmed.slice(0, 77) + "...");
+      } else {
+        topics.push(trimmed);
+      }
+    }
+  }
+
+  return topics.slice(0, 5);
+}
+
+/**
+ * Extract open decisions from recent sessions.
+ * Looks for questions asked by the assistant that weren't followed by user responses.
+ */
+function extractOpenDecisions(sessions: ChatSession[]): string[] {
+  const decisions: string[] = [];
+
+  for (const session of sessions) {
+    if (!session.messages || session.messages.length === 0) continue;
+
+    // Check last few messages for unanswered assistant questions
+    const msgs = session.messages;
+    for (let i = msgs.length - 1; i >= Math.max(0, msgs.length - 5); i--) {
+      const msg = msgs[i]!;
+      if (msg.role !== "assistant") continue;
+
+      // Check if this assistant message ends with a question and has no user reply after it
+      const hasUserReplyAfter = msgs.slice(i + 1).some((m) => m.role === "user");
+      if (hasUserReplyAfter) continue;
+
+      // Extract questions from the message
+      const questionLines = msg.content
+        .split("\n")
+        .filter((line) => line.trim().endsWith("?") && line.trim().length > 15);
+
+      for (const q of questionLines.slice(0, 2)) {
+        const trimmed = q.replace(/^[-*>•]\s*/, "").trim();
+        if (trimmed.length > 120) {
+          decisions.push(trimmed.slice(0, 117) + "...");
+        } else {
+          decisions.push(trimmed);
+        }
+      }
+    }
+
+    if (decisions.length >= 5) break;
+  }
+
+  return decisions.slice(0, 5);
+}
+
+/**
+ * Generate a 3-5 sentence summary of the project state via Claude API.
+ */
+function generateSummaryViaClaudeAPI(snapshotData: Omit<ProjectSnapshot, "summary">): Promise<string> {
+  return new Promise((resolve) => {
+    const dataStr = JSON.stringify({
+      recent_sessions: snapshotData.recent_sessions.map((s) => ({
+        title: s.title,
+        date: s.created_at,
+        topics: s.key_topics,
+      })),
+      recent_artifacts: snapshotData.recent_artifacts.map((a) => ({
+        title: a.title,
+        type: a.type,
+        updated: a.updated_at,
+      })),
+      active_sprint: snapshotData.active_sprint,
+      pending_reviews: snapshotData.pending_reviews.map((r) => ({
+        title: r.title,
+        status: r.status,
+      })),
+      open_decisions: snapshotData.open_decisions,
+    }, null, 2);
+
+    const prompt = `Voce e um assistente de projeto. Baseado nos dados abaixo, gere um resumo conciso (3-5 frases) do estado atual do projeto, focando em:
+1. O que foi feito recentemente
+2. O que esta em progresso
+3. O que precisa de atencao
+
+Responda APENAS com o resumo em texto plano, sem markdown, sem prefixo.
+
+Dados:
+${dataStr}`;
+
+    const timeoutId = setTimeout(() => {
+      resolve("Resumo indisponivel — timeout na geracao via AI.");
+    }, 30000);
+
+    spawnClaudeStream(
+      { prompt, maxTurns: 1 },
+      {
+        onDelta: () => {},
+        onComplete: (fullText) => {
+          clearTimeout(timeoutId);
+          const trimmed = fullText.trim();
+          resolve(trimmed || "Resumo indisponivel.");
+        },
+        onError: (err) => {
+          clearTimeout(timeoutId);
+          console.error("Claude summary generation failed:", err);
+          resolve("Resumo indisponivel — falha na geracao via AI.");
+        },
+      },
+    );
+  });
 }
 
 async function generateSnapshot(slug: string, projectId: string): Promise<ProjectSnapshot> {
@@ -187,7 +343,7 @@ async function generateSnapshot(slug: string, projectId: string): Promise<Projec
     title: s.title || "Sem titulo",
     created_at: s.created_at,
     message_count: s.messages?.length ?? 0,
-    key_topics: [],
+    key_topics: extractKeyTopics(s),
   }));
 
   // Load recent artifacts (last 10)
@@ -208,9 +364,10 @@ async function generateSnapshot(slug: string, projectId: string): Promise<Projec
   const sprintData = await loadFeatures(slug);
   if (sprintData) {
     const { sprintNumber, features } = sprintData;
+    const currentPhase = await detectPhase(slug, sprintNumber);
     activeSprint = {
       number: sprintNumber,
-      current_phase: "development",
+      current_phase: currentPhase,
       features_total: features.length,
       features_passing: features.filter((f) => f.status === "passing").length,
       features_failing: features.filter((f) => f.status === "failing").length,
@@ -232,16 +389,27 @@ async function generateSnapshot(slug: string, projectId: string): Promise<Projec
       items_count: r.items?.length ?? 0,
     }));
 
-  const snapshot: ProjectSnapshot = {
+  // Extract open decisions from recent sessions
+  const openDecisions = extractOpenDecisions(sortedSessions);
+
+  // Build snapshot without summary first (for Claude prompt)
+  const snapshotData = {
     id,
     project_id: projectId,
     created_at: now,
-    summary: "", // Will be populated by F-091 (AI summary generation)
     recent_sessions: recentSessions,
     recent_artifacts: recentArtifacts,
     active_sprint: activeSprint,
     pending_reviews: pendingReviews,
-    open_decisions: [],
+    open_decisions: openDecisions,
+  };
+
+  // Generate summary via Claude API
+  const summary = await generateSummaryViaClaudeAPI(snapshotData);
+
+  const snapshot: ProjectSnapshot = {
+    ...snapshotData,
+    summary,
   };
 
   // Persist as {uuid}.json and latest.json
