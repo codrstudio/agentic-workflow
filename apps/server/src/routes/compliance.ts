@@ -553,4 +553,208 @@ compliance.post("/hub/projects/:slug/compliance/ip-report", async (c) => {
   return c.json(report, 201);
 });
 
+// GET /hub/projects/:slug/compliance/export — export compliance bundle for audit
+compliance.get("/hub/projects/:slug/compliance/export", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const fromParam = c.req.query("from");
+  const toParam = c.req.query("to");
+  const format = c.req.query("format") ?? "json";
+
+  // Compute absolute date range (default: last 30 days)
+  const now = new Date();
+  const toDate = toParam
+    ? new Date(toParam.length === 10 ? `${toParam}T23:59:59.999Z` : toParam)
+    : now;
+  const fromDate = fromParam
+    ? new Date(fromParam.length === 10 ? `${fromParam}T00:00:00.000Z` : fromParam)
+    : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const fromStr = fromDate.toISOString();
+  const toStr = toDate.toISOString();
+  const fromDateStr = fromDate.toISOString().slice(0, 10);
+  const toDateStr = toDate.toISOString().slice(0, 10);
+
+  // --- Artifact origins ---
+  const allOrigins = await loadAllArtifactOrigins(slug);
+  const periodOrigins = allOrigins.filter(
+    (o) => o.tagged_at >= fromStr && o.tagged_at <= toStr
+  );
+
+  const artifactsByOrigin = {
+    ai_generated: 0,
+    ai_assisted: 0,
+    human_written: 0,
+    mixed: 0,
+  };
+  for (const o of periodOrigins) {
+    artifactsByOrigin[o.origin]++;
+  }
+  const totalArtifacts = periodOrigins.length;
+  const totalAiArtifacts =
+    artifactsByOrigin.ai_generated + artifactsByOrigin.ai_assisted;
+  const ai_ratio = totalArtifacts > 0 ? totalAiArtifacts / totalArtifacts : 0;
+
+  // --- Delegation events ---
+  const allEvents = await loadAllDelegationEvents(slug);
+  const periodEvents = allEvents.filter(
+    (e) => e.created_at >= fromStr && e.created_at <= toStr
+  );
+  const humanOversightTypes = new Set([
+    "sign_off_completed",
+    "approval_granted",
+    "review_requested",
+  ]);
+  const humanOversightEvents = periodEvents.filter((e) =>
+    humanOversightTypes.has(e.event_type)
+  ).length;
+  const oversight_ratio =
+    totalArtifacts > 0 ? Math.min(1, humanOversightEvents / totalArtifacts) : 0;
+
+  // --- Reviews ---
+  const allReviews = await loadAllReviews(slug);
+  const periodReviews = allReviews.filter(
+    (r) =>
+      (r.created_at >= fromStr && r.created_at <= toStr) ||
+      (r.updated_at >= fromStr && r.updated_at <= toStr)
+  );
+  const featuresWithReview = periodReviews.filter(
+    (r) => r.status === "approved"
+  ).length;
+  const featuresWithSignOff = periodReviews.filter(
+    (r) => r.status === "approved" && r.criteria.some((cr) => cr.checked)
+  ).length;
+  const featuresTotal = periodReviews.length;
+  const review_coverage =
+    featuresTotal > 0 ? featuresWithReview / featuresTotal : 0;
+  const unreviewedAiArtifacts = Math.max(0, totalAiArtifacts - featuresWithReview);
+  const shadow_ai_risk = computeShadowAiRisk(unreviewedAiArtifacts, totalAiArtifacts);
+
+  // --- Decision logs ---
+  const allDecisions = await loadAllDecisions(slug);
+  const periodDecisions = allDecisions
+    .filter((d) => d.created_at >= fromStr && d.created_at <= toStr)
+    .sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+
+  // --- Compliance snapshot ---
+  const periodDays = Math.max(
+    1,
+    Math.round((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24))
+  );
+  const compliance_snapshot: ComplianceSnapshot = {
+    project_id: slug,
+    computed_at: now.toISOString(),
+    period_days: periodDays,
+    total_artifacts: totalArtifacts,
+    artifacts_by_origin: artifactsByOrigin,
+    ai_ratio,
+    total_decisions: periodDecisions.length,
+    human_oversight_events: humanOversightEvents,
+    oversight_ratio,
+    features_total: featuresTotal,
+    features_with_review: featuresWithReview,
+    features_with_sign_off: featuresWithSignOff,
+    review_coverage,
+    unreviewed_ai_artifacts: unreviewedAiArtifacts,
+    shadow_ai_risk,
+  };
+
+  // --- IP report ---
+  const allRecords = await loadAllFeatureProductivityRecords(slug);
+  const periodRecords = allRecords.filter(
+    (r) => r.created_at >= fromStr && r.created_at <= toStr
+  );
+  let ai_generated_count = 0,
+    ai_assisted_count = 0,
+    human_written_count = 0,
+    mixed_count = 0;
+  for (const r of periodRecords) {
+    if (r.origin === "ai_generated") ai_generated_count++;
+    else if (r.origin === "ai_assisted") ai_assisted_count++;
+    else if (r.origin === "human_written") human_written_count++;
+    else if (r.origin === "mixed") mixed_count++;
+  }
+  const total_code_artifacts = periodRecords.length;
+  const protectable_count = ai_assisted_count + human_written_count + mixed_count;
+  const protectable_ratio =
+    total_code_artifacts > 0 ? protectable_count / total_code_artifacts : 0;
+  const human_oversight_actions = periodEvents.filter((e) =>
+    humanOversightTypes.has(e.event_type)
+  ).length;
+  const features_with_human_review = periodReviews.filter(
+    (r) => r.status === "approved"
+  ).length;
+  const features_with_human_edit = periodReviews.filter((r) =>
+    r.items.some((item) => item.status === "flagged" || item.comment)
+  ).length;
+  const feature_attributions: FeatureAttribution[] = periodRecords.map((r) => ({
+    feature_id: r.feature_id,
+    origin: r.origin,
+    human_oversight_count: r.review_rounds,
+    has_human_edit: r.rework_count > 0,
+    ai_models_used: [],
+  }));
+  const recommendation = generateRecommendation(
+    protectable_ratio,
+    total_code_artifacts,
+    ai_generated_count,
+    features_with_human_review,
+    periodRecords.length
+  );
+  const ip_report: IPAttributionReport = {
+    project_id: slug,
+    generated_at: now.toISOString(),
+    period: { from: fromDateStr, to: toDateStr },
+    total_code_artifacts,
+    ai_generated_count,
+    ai_assisted_count,
+    human_written_count,
+    mixed_count,
+    human_oversight_actions,
+    features_with_human_review,
+    features_with_human_edit,
+    feature_attributions,
+    protectable_ratio,
+    recommendation,
+  };
+
+  // --- Review summaries ---
+  const review_summaries = periodReviews.map((r) => ({
+    id: r.id,
+    title: r.title,
+    status: r.status,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+    items_count: r.items.length,
+    approved_items: r.items.filter((item) => item.status === "approved").length,
+    flagged_items: r.items.filter((item) => item.status === "flagged").length,
+    criteria_total: r.criteria.length,
+    criteria_met: r.criteria.filter((cr) => cr.checked).length,
+  }));
+
+  // --- Bundle ---
+  const bundle = {
+    export_metadata: {
+      generated_at: now.toISOString(),
+      project_id: slug,
+      period: { from: fromDateStr, to: toDateStr },
+      format,
+      regulation: "EU AI Act",
+    },
+    compliance_snapshot,
+    decision_logs: periodDecisions,
+    ip_report,
+    artifact_origins: periodOrigins,
+    review_summaries,
+  };
+
+  c.header("Content-Type", "application/json");
+  return c.json(bundle);
+});
+
 export { compliance };

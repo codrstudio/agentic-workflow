@@ -141,6 +141,49 @@ export function useCreateIpReport(slug: string) {
   });
 }
 
+export interface ReviewSummary {
+  id: string;
+  title: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  items_count: number;
+  approved_items: number;
+  flagged_items: number;
+  criteria_total: number;
+  criteria_met: number;
+}
+
+export interface ComplianceExportBundle {
+  export_metadata: {
+    generated_at: string;
+    project_id: string;
+    period: { from: string; to: string };
+    format: string;
+    regulation: string;
+  };
+  compliance_snapshot: ComplianceSnapshot;
+  decision_logs: ComplianceDecisionLog[];
+  ip_report: IPAttributionReport;
+  artifact_origins: unknown[];
+  review_summaries: ReviewSummary[];
+}
+
+export function useComplianceExport(slug: string) {
+  return useMutation({
+    mutationFn: (params: { from?: string; to?: string; format?: string }) => {
+      const qs = new URLSearchParams();
+      if (params.from) qs.set("from", params.from);
+      if (params.to) qs.set("to", params.to);
+      if (params.format) qs.set("format", params.format);
+      const query = qs.toString();
+      return apiFetch<ComplianceExportBundle>(
+        `/hub/projects/${slug}/compliance/export${query ? `?${query}` : ""}`
+      );
+    },
+  });
+}
+
 export function useCreateComplianceDecision(slug: string) {
   const queryClient = useQueryClient();
   return useMutation({
