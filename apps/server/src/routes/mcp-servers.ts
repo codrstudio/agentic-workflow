@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
 import { getMcpManager } from "../lib/mcp-manager.js";
+import { type Source } from "../schemas/source.js";
 
 // --- Types ---
 
@@ -237,6 +238,127 @@ mcpServers.get("/hub/projects/:slug/mcp/servers/:id/status", async (c) => {
     status: liveStatus.status,
     last_error: liveStatus.last_error,
   });
+});
+
+// --- Discovery Endpoints (F-080) ---
+
+// GET /hub/projects/:slug/mcp/servers/:id/tools
+mcpServers.get("/hub/projects/:slug/mcp/servers/:id/tools", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+
+  const servers = await loadServers(slug);
+  const server = servers.find((s) => s.id === id);
+  if (!server) {
+    return c.json({ error: "Server not found" }, 404);
+  }
+
+  const manager = getMcpManager(slug);
+  const client = manager.getClient(id);
+  if (!client || client.status !== "connected") {
+    return c.json({ error: "Server not connected" }, 409);
+  }
+
+  const tools = await client.listTools();
+  return c.json({ tools });
+});
+
+// GET /hub/projects/:slug/mcp/servers/:id/resources
+mcpServers.get("/hub/projects/:slug/mcp/servers/:id/resources", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+
+  const servers = await loadServers(slug);
+  const server = servers.find((s) => s.id === id);
+  if (!server) {
+    return c.json({ error: "Server not found" }, 404);
+  }
+
+  const manager = getMcpManager(slug);
+  const client = manager.getClient(id);
+  if (!client || client.status !== "connected") {
+    return c.json({ error: "Server not connected" }, 409);
+  }
+
+  const resources = await client.listResources();
+  return c.json({ resources });
+});
+
+// POST /hub/projects/:slug/mcp/servers/:id/resources/import
+mcpServers.post("/hub/projects/:slug/mcp/servers/:id/resources/import", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+  const body = await c.req.json<{ uri?: string }>();
+
+  if (!body.uri || typeof body.uri !== "string") {
+    return c.json({ error: "uri is required" }, 400);
+  }
+
+  const servers = await loadServers(slug);
+  const server = servers.find((s) => s.id === id);
+  if (!server) {
+    return c.json({ error: "Server not found" }, 404);
+  }
+
+  const manager = getMcpManager(slug);
+  const client = manager.getClient(id);
+  if (!client || client.status !== "connected") {
+    return c.json({ error: "Server not connected" }, 409);
+  }
+
+  // Read the resource content via MCP
+  const result = await client.readResource(body.uri);
+  const firstContent = result.contents[0];
+  const text = firstContent?.text ?? "";
+
+  // Determine source name from URI
+  const uriParts = body.uri.split("/");
+  const sourceName = uriParts[uriParts.length - 1] || body.uri;
+
+  // Load project to get project_id
+  const projectJsonPath = path.join(config.projectsDir, slug, "project.json");
+  const project = await readJSON<{ id: string }>(projectJsonPath);
+
+  // Create source with category 'reference'
+  const now = new Date().toISOString();
+  const sourceId = crypto.randomUUID();
+  const sizeBytes = Buffer.byteLength(text, "utf-8");
+
+  const source: Source = {
+    id: sourceId,
+    project_id: project.id,
+    name: sourceName,
+    type: "text",
+    content: text,
+    file_path: undefined,
+    url: undefined,
+    size_bytes: sizeBytes,
+    created_at: now,
+    updated_at: now,
+    tags: [`mcp:${server.name}`, `uri:${body.uri}`],
+    category: "reference",
+    pinned: false,
+    auto_include: false,
+    relevance_tags: [],
+  };
+
+  // Persist to sources.json
+  const sourcesJsonPath = path.join(config.projectsDir, slug, "sources", "sources.json");
+  let allSources: Source[] = [];
+  try {
+    allSources = await readJSON<Source[]>(sourcesJsonPath);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("not found") && !msg.includes("ENOENT")) {
+      throw err;
+    }
+  }
+
+  allSources.push(source);
+  await ensureDir(path.join(config.projectsDir, slug, "sources"));
+  await writeJSON(sourcesJsonPath, allSources);
+
+  return c.json({ source }, 201);
 });
 
 export { mcpServers };
