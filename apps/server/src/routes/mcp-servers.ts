@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
+import { getMcpManager } from "../lib/mcp-manager.js";
 
 // --- Types ---
 
@@ -78,6 +79,15 @@ const mcpServers = new Hono();
 mcpServers.get("/hub/projects/:slug/mcp/servers", async (c) => {
   const slug = c.req.param("slug");
   const servers = await loadServers(slug);
+
+  // Enrich with live status from manager
+  const manager = getMcpManager(slug);
+  for (const server of servers) {
+    const live = manager.getStatus(server.id);
+    server.status = live.status;
+    server.last_error = live.last_error;
+  }
+
   return c.json({ servers });
 });
 
@@ -159,10 +169,74 @@ mcpServers.delete("/hub/projects/:slug/mcp/servers/:id", async (c) => {
     return c.json({ error: "Server not found" }, 404);
   }
 
+  // Disconnect before removing
+  const manager = getMcpManager(slug);
+  await manager.disconnect(id);
+
   servers.splice(idx, 1);
   await saveServers(slug, servers);
 
   return c.body(null, 204);
+});
+
+// POST /hub/projects/:slug/mcp/servers/:id/connect
+mcpServers.post("/hub/projects/:slug/mcp/servers/:id/connect", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+  const body = await c.req.json<{ action?: string }>();
+
+  const action = body.action;
+  if (action !== "connect" && action !== "disconnect") {
+    return c.json({ error: "action must be 'connect' or 'disconnect'" }, 400);
+  }
+
+  const servers = await loadServers(slug);
+  const idx = servers.findIndex((s) => s.id === id);
+  if (idx === -1) {
+    return c.json({ error: "Server not found" }, 404);
+  }
+
+  const server = servers[idx]!;
+  const manager = getMcpManager(slug);
+
+  if (action === "connect") {
+    server.status = "connecting";
+    await saveServers(slug, servers);
+
+    const result = await manager.connect(server);
+    server.status = result.status;
+    server.last_error = result.last_error;
+    await saveServers(slug, servers);
+  } else {
+    await manager.disconnect(id);
+    server.status = "disconnected";
+    server.last_error = undefined;
+    await saveServers(slug, servers);
+  }
+
+  return c.json({ server });
+});
+
+// GET /hub/projects/:slug/mcp/servers/:id/status
+mcpServers.get("/hub/projects/:slug/mcp/servers/:id/status", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+
+  const servers = await loadServers(slug);
+  const server = servers.find((s) => s.id === id);
+  if (!server) {
+    return c.json({ error: "Server not found" }, 404);
+  }
+
+  // Get live status from manager (may differ from persisted)
+  const manager = getMcpManager(slug);
+  const liveStatus = manager.getStatus(id);
+
+  return c.json({
+    id: server.id,
+    status: liveStatus.status,
+    last_error: liveStatus.last_error,
+  });
 });
 
 export { mcpServers };
