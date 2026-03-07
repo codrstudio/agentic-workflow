@@ -9,6 +9,7 @@ import {
   CreateDefectBody,
   PatchDefectBody,
   type DefectRecord,
+  type DefectMetrics,
 } from "../schemas/defect.js";
 import { type ArtifactOrigin } from "../schemas/artifact-origin.js";
 import { type Project } from "../schemas/project.js";
@@ -190,6 +191,123 @@ defects.get("/hub/projects/:slug/defects", async (c) => {
   }
 
   return c.json(records);
+});
+
+// GET /hub/projects/:slug/defects/metrics — compute aggregated defect metrics
+defects.get("/hub/projects/:slug/defects/metrics", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const periodDays = parseInt(c.req.query("period_days") ?? "30", 10);
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000);
+
+  const allRecords = await loadAllRecords(slug);
+
+  // Filter records within period
+  const records = allRecords.filter(
+    (r) => new Date(r.detected_at).getTime() >= cutoff.getTime()
+  );
+
+  // Aggregate by origin
+  const defectsByOrigin: Record<string, number> = {};
+  for (const r of records) {
+    defectsByOrigin[r.origin] = (defectsByOrigin[r.origin] ?? 0) + 1;
+  }
+
+  // Aggregate by severity
+  const defectsBySeverity: Record<string, number> = {};
+  for (const r of records) {
+    defectsBySeverity[r.severity] = (defectsBySeverity[r.severity] ?? 0) + 1;
+  }
+
+  // Aggregate by detector
+  const defectsByDetector: Record<string, number> = {};
+  for (const r of records) {
+    defectsByDetector[r.detected_by] =
+      (defectsByDetector[r.detected_by] ?? 0) + 1;
+  }
+
+  // Count artifacts by origin for rate computation
+  const originsDir = path.join(projectDir(slug), "artifact-origins");
+  let originFiles: string[] = [];
+  try {
+    originFiles = await readdir(originsDir);
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.code !== "ENOENT") throw err;
+  }
+
+  const artifactsByOrigin: Record<string, number> = {};
+  for (const file of originFiles) {
+    if (!file.endsWith(".json")) continue;
+    try {
+      const origin = await readJSON<ArtifactOrigin>(
+        path.join(originsDir, file)
+      );
+      artifactsByOrigin[origin.origin] =
+        (artifactsByOrigin[origin.origin] ?? 0) + 1;
+    } catch {
+      // skip corrupted files
+    }
+  }
+
+  // Compute rates: defects of origin / total artifacts of that origin
+  const aiArtifacts =
+    (artifactsByOrigin["ai_generated"] ?? 0) +
+    (artifactsByOrigin["ai_assisted"] ?? 0);
+  const humanArtifacts = artifactsByOrigin["human_written"] ?? 0;
+
+  const aiDefects =
+    (defectsByOrigin["ai_generated"] ?? 0) +
+    (defectsByOrigin["ai_assisted"] ?? 0);
+  const humanDefects = defectsByOrigin["human_written"] ?? 0;
+
+  const aiDefectRate = aiArtifacts > 0 ? aiDefects / aiArtifacts : 0;
+  const humanDefectRate = humanArtifacts > 0 ? humanDefects / humanArtifacts : 0;
+
+  // Compute avg resolution time from resolved defects in period
+  const resolvedRecords = records.filter(
+    (r) => r.status === "resolved" && r.resolved_at
+  );
+  let avgResolutionTimeHours = 0;
+  if (resolvedRecords.length > 0) {
+    const totalMs = resolvedRecords.reduce((sum, r) => {
+      const detected = new Date(r.detected_at).getTime();
+      const resolved = new Date(r.resolved_at!).getTime();
+      return sum + (resolved - detected);
+    }, 0);
+    avgResolutionTimeHours =
+      Math.round((totalMs / resolvedRecords.length / (1000 * 60 * 60)) * 100) /
+      100;
+  }
+
+  // Open defects count (from all records, not just period)
+  const openDefectsCount = allRecords.filter(
+    (r) => r.status === "open" || r.status === "in_progress"
+  ).length;
+
+  const metrics: DefectMetrics = {
+    project_id: project.id,
+    computed_at: now.toISOString(),
+    period_days: periodDays,
+    total_defects: records.length,
+    defects_by_origin: defectsByOrigin,
+    defects_by_severity: defectsBySeverity,
+    defects_by_detector: defectsByDetector,
+    ai_defect_rate: Math.round(aiDefectRate * 10000) / 10000,
+    human_defect_rate: Math.round(humanDefectRate * 10000) / 10000,
+    avg_resolution_time_hours: avgResolutionTimeHours,
+    open_defects_count: openDefectsCount,
+  };
+
+  // Persist computed metrics
+  const metricsPath = path.join(projectDir(slug), "defects", "metrics.json");
+  await ensureDir(path.join(projectDir(slug), "defects"));
+  await writeJSON(metricsPath, metrics);
+
+  return c.json(metrics);
 });
 
 // GET /hub/projects/:slug/defects/:id — get single defect

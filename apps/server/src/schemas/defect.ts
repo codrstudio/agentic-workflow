@@ -68,3 +68,19 @@ export const PatchDefectBody = z.object({
 });
 
 export type PatchDefectBody = z.infer<typeof PatchDefectBody>;
+
+export const DefectMetricsSchema = z.object({
+  project_id: z.string(),
+  computed_at: z.string().datetime(),
+  period_days: z.number(),
+  total_defects: z.number(),
+  defects_by_origin: z.record(z.string(), z.number()),
+  defects_by_severity: z.record(z.string(), z.number()),
+  defects_by_detector: z.record(z.string(), z.number()),
+  ai_defect_rate: z.number(),
+  human_defect_rate: z.number(),
+  avg_resolution_time_hours: z.number(),
+  open_defects_count: z.number(),
+});
+
+export type DefectMetrics = z.infer<typeof DefectMetricsSchema>;
