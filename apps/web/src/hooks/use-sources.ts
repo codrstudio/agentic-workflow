@@ -107,6 +107,29 @@ export function useUploadSource(projectSlug: string) {
   });
 }
 
+export interface RecommendedSource {
+  source_id: string;
+  name: string;
+  relevance: number;
+  reason: string;
+}
+
+export const recommendedSourceKeys = {
+  all: (projectSlug: string, sessionId: string) =>
+    ["projects", projectSlug, "sessions", sessionId, "recommended-sources"] as const,
+};
+
+export function useRecommendedSources(projectSlug: string, sessionId: string | null) {
+  return useQuery({
+    queryKey: recommendedSourceKeys.all(projectSlug, sessionId ?? ""),
+    queryFn: () =>
+      apiFetch<{ sources: RecommendedSource[] }>(
+        `/hub/projects/${projectSlug}/sessions/${sessionId}/recommended-sources`
+      ).then((res) => res.sources),
+    enabled: !!sessionId,
+  });
+}
+
 export function useDeleteSource(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({

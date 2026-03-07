@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { FileText, Code, Link, FileType, File, Settings, ChevronDown, ChevronRight, Pin } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { FileText, Code, Link, FileType, File, Settings, ChevronDown, ChevronRight, Pin, Sparkles } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -13,7 +13,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { CategoryBadge } from "@/components/category-badge";
 import { ManageProfilesDialog } from "@/components/manage-profiles-dialog";
-import type { Source, SourceCategory } from "@/hooks/use-sources";
+import { Separator } from "@/components/ui/separator";
+import { useRecommendedSources } from "@/hooks/use-sources";
+import type { Source, SourceCategory, RecommendedSource } from "@/hooks/use-sources";
 import type { ContextProfile } from "@/hooks/use-context-profiles";
 
 const typeIcons: Record<Source["type"], React.ComponentType<{ className?: string }>> = {
@@ -40,9 +42,47 @@ interface SourceContextSheetProps {
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
   projectSlug: string;
+  sessionId: string | null;
   profiles: ContextProfile[];
   selectedProfileId: string | null;
   onProfileChange: (profileId: string | null) => void;
+}
+
+function getRelevanceLevel(relevance: number): { label: string; variant: "default" | "secondary" | "outline" } {
+  if (relevance >= 0.7) return { label: "Alta", variant: "default" };
+  if (relevance >= 0.4) return { label: "Media", variant: "secondary" };
+  return { label: "Baixa", variant: "outline" };
+}
+
+function RecommendedSourceItem({
+  source,
+  recommendation,
+  checked,
+  onToggle,
+}: {
+  source: Source;
+  recommendation: RecommendedSource;
+  checked: boolean;
+  onToggle: () => void;
+}) {
+  const Icon = typeIcons[source.type] ?? FileText;
+  const { label, variant } = getRelevanceLevel(recommendation.relevance);
+
+  return (
+    <Label className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2.5 hover:bg-muted/50">
+      <Checkbox checked={checked} onCheckedChange={onToggle} />
+      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-sm">{source.name}</span>
+        <span className="block truncate text-[11px] text-muted-foreground">
+          {recommendation.reason}
+        </span>
+      </div>
+      <Badge variant={variant} className="shrink-0 text-[10px]">
+        {label}
+      </Badge>
+    </Label>
+  );
 }
 
 function estimateTokens(sources: Source[], selectedIds: string[]): number {
@@ -177,11 +217,33 @@ export function SourceContextSheet({
   selectedIds,
   onSelectionChange,
   projectSlug,
+  sessionId,
   profiles,
   selectedProfileId,
   onProfileChange,
 }: SourceContextSheetProps) {
   const [manageOpen, setManageOpen] = useState(false);
+  const { data: recommendedSources } = useRecommendedSources(projectSlug, sessionId);
+  const [recommendedApplied, setRecommendedApplied] = useState(false);
+
+  // Filter to sources with relevance > 0 and matching an existing source
+  const recommendations = useMemo(() => {
+    if (!recommendedSources || !sources.length) return [];
+    return recommendedSources
+      .filter((r) => r.relevance > 0 && sources.some((s) => s.id === r.source_id))
+      .slice(0, 10);
+  }, [recommendedSources, sources]);
+
+  // Pre-select recommended sources on first load
+  useEffect(() => {
+    if (recommendedApplied || recommendations.length === 0) return;
+    const recIds = recommendations.map((r) => r.source_id);
+    const merged = [...new Set([...selectedIds, ...recIds])];
+    if (merged.length !== selectedIds.length) {
+      onSelectionChange(merged);
+    }
+    setRecommendedApplied(true);
+  }, [recommendations, recommendedApplied, selectedIds, onSelectionChange]);
 
   // Separate pinned sources and group rest by category
   const pinnedSources = useMemo(
@@ -313,6 +375,41 @@ export function SourceContextSheet({
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Recommended sources */}
+            {recommendations.length > 0 && (
+              <>
+                <div className="mb-1">
+                  <div className="flex items-center gap-2 px-2 py-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Recomendados ({recommendations.length})
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 pl-2">
+                    {recommendations.map((rec) => {
+                      const source = sources.find((s) => s.id === rec.source_id);
+                      if (!source) return null;
+                      return (
+                        <RecommendedSourceItem
+                          key={rec.source_id}
+                          source={source}
+                          recommendation={rec}
+                          checked={selectedIds.includes(rec.source_id)}
+                          onToggle={() => toggleSource(rec.source_id)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+                <Separator className="my-2" />
+                <div className="px-2 py-1">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Todos os sources
+                  </span>
+                </div>
+              </>
             )}
 
             {/* Categorized sources */}

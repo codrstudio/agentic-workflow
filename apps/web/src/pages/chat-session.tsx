@@ -437,6 +437,7 @@ export function ChatSessionPage() {
         selectedIds={selectedSourceIds}
         onSelectionChange={setSelectedSourceIds}
         projectSlug={projectId}
+        sessionId={sessionId}
         profiles={profiles ?? []}
         selectedProfileId={selectedProfileId}
         onProfileChange={setSelectedProfileId}
