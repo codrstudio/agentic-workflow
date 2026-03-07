@@ -12,6 +12,7 @@ import { harness } from "./routes/harness.js";
 import { reviews } from "./routes/reviews.js";
 import { metrics } from "./routes/metrics.js";
 import { contextProfiles } from "./routes/context-profiles.js";
+import { context } from "./routes/context.js";
 
 const app = new Hono();
 
@@ -33,5 +34,6 @@ app.route("/api/v1", harness);
 app.route("/api/v1", reviews);
 app.route("/api/v1", metrics);
 app.route("/api/v1", contextProfiles);
+app.route("/api/v1", context);
 
 export { app };
