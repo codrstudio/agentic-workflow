@@ -26,6 +26,7 @@ import {
 import { useResumeBannerStore } from "@/stores/resume-banner.store";
 import { useSessions, useCreateSession } from "@/hooks/use-sessions";
 import { useContextProfiles } from "@/hooks/use-context-profiles";
+import { SprintProgressMini } from "@/components/sprint-progress-mini";
 
 const INACTIVITY_THRESHOLD_HOURS = 4;
 
@@ -152,45 +153,6 @@ function ReviewsList({ reviews }: { reviews: SnapshotReview[] }) {
         </div>
       ))}
     </>
-  );
-}
-
-function SprintSection({ sprint }: { sprint: ProjectSnapshot["active_sprint"] }) {
-  if (!sprint) return null;
-
-  const total = sprint.features_total;
-  const passingPct = total > 0 ? (sprint.features_passing / total) * 100 : 0;
-  const failingPct = total > 0 ? (sprint.features_failing / total) * 100 : 0;
-  const pendingPct = total > 0 ? (sprint.features_pending / total) * 100 : 0;
-
-  return (
-    <div className="space-y-2 text-xs">
-      <div className="flex items-center justify-between">
-        <span className="font-medium">Sprint {sprint.number} — {sprint.current_phase}</span>
-      </div>
-      <div className="flex h-2 w-full overflow-hidden rounded-full bg-muted">
-        {passingPct > 0 && (
-          <div className="bg-green-500 transition-all" style={{ width: `${passingPct}%` }} />
-        )}
-        {failingPct > 0 && (
-          <div className="bg-red-500 transition-all" style={{ width: `${failingPct}%` }} />
-        )}
-        {pendingPct > 0 && (
-          <div className="bg-gray-400 transition-all" style={{ width: `${pendingPct}%` }} />
-        )}
-      </div>
-      <div className="flex items-center gap-3">
-        <Badge className="bg-green-100 text-green-700 text-[10px] px-1.5 py-0">
-          {sprint.features_passing} passing
-        </Badge>
-        <Badge className="bg-red-100 text-red-700 text-[10px] px-1.5 py-0">
-          {sprint.features_failing} failing
-        </Badge>
-        <Badge className="bg-gray-100 text-gray-600 text-[10px] px-1.5 py-0">
-          {sprint.features_pending} pending
-        </Badge>
-      </div>
-    </div>
   );
 }
 
@@ -398,7 +360,7 @@ export function ResumeBanner({ projectSlug }: ResumeBannerProps) {
             icon={GitBranch}
             count={1}
           >
-            <SprintSection sprint={snapshot.active_sprint} />
+            <SprintProgressMini sprint={snapshot.active_sprint} projectId={projectSlug} />
           </CollapsibleSection>
         )}
 
