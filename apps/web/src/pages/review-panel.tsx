@@ -34,6 +34,8 @@ import { DiffViewer } from "@/components/diff-viewer";
 import { ReviewChecklist } from "@/components/review-checklist";
 import { AgentReviewButton } from "@/components/agent-review-button";
 import { AgentReviewResultsPanel } from "@/components/agent-review-results-panel";
+import { FindingsSummaryBadge } from "@/components/findings-summary-badge";
+import type { FindingsSummary } from "@/hooks/use-reviews";
 
 type ReviewStatus = ReviewDetail["status"];
 type ItemStatus = "pending" | "approved" | "flagged";
@@ -247,7 +249,10 @@ export function ReviewPanelPage() {
   const isMobile = useIsMobile();
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<PanelTab>("files");
+  const [activeTab, setActiveTab] = useState<PanelTab>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("tab") === "ai-findings" ? "ai-findings" : "files";
+  });
 
   const {
     data: review,
@@ -262,6 +267,26 @@ export function ReviewPanelPage() {
     totalFindings: agentTotalFindings,
     dismissFinding,
   } = useAgentReview(projectId, reviewId);
+
+  // Compute findings summary from agent results for the badge
+  const findingsSummary: FindingsSummary | undefined =
+    agentResults.length > 0
+      ? agentResults.reduce(
+          (acc, r) => {
+            if (r.status === "completed" && r.findings) {
+              for (const f of r.findings) {
+                if (f.dismissed) continue;
+                if (f.severity === "critical") acc.critical++;
+                else if (f.severity === "warning") acc.warning++;
+                else acc.info++;
+                acc.total++;
+              }
+            }
+            return acc;
+          },
+          { critical: 0, warning: 0, info: 0, total: 0 }
+        )
+      : undefined;
 
   const handleNavigateToFile = useCallback(
     (filePath: string, _line?: number) => {
@@ -367,6 +392,12 @@ export function ReviewPanelPage() {
           <h1 className="text-lg font-semibold truncate">{review.title}</h1>
         </div>
         <AgentReviewButton projectSlug={projectId} reviewId={reviewId} />
+        {findingsSummary && findingsSummary.total > 0 && (
+          <FindingsSummaryBadge
+            summary={findingsSummary}
+            onClick={() => setActiveTab("ai-findings")}
+          />
+        )}
         <ReviewStatusBadge status={review.status} />
       </div>
 

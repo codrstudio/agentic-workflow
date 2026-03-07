@@ -14,6 +14,7 @@ import { useReviews, type ReviewSummary } from "@/hooks/use-reviews";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
+import { FindingsSummaryBadge } from "@/components/findings-summary-badge";
 import { cn } from "@/lib/utils";
 
 type ReviewStatus = ReviewSummary["status"];
@@ -90,7 +91,21 @@ function ReviewCard({
     <div className="flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold text-card-foreground">{review.title}</h3>
-        <ReviewStatusBadge status={review.status} />
+        <div className="flex items-center gap-1.5">
+          {review.findings_summary && review.findings_summary.total > 0 && (
+            <FindingsSummaryBadge
+              summary={review.findings_summary}
+              onClick={() =>
+                navigate({
+                  to: "/projects/$projectId/reviews/$reviewId",
+                  params: { projectId, reviewId: review.id },
+                  search: { tab: "ai-findings" },
+                })
+              }
+            />
+          )}
+          <ReviewStatusBadge status={review.status} />
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">

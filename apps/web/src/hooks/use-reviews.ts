@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
+export interface FindingsSummary {
+  critical: number;
+  warning: number;
+  info: number;
+  total: number;
+}
+
 export interface ReviewSummary {
   id: string;
   project_id: string;
@@ -12,6 +19,7 @@ export interface ReviewSummary {
   items_pending: number;
   criteria_count: number;
   criteria_checked: number;
+  findings_summary?: FindingsSummary;
   created_at: string;
   updated_at: string;
 }

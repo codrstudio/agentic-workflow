@@ -166,20 +166,53 @@ reviews.get("/hub/projects/:slug/reviews", async (c) => {
   }
 
   // Return summaries without full items for list
-  const result = all.map((r) => ({
-    id: r.id,
-    project_id: r.project_id,
-    title: r.title,
-    status: r.status,
-    chat_session_id: r.chat_session_id,
-    step_ref: r.step_ref,
-    items_count: r.items.length,
-    items_pending: r.items.filter((i) => i.status === "pending").length,
-    criteria_count: r.criteria.length,
-    criteria_checked: r.criteria.filter((cr) => cr.checked).length,
-    created_at: r.created_at,
-    updated_at: r.updated_at,
-  }));
+  const result = all.map((r) => {
+    // Compute findings summary from agent_reviews if present
+    const agentReviews = (r as Record<string, unknown>).agent_reviews as
+      | Array<{
+          status: string;
+          findings: Array<{ severity: string; dismissed?: boolean }>;
+        }>
+      | undefined;
+
+    let findings_summary:
+      | { critical: number; warning: number; info: number; total: number }
+      | undefined;
+
+    if (agentReviews && agentReviews.length > 0) {
+      const counts = { critical: 0, warning: 0, info: 0 };
+      for (const ar of agentReviews) {
+        if (ar.status === "completed" && Array.isArray(ar.findings)) {
+          for (const f of ar.findings) {
+            if (f.dismissed) continue;
+            if (f.severity === "critical") counts.critical++;
+            else if (f.severity === "warning") counts.warning++;
+            else counts.info++;
+          }
+        }
+      }
+      findings_summary = {
+        ...counts,
+        total: counts.critical + counts.warning + counts.info,
+      };
+    }
+
+    return {
+      id: r.id,
+      project_id: r.project_id,
+      title: r.title,
+      status: r.status,
+      chat_session_id: r.chat_session_id,
+      step_ref: r.step_ref,
+      items_count: r.items.length,
+      items_pending: r.items.filter((i) => i.status === "pending").length,
+      criteria_count: r.criteria.length,
+      criteria_checked: r.criteria.filter((cr) => cr.checked).length,
+      findings_summary,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    };
+  });
 
   return c.json(result);
 });
