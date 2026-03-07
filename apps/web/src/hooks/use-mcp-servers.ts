@@ -169,3 +169,65 @@ export function useImportMcpResource(projectSlug: string, serverId: string) {
     },
   });
 }
+
+// --- Aggregated MCP resources for chat context (F-084) ---
+
+export interface McpServerWithResources {
+  server: McpServerConfig;
+  resources: McpResource[];
+}
+
+export function useMcpServersWithResources(projectSlug: string) {
+  const { data: servers } = useMcpServers(projectSlug);
+
+  const connectedServers = (servers ?? []).filter(
+    (s) => s.status === "connected"
+  );
+
+  const resourceQueries = useQuery({
+    queryKey: [
+      "projects",
+      projectSlug,
+      "mcp-all-resources",
+      connectedServers.map((s) => s.id).join(","),
+    ],
+    queryFn: async () => {
+      const results: McpServerWithResources[] = [];
+      for (const server of connectedServers) {
+        try {
+          const data = await apiFetch<{ resources: McpResource[] }>(
+            `/hub/projects/${projectSlug}/mcp/servers/${server.id}/resources`
+          );
+          results.push({ server, resources: data.resources });
+        } catch {
+          results.push({ server, resources: [] });
+        }
+      }
+      return results;
+    },
+    enabled: connectedServers.length > 0,
+  });
+
+  return {
+    data: resourceQueries.data ?? [],
+    servers: servers ?? [],
+    hasConnectedServers: connectedServers.length > 0,
+    isLoading: resourceQueries.isLoading,
+  };
+}
+
+export function useImportMcpResourceByServer(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ serverId, uri }: { serverId: string; uri: string }) =>
+      apiFetch<{ source: { id: string; name: string } }>(
+        `/hub/projects/${projectSlug}/mcp/servers/${serverId}/resources/import`,
+        { method: "POST", body: JSON.stringify({ uri }) }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["projects", projectSlug, "sources"],
+      });
+    },
+  });
+}

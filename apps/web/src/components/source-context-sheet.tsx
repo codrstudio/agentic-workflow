@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { FileText, Code, Link, FileType, File, Settings, ChevronDown, ChevronRight, Pin, Sparkles, Minimize2 } from "lucide-react";
+import { FileText, Code, Link, FileType, File, Settings, ChevronDown, ChevronRight, Pin, Sparkles, Minimize2, Server, Download, Check, Loader2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -24,6 +24,8 @@ import {
 import { useRecommendedSources, useCompressSource } from "@/hooks/use-sources";
 import type { Source, SourceCategory, RecommendedSource, CompressionResult } from "@/hooks/use-sources";
 import type { ContextProfile } from "@/hooks/use-context-profiles";
+import { useMcpServersWithResources, useImportMcpResourceByServer } from "@/hooks/use-mcp-servers";
+import type { McpStatus, McpServerWithResources } from "@/hooks/use-mcp-servers";
 
 const typeIcons: Record<Source["type"], React.ComponentType<{ className?: string }>> = {
   markdown: FileText,
@@ -270,6 +272,130 @@ function CategorySection({
   );
 }
 
+const MCP_STATUS_COLORS: Record<McpStatus, string> = {
+  disconnected: "bg-gray-400",
+  connecting: "bg-yellow-400 animate-pulse",
+  connected: "bg-green-500",
+  error: "bg-red-500",
+};
+
+const MCP_STATUS_LABELS: Record<McpStatus, string> = {
+  disconnected: "Desconectado",
+  connecting: "Conectando",
+  connected: "Conectado",
+  error: "Erro",
+};
+
+function McpResourceItem({
+  resource,
+  serverId,
+  isImported,
+  isImporting,
+  onImport,
+}: {
+  resource: { uri: string; name: string; description?: string; mimeType?: string };
+  serverId: string;
+  isImported: boolean;
+  isImporting: boolean;
+  onImport: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-md px-2 py-2 hover:bg-muted/50">
+      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-sm">{resource.name}</span>
+        {resource.description && (
+          <span className="block truncate text-[11px] text-muted-foreground">
+            {resource.description}
+          </span>
+        )}
+      </div>
+      {resource.mimeType && (
+        <Badge variant="outline" className="shrink-0 text-[9px] px-1">
+          {resource.mimeType}
+        </Badge>
+      )}
+      <button
+        type="button"
+        onClick={onImport}
+        disabled={isImported || isImporting}
+        className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+          isImported
+            ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 cursor-default"
+            : isImporting
+              ? "bg-muted text-muted-foreground opacity-50 cursor-wait"
+              : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-900/60"
+        }`}
+      >
+        {isImported ? (
+          <><Check className="h-3 w-3" /> Importado</>
+        ) : isImporting ? (
+          <><Loader2 className="h-3 w-3 animate-spin" /> ...</>
+        ) : (
+          <><Download className="h-3 w-3" /> Importar</>
+        )}
+      </button>
+    </div>
+  );
+}
+
+function McpServerResourceGroup({
+  serverWithResources,
+  projectSlug,
+  importedUris,
+  importingUris,
+  onImport,
+}: {
+  serverWithResources: McpServerWithResources;
+  projectSlug: string;
+  importedUris: Set<string>;
+  importingUris: Set<string>;
+  onImport: (serverId: string, uri: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const { server, resources } = serverWithResources;
+
+  if (resources.length === 0) return null;
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50 text-left"
+      >
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        )}
+        <Server className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        <span className="text-xs font-medium truncate flex-1">{server.name}</span>
+        <span
+          className={`inline-block size-2 rounded-full shrink-0 ${MCP_STATUS_COLORS[server.status]}`}
+          title={MCP_STATUS_LABELS[server.status]}
+        />
+        <span className="text-[10px] text-muted-foreground shrink-0">
+          {resources.length}
+        </span>
+      </button>
+      {open && (
+        <div className="flex flex-col gap-0.5 pl-2">
+          {resources.map((resource) => (
+            <McpResourceItem
+              key={resource.uri}
+              resource={resource}
+              serverId={server.id}
+              isImported={importedUris.has(resource.uri)}
+              isImporting={importingUris.has(resource.uri)}
+              onImport={() => onImport(server.id, resource.uri)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SourceContextSheet({
   open,
   onOpenChange,
@@ -288,6 +414,41 @@ export function SourceContextSheet({
   const [manageOpen, setManageOpen] = useState(false);
   const { data: recommendedSources } = useRecommendedSources(projectSlug, sessionId);
   const [recommendedApplied, setRecommendedApplied] = useState(false);
+
+  // MCP Resources (F-084)
+  const { data: mcpServersWithResources, hasConnectedServers } = useMcpServersWithResources(projectSlug);
+  const importMcpResource = useImportMcpResourceByServer(projectSlug);
+  const [importedUris, setImportedUris] = useState<Set<string>>(new Set());
+  const [importingUris, setImportingUris] = useState<Set<string>>(new Set());
+
+  const handleImportMcpResource = useCallback((serverId: string, uri: string) => {
+    setImportingUris((prev) => new Set(prev).add(uri));
+    importMcpResource.mutate(
+      { serverId, uri },
+      {
+        onSuccess: () => {
+          setImportedUris((prev) => new Set(prev).add(uri));
+          setImportingUris((prev) => {
+            const next = new Set(prev);
+            next.delete(uri);
+            return next;
+          });
+        },
+        onError: () => {
+          setImportingUris((prev) => {
+            const next = new Set(prev);
+            next.delete(uri);
+            return next;
+          });
+        },
+      }
+    );
+  }, [importMcpResource]);
+
+  const mcpServersWithResourcesFiltered = useMemo(
+    () => mcpServersWithResources.filter((swr) => swr.resources.length > 0),
+    [mcpServersWithResources]
+  );
   const [compressionData, setCompressionData] = useState<Record<string, CompressionResult>>({});
   const [compressingIds, setCompressingIds] = useState<string[]>([]);
   const compressSource = useCompressSource(projectSlug);
@@ -525,6 +686,29 @@ export function SourceContextSheet({
                 onCompressionToggle={handleCompressionToggle}
               />
             ))}
+
+            {/* MCP Resources (F-084) */}
+            {hasConnectedServers && mcpServersWithResourcesFiltered.length > 0 && (
+              <>
+                <Separator className="my-2" />
+                <div className="flex items-center gap-2 px-2 py-1.5">
+                  <Server className="h-3.5 w-3.5 text-purple-500" />
+                  <span className="text-xs font-medium text-muted-foreground">
+                    MCP Resources
+                  </span>
+                </div>
+                {mcpServersWithResourcesFiltered.map((swr) => (
+                  <McpServerResourceGroup
+                    key={swr.server.id}
+                    serverWithResources={swr}
+                    projectSlug={projectSlug}
+                    importedUris={importedUris}
+                    importingUris={importingUris}
+                    onImport={handleImportMcpResource}
+                  />
+                ))}
+              </>
+            )}
           </div>
         </SheetContent>
       </Sheet>
