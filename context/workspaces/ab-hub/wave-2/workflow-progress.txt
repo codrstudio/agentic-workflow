@@ -27,3 +27,26 @@
   - Endpoints novos necessarios: /system/dashboard, /jobs/:id/stream, /notifications/*, /push/subscribe
   - Schema DB novo: tabelas notifications e push_subscriptions
   - Artefatos: 5 specs .md em sprints/sprint-2/2-specs/
+[2026-03-07 13:25:16] Step 3 (derive-specs): Completed. ok
+[2026-03-07] Step 4 — derive-prps: COMPLETE.
+  - Derivou 5 PRPs para Sprint 2 (PRP-08 a PRP-12), um por spec
+  - PRP-08: Dashboard de Sistema (S-008) — 4 features (F-031..F-034): endpoint agregado, stat cards, activity timeline, upcoming cron jobs + nav
+  - PRP-09: Configuracoes de LLM (S-009) — 3 features (F-035..F-037): selector de plano, web search, info sistema
+  - PRP-10: Gestao de Usuarios (S-010) — 3 features (F-038..F-040): lista usuarios, form criar/editar, excluir + endpoint agentes
+  - PRP-11: Supervisor de Jobs (S-011) — 3 features (F-041..F-043): endpoint stream, lista jobs, detalhe com terminal output
+  - PRP-12: Notificacoes e Alertas (S-012) — 5 features (F-044..F-048): schema + endpoints, gerador, bell + popover, central, push PWA
+  - Total: 18 features (F-031 a F-048) no features.json
+  - Dependencias: PRP-10 depende de PRP-09 (estrutura tabs /settings); demais dependem apenas de PRP-01
+  - Convencoes seguidas do Sprint 1: Execution Mode, Contexto, Especificacao, Limites, Dependencias, Validacao, Rastreabilidade
+  - Artefatos: 5 PRPs .md em sprints/sprint-2/3-prps/, features.json em sprints/sprint-2/
+[2026-03-07 13:32:12] Step 4 (derive-prps): Completed. ok
+[2026-03-07] Step 5 — plan-features: COMPLETE.
+  - Validou cobertura: 18 features (F-031 a F-048) cobrindo todos os 5 PRPs (PRP-08 a PRP-12)
+  - Reordenou prioridades por risco tecnico (backend/infra primeiro, UI depois):
+    - Camada 1 (pri 1-4): Endpoints e schema DB sem dependencias (F-031, F-044, F-041, F-035)
+    - Camada 2 (pri 5-12): UI core (StatCards, Timeline, NotificationBell, Jobs list, Settings tabs, Users list)
+    - Camada 3 (pri 13-16): UI estendida (CronJobs widget, Job detail, User form, Notification central)
+    - Camada 4 (pri 17-18): Features finais (Delete user, Push PWA)
+  - Corrigiu prp_path para caminhos absolutos (convencao Sprint 1)
+  - Validou DAG: sem ciclos, sem dependencias faltando, ordem de prioridades respeita dependencias
+  - Artefato: features.json atualizado em sprints/sprint-2/
