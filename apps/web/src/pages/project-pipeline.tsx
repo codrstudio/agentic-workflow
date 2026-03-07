@@ -7,6 +7,7 @@ import type { PipelineGate } from "@/components/pipeline-stepper";
 import type { GateTransition } from "@/hooks/use-quality-gates";
 import { EmptyState } from "@/components/empty-state";
 import { PipelineStepper, computePhaseStatus } from "@/components/pipeline-stepper";
+import { CognitivePhaseIndicator } from "@/components/cognitive-phase-indicator";
 import { PhaseContentView } from "@/components/phase-content-view";
 import { GateDetailSheet } from "@/components/gate-detail-sheet";
 import { GateSummaryBanner } from "@/components/gate-summary-banner";
@@ -101,6 +102,9 @@ export function ProjectPipelinePage() {
       {/* Pipeline Stepper */}
       {currentSprint && pipelinePhases.length > 0 && (
         <div className="rounded-lg border bg-card p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4">
+            <CognitivePhaseIndicator phases={pipelinePhases} />
+          </div>
           <PipelineStepper
             phases={pipelinePhases}
             activePhaseId={activePhase}
