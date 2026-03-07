@@ -29,6 +29,7 @@ import {
   type AIProductivitySnapshot,
   type ProductivityHistoryEntry,
 } from "@/hooks/use-productivity-snapshot";
+import { FeatureProductivityTable } from "@/components/feature-productivity-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -598,6 +599,9 @@ export function AIProductivityDashboard({
           <VerificationTaxAreaChart data={chartData} />
         </div>
       )}
+
+      {/* Feature Productivity Table */}
+      <FeatureProductivityTable projectId={projectId} periodDays={periodDays} />
 
       {/* Empty / no records */}
       {!isLoading && !isError && !snapshot && (
