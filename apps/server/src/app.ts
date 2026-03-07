@@ -20,6 +20,7 @@ import { qualityGates } from "./routes/quality-gates.js";
 import { snapshots } from "./routes/snapshots.js";
 import { burnout } from "./routes/burnout.js";
 import { taskComplexity } from "./routes/task-complexity.js";
+import { artifactOrigins } from "./routes/artifact-origins.js";
 
 const app = new Hono();
 
@@ -49,5 +50,6 @@ app.route("/api/v1", qualityGates);
 app.route("/api/v1", snapshots);
 app.route("/api/v1", burnout);
 app.route("/api/v1", taskComplexity);
+app.route("/api/v1", artifactOrigins);
 
 export { app };

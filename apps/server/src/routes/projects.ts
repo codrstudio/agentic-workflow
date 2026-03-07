@@ -102,6 +102,7 @@ projects.post("/hub/projects", async (c) => {
     settings: {
       default_agent: "general",
       max_sources: 100,
+      context_budget: 50000,
       params: {},
     },
   };
