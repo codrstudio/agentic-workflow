@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "@tanstack/react-router";
 import { ArrowLeft, Eye, MessageSquare, Paperclip } from "lucide-react";
+import { ContextSummaryBadges } from "@/components/context-summary-badges";
 import { toast } from "sonner";
 import { useSession, sessionKeys } from "@/hooks/use-sessions";
 import { useSources } from "@/hooks/use-sources";
@@ -253,10 +254,6 @@ export function ChatSessionPage() {
     });
   };
 
-  const selectedSourceNames = (sources ?? []).filter((s) =>
-    selectedSourceIds.includes(s.id),
-  );
-
   // Review button logic
   const sessionReview = useMemo(
     () => reviews?.find((r) => r.chat_session_id === sessionId),
@@ -313,20 +310,11 @@ export function ChatSessionPage() {
                 {allMessages.length} {allMessages.length === 1 ? "mensagem" : "mensagens"}
               </p>
             )}
-            {selectedSourceNames.length > 0 && (
-              <div className="flex items-center gap-1">
-                {selectedSourceNames.slice(0, 2).map((s) => (
-                  <Badge key={s.id} variant="secondary" className="text-[10px]">
-                    {s.name}
-                  </Badge>
-                ))}
-                {selectedSourceNames.length > 2 && (
-                  <Badge variant="secondary" className="text-[10px]">
-                    +{selectedSourceNames.length - 2}
-                  </Badge>
-                )}
-              </div>
-            )}
+            <ContextSummaryBadges
+              sources={sources ?? []}
+              selectedIds={selectedSourceIds}
+              onClick={() => setSourceSheetOpen(true)}
+            />
           </div>
         </div>
         {showReviewButton && (

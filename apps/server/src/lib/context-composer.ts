@@ -3,6 +3,16 @@ import { readFile } from "node:fs/promises";
 import { config } from "./config.js";
 import type { Source } from "../schemas/source.js";
 
+// Category priority order: business first, general last
+const CATEGORY_ORDER: Source["category"][] = [
+  "business",
+  "backend",
+  "frontend",
+  "config",
+  "reference",
+  "general",
+];
+
 export interface ProjectContext {
   name: string;
   description?: string;
@@ -88,17 +98,32 @@ export async function composePrompt(
   // 2. Project context
   systemParts.push(buildProjectContext(project));
 
-  // 3. Sources context (loaded from filesystem)
+  // 3. Sources context — ordered by category (business first) with delimiters
   if (sources.length > 0) {
-    const sourceBlocks: string[] = [];
+    // Group sources by category
+    const byCategory = new Map<string, { source: Source; content: string }[]>();
     for (const source of sources) {
       const content = await loadSourceContent(projectSlug, source);
-      if (content) {
-        sourceBlocks.push(buildSourceBlock(source, content));
-      }
+      if (!content) continue;
+      const cat = source.category ?? "general";
+      if (!byCategory.has(cat)) byCategory.set(cat, []);
+      byCategory.get(cat)!.push({ source, content });
     }
-    if (sourceBlocks.length > 0) {
-      systemParts.push("## Sources\n\n" + sourceBlocks.join("\n\n"));
+
+    // Emit in category priority order with [Context: {Category}] delimiters
+    const categoryBlocks: string[] = [];
+    for (const cat of CATEGORY_ORDER) {
+      const entries = byCategory.get(cat);
+      if (!entries || entries.length === 0) continue;
+      const label = cat.charAt(0).toUpperCase() + cat.slice(1);
+      const blocks = entries.map((e) => buildSourceBlock(e.source, e.content));
+      categoryBlocks.push(
+        `[Context: ${label}]\n\n${blocks.join("\n\n")}\n\n[/Context: ${label}]`
+      );
+    }
+
+    if (categoryBlocks.length > 0) {
+      systemParts.push("## Sources\n\n" + categoryBlocks.join("\n\n"));
     }
   }
 
