@@ -3,6 +3,7 @@ import { useParams } from "@tanstack/react-router";
 import { GitBranch } from "lucide-react";
 import { useSprints } from "@/hooks/use-sprints";
 import { EmptyState } from "@/components/empty-state";
+import { PipelineStepper, computePhaseStatus } from "@/components/pipeline-stepper";
 
 export function ProjectPipelinePage() {
   const { projectId } = useParams({
@@ -21,6 +22,11 @@ export function ProjectPipelinePage() {
   }, [sprints, selectedSprint]);
 
   const currentSprint = sprints?.find((s) => s.number === selectedSprint);
+  const [activePhase, setActivePhase] = useState<string | undefined>();
+
+  const pipelinePhases = currentSprint
+    ? computePhaseStatus(currentSprint.phases, currentSprint.features_count)
+    : [];
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-6">
@@ -70,6 +76,17 @@ export function ProjectPipelinePage() {
           description="Sprints will appear here once the pipeline generates them."
           className="min-h-[50vh]"
         />
+      )}
+
+      {/* Pipeline Stepper */}
+      {currentSprint && pipelinePhases.length > 0 && (
+        <div className="rounded-lg border bg-card p-4 sm:p-6">
+          <PipelineStepper
+            phases={pipelinePhases}
+            activePhaseId={activePhase}
+            onPhaseClick={(phaseId) => setActivePhase(phaseId)}
+          />
+        </div>
       )}
 
       {/* Sprint overview */}
