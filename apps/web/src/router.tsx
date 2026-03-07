@@ -13,6 +13,12 @@ import { ProjectSourcesPage } from "@/pages/project-sources";
 import { ProjectChatPage } from "@/pages/project-chat";
 import { ProjectArtifactsPage } from "@/pages/project-artifacts";
 import { ChatSessionPage } from "@/pages/chat-session";
+import { ProjectPipelinePage } from "@/pages/project-pipeline";
+import { HarnessOverviewPage } from "@/pages/harness-overview";
+import { WorkspaceDetailPage } from "@/pages/workspace-detail";
+import { ProjectReviewsPage } from "@/pages/project-reviews";
+import { ProjectMetricsPage } from "@/pages/project-metrics";
+import { ReviewPanelPage } from "@/pages/review-panel";
 import { ProjectNav } from "@/components/layout/project-nav";
 
 interface RouterContext {
@@ -127,6 +133,54 @@ const projectArtifactsRoute = createRoute({
   staticData: { breadcrumb: "Artifacts" },
 });
 
+// /projects/$projectId/pipeline
+const projectPipelineRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/pipeline",
+  component: ProjectPipelinePage,
+  staticData: { breadcrumb: "Pipeline" },
+});
+
+// /projects/$projectId/reviews
+const projectReviewsRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/reviews",
+  component: ProjectReviewsPage,
+  staticData: { breadcrumb: "Reviews" },
+});
+
+// /projects/$projectId/reviews/$reviewId (F-049)
+const reviewPanelRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/reviews/$reviewId",
+  component: ReviewPanelPage,
+  staticData: { breadcrumb: "Review" },
+});
+
+// /projects/$projectId/metrics
+const projectMetricsRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/metrics",
+  component: ProjectMetricsPage,
+  staticData: { breadcrumb: "Metrics" },
+});
+
+// /harness
+const harnessRoute = createRoute({
+  getParentRoute: () => authenticatedLayout,
+  path: "/harness",
+  component: HarnessOverviewPage,
+  staticData: { breadcrumb: "Harness" },
+});
+
+// /harness/$projectId — workspace detail (F-042)
+const harnessDetailRoute = createRoute({
+  getParentRoute: () => harnessRoute,
+  path: "$projectId",
+  component: WorkspaceDetailPage,
+  staticData: { breadcrumb: "$projectId" },
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayout.addChildren([loginRoute]),
   authenticatedLayout.addChildren([
@@ -138,8 +192,13 @@ const routeTree = rootRoute.addChildren([
         projectChatRoute,
         chatSessionRoute,
         projectArtifactsRoute,
+        projectPipelineRoute,
+        projectReviewsRoute,
+        reviewPanelRoute,
+        projectMetricsRoute,
       ]),
     ]),
+    harnessRoute.addChildren([harnessDetailRoute]),
   ]),
 ]);
 

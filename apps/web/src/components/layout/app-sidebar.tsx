@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Home, FolderKanban, Settings, Plus, FolderOpen } from "lucide-react";
+import { Home, FolderKanban, Settings, Plus, FolderOpen, Activity } from "lucide-react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useProjects } from "@/hooks/use-projects";
 import { ProjectFormDialog } from "@/components/project-form-dialog";
@@ -21,6 +21,7 @@ import {
 const navItems = [
   { title: "Home", icon: Home, to: "/" as const },
   { title: "Projects", icon: FolderKanban, to: "/projects" as const },
+  { title: "Harness", icon: Activity, to: "/harness" as const },
   { title: "Settings", icon: Settings, to: "/projects" as const },
 ];
 

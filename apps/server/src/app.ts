@@ -7,6 +7,11 @@ import { projects } from "./routes/projects.js";
 import { sources } from "./routes/sources.js";
 import { sessions } from "./routes/sessions.js";
 import { artifacts } from "./routes/artifacts.js";
+import { sprints } from "./routes/sprints.js";
+import { harness } from "./routes/harness.js";
+import { reviews } from "./routes/reviews.js";
+import { metrics } from "./routes/metrics.js";
+import { contextProfiles } from "./routes/context-profiles.js";
 
 const app = new Hono();
 
@@ -23,5 +28,10 @@ app.route("/api/v1", projects);
 app.route("/api/v1", sources);
 app.route("/api/v1", sessions);
 app.route("/api/v1", artifacts);
+app.route("/api/v1", sprints);
+app.route("/api/v1", harness);
+app.route("/api/v1", reviews);
+app.route("/api/v1", metrics);
+app.route("/api/v1", contextProfiles);
 
 export { app };

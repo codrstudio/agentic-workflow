@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
 import { useParams } from "@tanstack/react-router";
 import { FileText, Plus, Search } from "lucide-react";
-import { useSources, type Source } from "@/hooks/use-sources";
+import { useSources, useUpdateSource, type Source, type SourceCategory } from "@/hooks/use-sources";
 import { SourceCard, SourceGridSkeleton } from "@/components/source-card";
 import { SourceViewerSheet } from "@/components/source-viewer-sheet";
+import { SourceSettingsSheet } from "@/components/source-settings-sheet";
 import { AddSourceDialog } from "@/components/add-source-dialog";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export function ProjectSourcesPage() {
     from: "/_authenticated/projects/$projectId/sources",
   });
   const { data: sources, isLoading, isError, error } = useSources(projectId);
+  const updateSource = useUpdateSource(projectId);
   const isMobile = useIsMobile();
 
   const [search, setSearch] = useState("");
@@ -31,10 +33,28 @@ export function ProjectSourcesPage() {
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [settingsSource, setSettingsSource] = useState<Source | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const handleSourceClick = (source: Source) => {
     setSelectedSourceId(source.id);
     setViewerOpen(true);
+  };
+
+  const handleConfigureContext = (source: Source) => {
+    setSettingsSource(source);
+    setSettingsOpen(true);
+  };
+
+  const handleSaveSettings = (sourceId: string, updates: {
+    category: SourceCategory;
+    pinned: boolean;
+    auto_include: boolean;
+    relevance_tags: string[];
+  }) => {
+    updateSource.mutate({ id: sourceId, ...updates }, {
+      onSuccess: () => setSettingsOpen(false),
+    });
   };
 
   const filtered = useMemo(() => {
@@ -137,7 +157,7 @@ export function ProjectSourcesPage() {
       {!isLoading && !isError && filtered.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((source) => (
-            <SourceCard key={source.id} source={source} onClick={handleSourceClick} />
+            <SourceCard key={source.id} source={source} onClick={handleSourceClick} onConfigureContext={handleConfigureContext} />
           ))}
         </div>
       )}
@@ -169,6 +189,18 @@ export function ProjectSourcesPage() {
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
         projectSlug={projectId}
+      />
+
+      {/* Source settings sheet */}
+      <SourceSettingsSheet
+        source={settingsSource}
+        open={settingsOpen}
+        onOpenChange={(open) => {
+          setSettingsOpen(open);
+          if (!open) setSettingsSource(null);
+        }}
+        onSave={handleSaveSettings}
+        saving={updateSource.isPending}
       />
     </div>
   );

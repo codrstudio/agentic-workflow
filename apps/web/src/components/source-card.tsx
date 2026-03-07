@@ -1,7 +1,8 @@
-import { FileText, Link as LinkIcon, Code, FileType2, File } from "lucide-react";
+import { FileText, Link as LinkIcon, Code, FileType2, File, Pin, MoreVertical, Settings2 } from "lucide-react";
 import type { Source } from "@/hooks/use-sources";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CategoryBadge } from "@/components/category-badge";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
@@ -33,9 +34,10 @@ interface SourceCardProps {
   source: Source;
   className?: string;
   onClick?: (source: Source) => void;
+  onConfigureContext?: (source: Source) => void;
 }
 
-export function SourceCard({ source, className, onClick }: SourceCardProps) {
+export function SourceCard({ source, className, onClick, onConfigureContext }: SourceCardProps) {
   const Icon = typeIcons[source.type];
   const preview = source.content
     ? source.content.slice(0, 120).replace(/\n/g, " ")
@@ -44,52 +46,81 @@ export function SourceCard({ source, className, onClick }: SourceCardProps) {
       : "";
 
   return (
-    <button
-      type="button"
-      onClick={() => onClick?.(source)}
+    <div
       className={cn(
-        "group flex flex-col gap-2.5 rounded-lg border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:shadow-md",
+        "group relative flex flex-col gap-2.5 rounded-lg border bg-card p-4 text-left shadow-sm transition-colors hover:border-primary/40 hover:shadow-md",
         className,
       )}
     >
-      {/* Header: icon + name + type label */}
-      <div className="flex items-start gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
-          <Icon className="h-4.5 w-4.5 text-muted-foreground" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate font-semibold text-card-foreground group-hover:text-primary transition-colors">
-            {source.name}
-          </h3>
-          <span className="text-xs text-muted-foreground">
-            {typeLabels[source.type]}
-          </span>
-        </div>
-      </div>
-
-      {/* Preview 2 lines */}
-      {preview && (
-        <p className="text-sm text-muted-foreground line-clamp-2">
-          {preview}
-        </p>
+      {/* Menu '...' button */}
+      {onConfigureContext && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onConfigureContext(source);
+          }}
+          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md opacity-0 transition-opacity hover:bg-muted group-hover:opacity-100"
+          aria-label="Configurar contexto"
+          title="Configurar contexto"
+        >
+          <MoreVertical className="h-4 w-4 text-muted-foreground" />
+        </button>
       )}
 
-      {/* Tags */}
-      {source.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {source.tags.map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">
-              {tag}
-            </Badge>
-          ))}
+      {/* Clickable area */}
+      <button
+        type="button"
+        onClick={() => onClick?.(source)}
+        className="flex flex-col gap-2.5 text-left"
+      >
+        {/* Header: icon + name + type label + pin + category */}
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
+            <Icon className="h-4.5 w-4.5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h3 className="truncate font-semibold text-card-foreground group-hover:text-primary transition-colors">
+                {source.name}
+              </h3>
+              {source.pinned && (
+                <Pin className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="Pinned" />
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-xs text-muted-foreground">
+                {typeLabels[source.type]}
+              </span>
+              <CategoryBadge category={source.category} />
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* Date */}
-      <div className="mt-auto text-xs text-muted-foreground">
-        {formatDate(source.updated_at)}
-      </div>
-    </button>
+        {/* Preview 2 lines */}
+        {preview && (
+          <p className="text-sm text-muted-foreground line-clamp-2">
+            {preview}
+          </p>
+        )}
+
+        {/* Tags */}
+        {source.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {source.tags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-[10px] px-1.5 py-0">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* Date */}
+        <div className="mt-auto text-xs text-muted-foreground">
+          {formatDate(source.updated_at)}
+        </div>
+      </button>
+    </div>
   );
 }
 

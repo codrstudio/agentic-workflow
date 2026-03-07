@@ -1,9 +1,12 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "@tanstack/react-router";
-import { ArrowLeft, MessageSquare, Paperclip } from "lucide-react";
+import { ArrowLeft, Eye, MessageSquare, Paperclip } from "lucide-react";
+import { ContextSummaryBadges } from "@/components/context-summary-badges";
 import { toast } from "sonner";
 import { useSession, sessionKeys } from "@/hooks/use-sessions";
 import { useSources } from "@/hooks/use-sources";
+import { useContextProfiles } from "@/hooks/use-context-profiles";
+import { useReviews, useCreateReview, reviewKeys } from "@/hooks/use-reviews";
 import { artifactKeys } from "@/hooks/use-artifacts";
 import { MessageBubble, TypingIndicator } from "@/components/message-bubble";
 import { ChatInput } from "@/components/chat-input";
@@ -13,6 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { streamChatMessage } from "@/lib/sse-chat";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSessionMetrics, metricsKeys } from "@/hooks/use-metrics";
+import { SessionMetricsBar } from "@/components/session-metrics-bar";
+import type { SessionMetricsData } from "@/components/session-metrics-bar";
 import type { ChatMessage } from "@/hooks/use-sessions";
 
 function ChatSessionSkeleton() {
@@ -40,6 +46,9 @@ export function ChatSessionPage() {
   });
   const { data: session, isLoading, isError, error } = useSession(projectId, sessionId);
   const { data: sources } = useSources(projectId);
+  const { data: profiles } = useContextProfiles(projectId);
+  const { data: reviews } = useReviews(projectId);
+  const createReview = useCreateReview(projectId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -52,7 +61,46 @@ export function ChatSessionPage() {
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [sourceSheetOpen, setSourceSheetOpen] = useState(false);
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [streamStartTime, setStreamStartTime] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Session metrics from API
+  const { data: sessionMetricsList } = useSessionMetrics(projectId);
+  const apiMetrics = useMemo(
+    () => sessionMetricsList?.find((m) => m.id === sessionId) ?? null,
+    [sessionMetricsList, sessionId],
+  );
+
+  // Compute real-time metrics during streaming
+  const metricsData = useMemo((): SessionMetricsData | null => {
+    if (!apiMetrics && !isStreaming) return null;
+    const baseTokens = apiMetrics?.tokens ?? 0;
+    const baseCost = apiMetrics?.cost_usd ?? 0;
+    const baseDuration = apiMetrics?.duration_ms ?? 0;
+
+    // During streaming, estimate incremental tokens from streamed content
+    const streamTokens = isStreaming ? Math.floor(streamingContent.length / 4) : 0;
+    const streamDuration = isStreaming && streamStartTime ? Date.now() - streamStartTime : 0;
+    // Rough cost: $3/M input + $15/M output for Claude Sonnet estimate
+    const streamCost = streamTokens > 0 ? streamTokens * 0.000015 : 0;
+
+    const totalTokens = baseTokens + streamTokens;
+    const totalCost = baseCost + streamCost;
+    const totalDuration = baseDuration + streamDuration;
+
+    // Estimate input vs output split: input ~= 60%, output ~= 40% heuristic
+    const inputTokens = Math.floor(totalTokens * 0.6);
+    const outputTokens = totalTokens - inputTokens;
+
+    return {
+      tokens: totalTokens,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      cost_usd: totalCost,
+      duration_ms: totalDuration > 0 ? totalDuration : null,
+    };
+  }, [apiMetrics, isStreaming, streamingContent.length, streamStartTime]);
 
   // Sync local messages from session data
   useEffect(() => {
@@ -61,12 +109,27 @@ export function ChatSessionPage() {
     }
   }, [session?.messages]);
 
-  // Initialize selected sources from session
+  // Initialize selected sources from session or default profile + pinned/auto-include
   useEffect(() => {
-    if (session?.source_ids) {
+    if (session?.source_ids && session.source_ids.length > 0) {
       setSelectedSourceIds(session.source_ids);
+    } else if (sources && sources.length > 0 && selectedSourceIds.length === 0) {
+      // Collect pinned and auto_include sources
+      const autoIds = sources
+        .filter((s) => s.pinned || s.auto_include)
+        .map((s) => s.id);
+
+      // Check for default profile
+      const defaultProfile = profiles?.find((p) => p.is_default);
+      if (defaultProfile) {
+        setSelectedProfileId(defaultProfile.id);
+        const merged = [...new Set([...defaultProfile.source_ids, ...autoIds])];
+        setSelectedSourceIds(merged);
+      } else if (autoIds.length > 0) {
+        setSelectedSourceIds(autoIds);
+      }
     }
-  }, [session?.source_ids]);
+  }, [session?.source_ids, profiles, sources]);
 
   const allMessages = localMessages;
   const hasMessages = allMessages.length > 0 || isStreaming;
@@ -93,6 +156,7 @@ export function ChatSessionPage() {
     setIsStreaming(true);
     setStreamingContent("");
     setStreamingMessageId(null);
+    setStreamStartTime(Date.now());
 
     const controller = streamChatMessage(projectId, sessionId, content, {
       onStart: (messageId) => {
@@ -115,6 +179,7 @@ export function ChatSessionPage() {
         });
         setIsStreaming(false);
         setStreamingMessageId(null);
+        setStreamStartTime(null);
         abortControllerRef.current = null;
         // Invalidate session query to sync with server
         queryClient.invalidateQueries({
@@ -122,6 +187,10 @@ export function ChatSessionPage() {
         });
         queryClient.invalidateQueries({
           queryKey: sessionKeys.list(projectId),
+        });
+        // Invalidate metrics to refresh after streaming
+        queryClient.invalidateQueries({
+          queryKey: metricsKeys.sessions(projectId),
         });
         // Show toast and invalidate artifacts cache if artifacts were created
         if (artifacts.length > 0) {
@@ -150,6 +219,7 @@ export function ChatSessionPage() {
         setIsStreaming(false);
         setStreamingContent("");
         setStreamingMessageId(null);
+        setStreamStartTime(null);
         abortControllerRef.current = null;
         // Add error as a system message for visibility
         const errorMessage: ChatMessage = {
@@ -183,6 +253,7 @@ export function ChatSessionPage() {
     setIsStreaming(false);
     setStreamingContent("");
     setStreamingMessageId(null);
+    setStreamStartTime(null);
   }, [streamingContent, streamingMessageId]);
 
   const handleBack = () => {
@@ -192,9 +263,44 @@ export function ChatSessionPage() {
     });
   };
 
-  const selectedSourceNames = (sources ?? []).filter((s) =>
-    selectedSourceIds.includes(s.id),
+  // Review button logic
+  const sessionReview = useMemo(
+    () => reviews?.find((r) => r.chat_session_id === sessionId),
+    [reviews, sessionId],
   );
+
+  const hasArtifactsOrModifiedFiles = useMemo(
+    () => allMessages.some((m) => m.artifacts.length > 0),
+    [allMessages],
+  );
+
+  const showReviewButton = hasArtifactsOrModifiedFiles || !!sessionReview;
+
+  const handleReviewClick = useCallback(async () => {
+    if (sessionReview) {
+      toast.info(`Review: ${sessionReview.title}`, {
+        description: `Status: ${sessionReview.status} | ${sessionReview.items_pending} items pendentes`,
+      });
+      return;
+    }
+
+    try {
+      const review = await createReview.mutateAsync({
+        title: `Review: ${session?.title ?? "Sessao de chat"}`,
+        chat_session_id: sessionId,
+      });
+      queryClient.invalidateQueries({
+        queryKey: reviewKeys.all(projectId),
+      });
+      toast.success("Review criada", {
+        description: `${review.items.length} arquivos detectados`,
+      });
+    } catch (err) {
+      toast.error("Falha ao criar review", {
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    }
+  }, [sessionReview, session?.title, sessionId, createReview, queryClient, projectId]);
 
   return (
     <div className="flex h-full flex-col">
@@ -213,22 +319,33 @@ export function ChatSessionPage() {
                 {allMessages.length} {allMessages.length === 1 ? "mensagem" : "mensagens"}
               </p>
             )}
-            {selectedSourceNames.length > 0 && (
-              <div className="flex items-center gap-1">
-                {selectedSourceNames.slice(0, 2).map((s) => (
-                  <Badge key={s.id} variant="secondary" className="text-[10px]">
-                    {s.name}
-                  </Badge>
-                ))}
-                {selectedSourceNames.length > 2 && (
-                  <Badge variant="secondary" className="text-[10px]">
-                    +{selectedSourceNames.length - 2}
-                  </Badge>
-                )}
-              </div>
-            )}
+            <ContextSummaryBadges
+              sources={sources ?? []}
+              selectedIds={selectedSourceIds}
+              onClick={() => setSourceSheetOpen(true)}
+            />
           </div>
         </div>
+        {showReviewButton && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleReviewClick}
+            className="relative shrink-0"
+            aria-label="Review"
+            disabled={createReview.isPending}
+          >
+            <Eye className="h-4 w-4" />
+            {sessionReview && sessionReview.items_pending > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px]"
+              >
+                {sessionReview.items_pending}
+              </Badge>
+            )}
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -299,6 +416,9 @@ export function ChatSessionPage() {
         {!hasMessages && <div ref={messagesEndRef} />}
       </div>
 
+      {/* Session Metrics Bar */}
+      {metricsData && <SessionMetricsBar metrics={metricsData} />}
+
       {/* Chat Input */}
       <ChatInput
         value={inputValue}
@@ -316,6 +436,10 @@ export function ChatSessionPage() {
         sources={sources ?? []}
         selectedIds={selectedSourceIds}
         onSelectionChange={setSelectedSourceIds}
+        projectSlug={projectId}
+        profiles={profiles ?? []}
+        selectedProfileId={selectedProfileId}
+        onProfileChange={setSelectedProfileId}
       />
     </div>
   );

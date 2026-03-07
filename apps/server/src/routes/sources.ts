@@ -46,9 +46,20 @@ async function loadProject(slug: string): Promise<Project | null> {
   }
 }
 
+function applySourceDefaults(source: Record<string, unknown>): Source {
+  return {
+    ...source,
+    category: source.category ?? "general",
+    pinned: source.pinned ?? false,
+    auto_include: source.auto_include ?? false,
+    relevance_tags: source.relevance_tags ?? [],
+  } as Source;
+}
+
 async function loadSources(slug: string): Promise<Source[]> {
   try {
-    return await readJSON<Source[]>(sourcesJsonPath(slug));
+    const raw = await readJSON<Record<string, unknown>[]>(sourcesJsonPath(slug));
+    return raw.map(applySourceDefaults);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("not found")) return [];
@@ -184,6 +195,10 @@ sources.post("/hub/projects/:slug/sources", async (c) => {
     created_at: now,
     updated_at: now,
     tags,
+    category: "general",
+    pinned: false,
+    auto_include: false,
+    relevance_tags: [],
   };
 
   const all = await loadSources(slug);
@@ -249,6 +264,10 @@ sources.post("/hub/projects/:slug/sources/upload", async (c) => {
     created_at: now,
     updated_at: now,
     tags: [],
+    category: "general",
+    pinned: false,
+    auto_include: false,
+    relevance_tags: [],
   };
 
   // Parse optional tags from form body
@@ -302,6 +321,10 @@ sources.patch("/hub/projects/:slug/sources/:id", async (c) => {
 
   if (updates.name !== undefined) existing.name = updates.name;
   if (updates.tags !== undefined) existing.tags = updates.tags;
+  if (updates.category !== undefined) existing.category = updates.category;
+  if (updates.pinned !== undefined) existing.pinned = updates.pinned;
+  if (updates.auto_include !== undefined) existing.auto_include = updates.auto_include;
+  if (updates.relevance_tags !== undefined) existing.relevance_tags = updates.relevance_tags;
 
   if (updates.content !== undefined) {
     const sizeBytes = Buffer.byteLength(updates.content, "utf-8");
