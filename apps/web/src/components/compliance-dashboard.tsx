@@ -5,6 +5,7 @@ import {
   Eye,
   FileWarning,
   Users,
+  FilePieChart,
 } from "lucide-react";
 import {
   BarChart,
@@ -23,10 +24,13 @@ import { KpiCard, KpiCardGrid, KpiCardSkeleton } from "@/components/kpi-card";
 import {
   useComplianceSnapshot,
   useComplianceDecisions,
+  useCreateIpReport,
   type ComplianceSnapshot,
   type ComplianceDecisionLog,
   type ShadowAiRisk,
+  type IPAttributionReport,
 } from "@/hooks/use-compliance";
+import { IPAttributionReportView } from "@/components/ip-attribution-report";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -321,13 +325,32 @@ function ShadowAiRiskSection({
 
 export function ComplianceDashboard({ projectId }: { projectId: string }) {
   const [periodDays, setPeriodDays] = useState(30);
+  const [ipReport, setIpReport] = useState<IPAttributionReport | null>(null);
 
   const { data: snapshot, isLoading: snapshotLoading } =
     useComplianceSnapshot(projectId, periodDays);
   const { data: decisionsData, isLoading: decisionsLoading } =
     useComplianceDecisions(projectId, { limit: 50 });
+  const createIpReport = useCreateIpReport(projectId);
 
   const isLoading = snapshotLoading || decisionsLoading;
+
+  function handleGenerateIpReport() {
+    const to = new Date().toISOString().slice(0, 10);
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - periodDays);
+    const from = fromDate.toISOString().slice(0, 10);
+    createIpReport.mutate({ from, to }, { onSuccess: (data) => setIpReport(data) });
+  }
+
+  if (ipReport) {
+    return (
+      <IPAttributionReportView
+        report={ipReport}
+        onClose={() => setIpReport(null)}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -343,6 +366,15 @@ export function ComplianceDashboard({ projectId }: { projectId: string }) {
         </div>
         <div className="flex items-center gap-2">
           {snapshot && <ShadowRiskBadge risk={snapshot.shadow_ai_risk} />}
+          <button
+            type="button"
+            onClick={handleGenerateIpReport}
+            disabled={createIpReport.isPending}
+            className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-muted disabled:opacity-50"
+          >
+            <FilePieChart className="h-3.5 w-3.5" />
+            {createIpReport.isPending ? "Gerando..." : "Gerar Relatório IP"}
+          </button>
           <div className="flex gap-1">
             {PERIOD_OPTIONS.map((opt) => (
               <button
