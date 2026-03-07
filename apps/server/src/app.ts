@@ -27,6 +27,7 @@ import { defects } from "./routes/defects.js";
 import { autonomy } from "./routes/autonomy.js";
 import { productivity } from "./routes/productivity.js";
 import { evaluations } from "./routes/evaluations.js";
+import { compliance } from "./routes/compliance.js";
 
 const app = new Hono();
 
@@ -63,5 +64,6 @@ app.route("/api/v1", defects);
 app.route("/api/v1", autonomy);
 app.route("/api/v1", productivity);
 app.route("/api/v1", evaluations);
+app.route("/api/v1", compliance);
 
 export { app };
