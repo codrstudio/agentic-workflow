@@ -23,6 +23,7 @@ import { taskComplexity } from "./routes/task-complexity.js";
 import { artifactOrigins } from "./routes/artifact-origins.js";
 import { prompts } from "./routes/prompts.js";
 import { docs } from "./routes/docs.js";
+import { defects } from "./routes/defects.js";
 
 const app = new Hono();
 
@@ -55,5 +56,6 @@ app.route("/api/v1", taskComplexity);
 app.route("/api/v1", artifactOrigins);
 app.route("/api/v1", prompts);
 app.route("/api/v1", docs);
+app.route("/api/v1", defects);
 
 export { app };
