@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { DiffViewer } from "@/components/diff-viewer";
 import { ReviewChecklist } from "@/components/review-checklist";
+import { AgentReviewButton } from "@/components/agent-review-button";
 
 type ReviewStatus = ReviewDetail["status"];
 type ItemStatus = "pending" | "approved" | "flagged";
@@ -342,6 +343,7 @@ export function ReviewPanelPage() {
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-semibold truncate">{review.title}</h1>
         </div>
+        <AgentReviewButton projectSlug={projectId} reviewId={reviewId} />
         <ReviewStatusBadge status={review.status} />
       </div>
 
