@@ -9,6 +9,7 @@ import { useSprintFile, useSprintFeatures } from "@/hooks/use-sprints";
 import { Badge } from "@/components/ui/badge";
 import { PipelineFileViewer } from "@/components/pipeline-file-viewer";
 import { RankingTable, type RankingDiscovery } from "@/components/ranking-table";
+import { FeatureStatusTable } from "@/components/feature-status-table";
 import { cn } from "@/lib/utils";
 
 interface PhaseContentViewProps {
@@ -276,15 +277,6 @@ function SpecPrpCard({
   );
 }
 
-const featureStatusColors: Record<string, string> = {
-  passing: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  failing: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  skipped: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  pending: "bg-gray-100 text-gray-800 dark:bg-gray-800/50 dark:text-gray-400",
-  in_progress: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  blocked: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-};
-
 function FeaturePhaseView({
   projectSlug,
   sprintNumber,
@@ -314,59 +306,5 @@ function FeaturePhaseView({
     );
   }
 
-  // FeatureStatusTable placeholder (F-037 will replace this)
-  const passingCount = features.filter((f) => f.status === "passing").length;
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-muted-foreground">
-          {passingCount}/{features.length} passing
-        </p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b text-left text-muted-foreground">
-              <th className="pb-2 pr-4 font-medium">ID</th>
-              <th className="pb-2 pr-4 font-medium">Name</th>
-              <th className="pb-2 pr-4 font-medium">Status</th>
-              <th className="pb-2 font-medium">Deps</th>
-            </tr>
-          </thead>
-          <tbody>
-            {features.map((feature) => (
-              <tr key={feature.id} className="border-b last:border-0">
-                <td className="py-2 pr-4 font-mono text-xs">{feature.id}</td>
-                <td className="py-2 pr-4">{feature.name}</td>
-                <td className="py-2 pr-4">
-                  <span
-                    className={cn(
-                      "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
-                      featureStatusColors[feature.status] ?? featureStatusColors["pending"]
-                    )}
-                  >
-                    {feature.status}
-                  </span>
-                </td>
-                <td className="py-2">
-                  {feature.dependencies.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {feature.dependencies.map((dep) => (
-                        <Badge key={dep} variant="outline" className="text-xs">
-                          {dep}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">-</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+  return <FeatureStatusTable features={features} />;
 }

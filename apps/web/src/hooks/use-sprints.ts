@@ -72,6 +72,8 @@ export interface SprintFeature {
   dependencies: string[];
   tests: string[];
   completed_at?: string;
+  prp_path?: string;
+  attempts?: number;
 }
 
 export function useSprintFeatures(projectSlug: string, sprintNumber: number) {
