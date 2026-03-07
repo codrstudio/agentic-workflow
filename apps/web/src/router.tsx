@@ -18,6 +18,7 @@ import { HarnessOverviewPage } from "@/pages/harness-overview";
 import { WorkspaceDetailPage } from "@/pages/workspace-detail";
 import { ProjectReviewsPage } from "@/pages/project-reviews";
 import { ProjectMetricsPage } from "@/pages/project-metrics";
+import { ReviewPanelPage } from "@/pages/review-panel";
 import { ProjectNav } from "@/components/layout/project-nav";
 
 interface RouterContext {
@@ -148,6 +149,14 @@ const projectReviewsRoute = createRoute({
   staticData: { breadcrumb: "Reviews" },
 });
 
+// /projects/$projectId/reviews/$reviewId (F-049)
+const reviewPanelRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/reviews/$reviewId",
+  component: ReviewPanelPage,
+  staticData: { breadcrumb: "Review" },
+});
+
 // /projects/$projectId/metrics
 const projectMetricsRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -185,6 +194,7 @@ const routeTree = rootRoute.addChildren([
         projectArtifactsRoute,
         projectPipelineRoute,
         projectReviewsRoute,
+        reviewPanelRoute,
         projectMetricsRoute,
       ]),
     ]),

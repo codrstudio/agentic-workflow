@@ -107,6 +107,20 @@ function ReviewCard({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 gap-1 text-xs"
+          onClick={() =>
+            navigate({
+              to: "/projects/$projectId/reviews/$reviewId",
+              params: { projectId, reviewId: review.id },
+            })
+          }
+        >
+          <Eye className="h-3.5 w-3.5" />
+          Abrir review
+        </Button>
         {review.chat_session_id && (
           <Button
             variant="ghost"
