@@ -9,6 +9,14 @@ import { spawnClaudeStream } from "../lib/claude-client.js";
 import { composePrompt, type ChatMessage } from "../lib/context-composer.js";
 import { extractArtifacts } from "../lib/artifact-detector.js";
 import {
+  collectMcpTools,
+  formatMcpToolsForPrompt,
+  parseMcpToolCalls,
+  executeMcpToolCall,
+  formatToolResults,
+  type McpToolDefinition,
+} from "../lib/mcp-chat-tools.js";
+import {
   CreateSessionBody,
   UpdateSessionBody,
   type ChatSession,
@@ -416,7 +424,17 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
     session.source_ids.includes(s.id)
   );
 
-  // 3. Compose prompt
+  // 3. Collect MCP tools from connected servers
+  let mcpTools: McpToolDefinition[] = [];
+  try {
+    mcpTools = await collectMcpTools(slug);
+  } catch {
+    // MCP tool collection failure should not block chat
+  }
+  const mcpToolsSection =
+    mcpTools.length > 0 ? formatMcpToolsForPrompt(mcpTools) : undefined;
+
+  // 4. Compose prompt
   const history: ChatMessage[] = session.messages.slice(0, -1).map((m) => ({
     role: m.role as "user" | "assistant" | "system",
     content: m.content,
@@ -428,11 +446,12 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
       sources: selectedSources,
       history,
       message: content.trim(),
+      mcpToolsSection,
     },
     slug
   );
 
-  // 4. Stream response via SSE using Claude Code CLI
+  // 5. Stream response via SSE using Claude Code CLI
   const assistantMessageId = randomUUID();
 
   // Build the user prompt from composed messages
@@ -443,6 +462,8 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
     })
     .join("\n\n");
 
+  const MAX_TOOL_ITERATIONS = 5;
+
   return streamSSE(c, async (stream) => {
     // Emit message.start
     await stream.writeSSE({
@@ -450,96 +471,140 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
       data: JSON.stringify({ message_id: assistantMessageId }),
     });
 
-    await new Promise<void>((resolve) => {
-      const proc = spawnClaudeStream(
-        {
-          prompt: userPrompt,
-          systemPrompt: composed.system,
-          cwd: projectDir(slug),
-        },
-        {
-          onDelta: async (text) => {
-            try {
-              await stream.writeSSE({
-                event: "message.delta",
-                data: JSON.stringify({ content: text }),
-              });
-            } catch {
-              // Stream closed by client (abort)
-              proc.kill("SIGTERM");
-            }
-          },
-          onJsonlLine: (line) => {
-            // Append raw JSONL from Claude Code to audit trail
-            appendFile(jsonlPath(slug, id), line + "\n", "utf-8").catch(
-              () => {}
-            );
-          },
-          onComplete: async (fullContent) => {
-            try {
-              // 5. Detect and create artifacts from response
-              const artifactIds = await createChatArtifacts(
-                slug,
-                project.id,
-                id,
-                fullContent,
-              );
+    let currentPrompt = userPrompt;
+    let accumulatedContent = "";
+    let iteration = 0;
 
-              // 6. Save assistant message to session
-              const assistantMessage: Message = {
-                id: assistantMessageId,
-                role: "assistant",
-                content: fullContent,
-                created_at: new Date().toISOString(),
-                artifacts: artifactIds,
-              };
+    // Tool-use loop: run Claude, check for MCP tool calls, execute, re-prompt
+    while (iteration < MAX_TOOL_ITERATIONS) {
+      iteration++;
 
-              // Re-load session to avoid stale data
-              const freshSession = await loadSession(slug, id);
-              if (freshSession) {
-                freshSession.messages.push(assistantMessage);
-                freshSession.updated_at = new Date().toISOString();
-                await saveSession(slug, freshSession);
+      const iterationContent = await new Promise<string>((resolve) => {
+        const proc = spawnClaudeStream(
+          {
+            prompt: currentPrompt,
+            systemPrompt: composed.system,
+            cwd: projectDir(slug),
+          },
+          {
+            onDelta: async (text) => {
+              try {
+                await stream.writeSSE({
+                  event: "message.delta",
+                  data: JSON.stringify({ content: text }),
+                });
+              } catch {
+                proc.kill("SIGTERM");
               }
-
-              // 7. Append summary to JSONL audit trail
-              await appendAuditLog(slug, id, {
-                timestamp: new Date().toISOString(),
-                user_message_id: userMessageId,
-                assistant_message_id: assistantMessageId,
-                user_content: content.trim(),
-                assistant_content: fullContent,
-                artifact_ids: artifactIds,
-              });
-
-              // Emit message.complete
-              await stream.writeSSE({
-                event: "message.complete",
-                data: JSON.stringify({
-                  message_id: assistantMessageId,
-                  artifacts: artifactIds,
-                }),
-              });
-            } catch (err) {
-              const errorMessage =
-                err instanceof Error ? err.message : "Unknown error";
+            },
+            onJsonlLine: (line) => {
+              appendFile(jsonlPath(slug, id), line + "\n", "utf-8").catch(
+                () => {},
+              );
+            },
+            onComplete: (fullContent) => {
+              resolve(fullContent);
+            },
+            onError: async (errorMessage) => {
               await stream.writeSSE({
                 event: "message.error",
                 data: JSON.stringify({ error: errorMessage }),
               });
-            }
-            resolve();
+              resolve("");
+            },
           },
-          onError: async (errorMessage) => {
-            await stream.writeSSE({
-              event: "message.error",
-              data: JSON.stringify({ error: errorMessage }),
-            });
-            resolve();
-          },
-        },
+        );
+      });
+
+      accumulatedContent += iterationContent;
+
+      // Check for MCP tool calls in the response (only if we have MCP tools)
+      if (mcpTools.length === 0) break;
+
+      const toolCalls = parseMcpToolCalls(iterationContent);
+      if (toolCalls.length === 0) break;
+
+      // Emit tool execution event to client
+      await stream.writeSSE({
+        event: "mcp.tool_calls",
+        data: JSON.stringify({
+          tools: toolCalls.map((tc) => tc.toolName),
+        }),
+      });
+
+      // Execute all tool calls
+      const results = await Promise.all(
+        toolCalls.map((tc) =>
+          executeMcpToolCall(slug, tc.toolName, tc.args, mcpTools).catch(
+            (err): { toolName: string; success: false; error: string } => ({
+              toolName: tc.toolName,
+              success: false,
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          ),
+        ),
       );
-    });
+
+      // Emit tool results event to client
+      await stream.writeSSE({
+        event: "mcp.tool_results",
+        data: JSON.stringify({ results }),
+      });
+
+      // Build follow-up prompt with tool results
+      const toolResultsText = formatToolResults(results);
+      currentPrompt = `Here are the results from the MCP tool calls you made:\n\n${toolResultsText}\n\nPlease continue your response based on these results.`;
+    }
+
+    // Finalize: detect artifacts, save message, emit complete
+    try {
+      const artifactIds = await createChatArtifacts(
+        slug,
+        project.id,
+        id,
+        accumulatedContent,
+      );
+
+      const assistantMessage: Message = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: accumulatedContent,
+        created_at: new Date().toISOString(),
+        artifacts: artifactIds,
+      };
+
+      const freshSession = await loadSession(slug, id);
+      if (freshSession) {
+        freshSession.messages.push(assistantMessage);
+        freshSession.updated_at = new Date().toISOString();
+        await saveSession(slug, freshSession);
+      }
+
+      await appendAuditLog(slug, id, {
+        timestamp: new Date().toISOString(),
+        user_message_id: userMessageId,
+        assistant_message_id: assistantMessageId,
+        user_content: content.trim(),
+        assistant_content: accumulatedContent,
+        artifact_ids: artifactIds,
+        mcp_tools_available: mcpTools.length,
+      });
+
+      await stream.writeSSE({
+        event: "message.complete",
+        data: JSON.stringify({
+          message_id: assistantMessageId,
+          artifacts: artifactIds,
+        }),
+      });
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Unknown error";
+      await stream.writeSSE({
+        event: "message.error",
+        data: JSON.stringify({ error: errorMessage }),
+      });
+    }
   });
 });
 

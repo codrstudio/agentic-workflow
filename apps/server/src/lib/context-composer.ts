@@ -29,6 +29,8 @@ export interface ComposePromptInput {
   history: ChatMessage[];
   message: string;
   maxHistoryMessages?: number;
+  /** Pre-formatted MCP tools section to append to system prompt */
+  mcpToolsSection?: string;
 }
 
 export interface ComposedPrompt {
@@ -89,7 +91,7 @@ export async function composePrompt(
   input: ComposePromptInput,
   projectSlug: string
 ): Promise<ComposedPrompt> {
-  const { project, sources, history, message, maxHistoryMessages } = input;
+  const { project, sources, history, message, maxHistoryMessages, mcpToolsSection } = input;
   const maxHistory = maxHistoryMessages ?? DEFAULT_MAX_HISTORY;
 
   // 1. System prompt with project context
@@ -125,6 +127,11 @@ export async function composePrompt(
     if (categoryBlocks.length > 0) {
       systemParts.push("## Sources\n\n" + categoryBlocks.join("\n\n"));
     }
+  }
+
+  // 4. MCP Tools section (when MCP servers connected)
+  if (mcpToolsSection) {
+    systemParts.push(mcpToolsSection);
   }
 
   const system = systemParts.join("\n\n");
