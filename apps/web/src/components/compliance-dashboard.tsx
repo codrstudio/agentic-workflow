@@ -16,21 +16,17 @@ import {
   Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
-  ScatterChart,
-  Scatter,
-  ZAxis,
 } from "recharts";
 import { KpiCard, KpiCardGrid, KpiCardSkeleton } from "@/components/kpi-card";
 import {
   useComplianceSnapshot,
-  useComplianceDecisions,
   useCreateIpReport,
   type ComplianceSnapshot,
-  type ComplianceDecisionLog,
   type ShadowAiRisk,
   type IPAttributionReport,
 } from "@/hooks/use-compliance";
 import { IPAttributionReportView } from "@/components/ip-attribution-report";
+import { DecisionTimeline, ComplianceExportDialog } from "@/components/decision-timeline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -43,28 +39,6 @@ const PERIOD_OPTIONS = [
   { value: 30, label: "30 dias" },
   { value: 90, label: "90 dias" },
 ] as const;
-
-const DECISION_TYPE_LABELS: Record<string, string> = {
-  feature_approved: "Aprovado",
-  feature_rejected: "Rejeitado",
-  review_completed: "Review",
-  sign_off_granted: "Sign-off",
-  origin_reclassified: "Reclassificado",
-  quality_gate_passed: "QG Passou",
-  quality_gate_failed: "QG Falhou",
-  escalation_resolved: "Escalação",
-};
-
-const DECISION_TYPE_Y: Record<string, number> = {
-  feature_approved: 1,
-  feature_rejected: 2,
-  review_completed: 3,
-  sign_off_granted: 4,
-  origin_reclassified: 5,
-  quality_gate_passed: 6,
-  quality_gate_failed: 7,
-  escalation_resolved: 8,
-};
 
 const RISK_CONFIG: Record<
   ShadowAiRisk,
@@ -111,91 +85,6 @@ function ShadowRiskBadge({ risk }: { risk: ShadowAiRisk }) {
       <Shield className="h-3 w-3" />
       Shadow AI Risk: {cfg.label}
     </span>
-  );
-}
-
-// ----------------------------------------------------------------
-// Decision Timeline Scatter Plot
-// ----------------------------------------------------------------
-
-interface ScatterPoint {
-  x: number;
-  y: number;
-  type: string;
-  actor: string;
-}
-
-function buildScatterData(decisions: ComplianceDecisionLog[]): ScatterPoint[] {
-  return decisions.map((d) => ({
-    x: new Date(d.created_at).getTime(),
-    y: DECISION_TYPE_Y[d.decision_type] ?? 0,
-    type: DECISION_TYPE_LABELS[d.decision_type] ?? d.decision_type,
-    actor: d.actor,
-  }));
-}
-
-function DecisionTimelineChart({
-  decisions,
-}: {
-  decisions: ComplianceDecisionLog[];
-}) {
-  const data = buildScatterData(decisions);
-
-  if (data.length === 0) {
-    return (
-      <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-        Nenhuma decisão no período
-      </div>
-    );
-  }
-
-  return (
-    <ResponsiveContainer width="100%" height={200}>
-      <ScatterChart margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis
-          dataKey="x"
-          type="number"
-          domain={["dataMin", "dataMax"]}
-          tickFormatter={(v: number) => {
-            const d = new Date(v);
-            return `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-          }}
-          name="Data"
-        />
-        <YAxis
-          dataKey="y"
-          type="number"
-          domain={[0, 9]}
-          tickFormatter={(v: number) => {
-            const entry = Object.entries(DECISION_TYPE_Y).find(
-              ([, val]) => val === v
-            );
-            return entry ? (DECISION_TYPE_LABELS[entry[0]] ?? "") : "";
-          }}
-          width={90}
-        />
-        <ZAxis range={[40, 40]} />
-        <RechartsTooltip
-          cursor={{ strokeDasharray: "3 3" }}
-          content={({ payload }) => {
-            if (!payload || payload.length === 0) return null;
-            const item = payload[0]?.payload as ScatterPoint | undefined;
-            if (!item) return null;
-            return (
-              <div className="rounded-lg border bg-popover p-2 text-xs shadow-sm">
-                <p className="font-medium">{item.type}</p>
-                <p className="text-muted-foreground">Actor: {item.actor}</p>
-                <p className="text-muted-foreground">
-                  {new Date(item.x).toLocaleString()}
-                </p>
-              </div>
-            );
-          }}
-        />
-        <Scatter data={data} fill="#6366f1" opacity={0.7} />
-      </ScatterChart>
-    </ResponsiveContainer>
   );
 }
 
@@ -329,11 +218,9 @@ export function ComplianceDashboard({ projectId }: { projectId: string }) {
 
   const { data: snapshot, isLoading: snapshotLoading } =
     useComplianceSnapshot(projectId, periodDays);
-  const { data: decisionsData, isLoading: decisionsLoading } =
-    useComplianceDecisions(projectId, { limit: 50 });
   const createIpReport = useCreateIpReport(projectId);
 
-  const isLoading = snapshotLoading || decisionsLoading;
+  const isLoading = snapshotLoading;
 
   function handleGenerateIpReport() {
     const to = new Date().toISOString().slice(0, 10);
@@ -375,6 +262,7 @@ export function ComplianceDashboard({ projectId }: { projectId: string }) {
             <FilePieChart className="h-3.5 w-3.5" />
             {createIpReport.isPending ? "Gerando..." : "Gerar Relatório IP"}
           </button>
+          <ComplianceExportDialog projectId={projectId} />
           <div className="flex gap-1">
             {PERIOD_OPTIONS.map((opt) => (
               <button
@@ -455,13 +343,13 @@ export function ComplianceDashboard({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      {snapshot && decisionsData && (
+      {snapshot && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="rounded-xl border p-4">
             <h3 className="mb-3 text-sm font-semibold text-foreground">
               Timeline de Decisões
             </h3>
-            <DecisionTimelineChart decisions={decisionsData.decisions} />
+            <DecisionTimeline projectId={projectId} />
           </div>
           <div className="rounded-xl border p-4">
             <h3 className="mb-3 text-sm font-semibold text-foreground">
