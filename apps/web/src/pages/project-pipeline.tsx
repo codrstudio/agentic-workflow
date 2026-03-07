@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams } from "@tanstack/react-router";
 import { GitBranch } from "lucide-react";
 import { useSprints, useSprintDetail } from "@/hooks/use-sprints";
+import { useQualityGates, resolveGateStatus } from "@/hooks/use-quality-gates";
+import type { PipelineGate } from "@/components/pipeline-stepper";
+import type { GateTransition } from "@/hooks/use-quality-gates";
 import { EmptyState } from "@/components/empty-state";
 import { PipelineStepper, computePhaseStatus } from "@/components/pipeline-stepper";
 import { PhaseContentView } from "@/components/phase-content-view";
@@ -24,11 +27,18 @@ export function ProjectPipelinePage() {
 
   const currentSprint = sprints?.find((s) => s.number === selectedSprint);
   const [activePhase, setActivePhase] = useState<string | undefined>();
+  const [selectedGate, setSelectedGate] = useState<GateTransition | null>(null);
   const { data: sprintDetail } = useSprintDetail(projectId, selectedSprint);
+  const { data: gatesData } = useQualityGates(projectId, selectedSprint);
 
   const pipelinePhases = currentSprint
     ? computePhaseStatus(currentSprint.phases, currentSprint.features_count)
     : [];
+
+  const pipelineGates: PipelineGate[] = (gatesData ?? []).map((g) => ({
+    transition: g.transition,
+    status: resolveGateStatus(g),
+  }));
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-6">
@@ -87,6 +97,8 @@ export function ProjectPipelinePage() {
             phases={pipelinePhases}
             activePhaseId={activePhase}
             onPhaseClick={(phaseId) => setActivePhase(phaseId)}
+            gates={pipelineGates}
+            onGateClick={(transition) => setSelectedGate(transition)}
           />
         </div>
       )}

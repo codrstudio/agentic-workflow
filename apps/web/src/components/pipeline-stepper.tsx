@@ -6,6 +6,8 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GateIndicator } from "@/components/gate-indicator";
+import type { GateStatus, GateTransition } from "@/hooks/use-quality-gates";
 
 export type PhaseStatus = "empty" | "in_progress" | "complete";
 
@@ -17,10 +19,17 @@ export interface PipelinePhase {
   status: PhaseStatus;
 }
 
+export interface PipelineGate {
+  transition: GateTransition;
+  status: GateStatus;
+}
+
 interface PipelineStepperProps {
   phases: PipelinePhase[];
   activePhaseId?: string;
   onPhaseClick?: (phaseId: string) => void;
+  gates?: PipelineGate[];
+  onGateClick?: (transition: GateTransition) => void;
 }
 
 const statusColors: Record<PhaseStatus, { bg: string; border: string; icon: string }> = {
@@ -47,16 +56,29 @@ const lineColors: Record<PhaseStatus, string> = {
   complete: "bg-green-500",
 };
 
+// Maps phase index to the gate transition between phase[index] and phase[index+1]
+const PHASE_GATE_MAP: GateTransition[] = [
+  "brainstorming_to_specs",
+  "specs_to_prps",
+  "prps_to_features",
+];
+
 export function PipelineStepper({
   phases,
   activePhaseId,
   onPhaseClick,
+  gates,
+  onGateClick,
 }: PipelineStepperProps) {
   return (
     <div className="flex items-center w-full">
       {phases.map((phase, index) => {
         const colors = statusColors[phase.status];
         const isActive = phase.id === activePhaseId;
+        const gateTransition = PHASE_GATE_MAP[index];
+        const gate = gateTransition
+          ? gates?.find((g) => g.transition === gateTransition)
+          : undefined;
 
         return (
           <div key={phase.id} className="flex items-center flex-1 last:flex-none">
@@ -94,12 +116,25 @@ export function PipelineStepper({
               </span>
             </button>
 
-            {/* Connector line */}
+            {/* Connector line with gate indicator */}
             {index < phases.length - 1 && (
-              <div className="flex-1 mx-2 sm:mx-3">
+              <div className="flex-1 mx-2 sm:mx-3 flex items-center gap-1">
                 <div
                   className={cn(
-                    "h-0.5 w-full rounded-full",
+                    "h-0.5 flex-1 rounded-full",
+                    lineColors[phase.status]
+                  )}
+                />
+                {gate && (
+                  <GateIndicator
+                    transition={gate.transition}
+                    status={gate.status}
+                    onClick={onGateClick}
+                  />
+                )}
+                <div
+                  className={cn(
+                    "h-0.5 flex-1 rounded-full",
                     lineColors[phase.status]
                   )}
                 />
