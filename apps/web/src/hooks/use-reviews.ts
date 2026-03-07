@@ -120,6 +120,31 @@ export function useUpdateItemStatus(projectSlug: string, reviewId: string) {
   });
 }
 
+export function useUpdateReview(projectSlug: string, reviewId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      status?: "pending" | "in_review" | "approved" | "changes_requested";
+      criteria?: Array<{ id?: string; label: string; checked: boolean }>;
+    }) =>
+      apiFetch<ReviewDetail>(
+        `/hub/projects/${projectSlug}/reviews/${reviewId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: reviewKeys.detail(projectSlug, reviewId),
+      });
+      queryClient.invalidateQueries({
+        queryKey: reviewKeys.list(projectSlug),
+      });
+    },
+  });
+}
+
 export function useCreateReview(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({

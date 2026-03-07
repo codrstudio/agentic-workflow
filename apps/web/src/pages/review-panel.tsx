@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { DiffViewer } from "@/components/diff-viewer";
+import { ReviewChecklist } from "@/components/review-checklist";
 
 type ReviewStatus = ReviewDetail["status"];
 type ItemStatus = "pending" | "approved" | "flagged";
@@ -347,13 +348,29 @@ export function ReviewPanelPage() {
       {/* Content */}
       {isMobile ? (
         /* Mobile: full-width list, click opens diff in Sheet */
-        <div className="flex-1 overflow-auto p-4">{itemsList}</div>
+        <div className="flex-1 overflow-auto p-4">
+          {itemsList}
+          <div className="mt-4 border-t pt-4">
+            <ReviewChecklist
+              projectSlug={projectId}
+              reviewId={reviewId}
+              review={review}
+            />
+          </div>
+        </div>
       ) : (
         /* Desktop: split view */
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: items list */}
+          {/* Left: items list + checklist */}
           <div className="w-80 shrink-0 overflow-auto border-r p-4">
             {itemsList}
+            <div className="mt-4 border-t pt-4">
+              <ReviewChecklist
+                projectSlug={projectId}
+                reviewId={reviewId}
+                review={review}
+              />
+            </div>
           </div>
           {/* Right: diff viewer */}
           <div className="flex-1 overflow-hidden">
