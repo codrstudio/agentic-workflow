@@ -24,6 +24,7 @@ import { artifactOrigins } from "./routes/artifact-origins.js";
 import { prompts } from "./routes/prompts.js";
 import { docs } from "./routes/docs.js";
 import { defects } from "./routes/defects.js";
+import { autonomy } from "./routes/autonomy.js";
 
 const app = new Hono();
 
@@ -57,5 +58,6 @@ app.route("/api/v1", artifactOrigins);
 app.route("/api/v1", prompts);
 app.route("/api/v1", docs);
 app.route("/api/v1", defects);
+app.route("/api/v1", autonomy);
 
 export { app };
