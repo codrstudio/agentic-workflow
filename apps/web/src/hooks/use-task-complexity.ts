@@ -86,6 +86,16 @@ export function useAllTemplates(projectSlug: string) {
   });
 }
 
+export function useClassifications(projectSlug: string, limit = 50) {
+  return useQuery({
+    queryKey: [...taskComplexityKeys.classifications(projectSlug), limit],
+    queryFn: () =>
+      apiFetch<TaskComplexity[]>(
+        `/hub/projects/${projectSlug}/tasks/classifications?limit=${limit}`
+      ),
+  });
+}
+
 export function useUpdateTemplates(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({

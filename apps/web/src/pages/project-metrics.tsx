@@ -25,6 +25,7 @@ import {
 } from "@/components/metrics-table";
 import { ContextMetricsTab } from "@/components/context-metrics-tab";
 import { BurnoutDashboardTab } from "@/components/burnout-dashboard-tab";
+import { ComplexityDistributionChart } from "@/components/complexity-distribution-chart";
 import { cn } from "@/lib/utils";
 
 // --- Column definitions ---
@@ -67,12 +68,13 @@ const stepColumns: MetricsColumn<StepMetrics>[] = [
 
 // --- Sub-tabs ---
 
-type MetricsTab = "general" | "context" | "wellbeing";
+type MetricsTab = "general" | "context" | "wellbeing" | "spec-depth";
 
 const TABS: { value: MetricsTab; label: string }[] = [
   { value: "general", label: "Geral" },
   { value: "context", label: "Context" },
   { value: "wellbeing", label: "Bem-estar" },
+  { value: "spec-depth", label: "Spec Depth" },
 ];
 
 // --- Main Page ---
@@ -271,6 +273,11 @@ export function ProjectMetricsPage() {
       {/* Wellbeing tab content */}
       {activeTab === "wellbeing" && (
         <BurnoutDashboardTab projectId={projectId} />
+      )}
+
+      {/* Spec Depth tab content */}
+      {activeTab === "spec-depth" && (
+        <ComplexityDistributionChart projectId={projectId} />
       )}
     </div>
   );
