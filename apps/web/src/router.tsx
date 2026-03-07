@@ -13,6 +13,7 @@ import { ProjectSourcesPage } from "@/pages/project-sources";
 import { ProjectChatPage } from "@/pages/project-chat";
 import { ProjectArtifactsPage } from "@/pages/project-artifacts";
 import { ChatSessionPage } from "@/pages/chat-session";
+import { ProjectPipelinePage } from "@/pages/project-pipeline";
 import { ProjectNav } from "@/components/layout/project-nav";
 
 interface RouterContext {
@@ -127,6 +128,14 @@ const projectArtifactsRoute = createRoute({
   staticData: { breadcrumb: "Artifacts" },
 });
 
+// /projects/$projectId/pipeline
+const projectPipelineRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/pipeline",
+  component: ProjectPipelinePage,
+  staticData: { breadcrumb: "Pipeline" },
+});
+
 const routeTree = rootRoute.addChildren([
   publicLayout.addChildren([loginRoute]),
   authenticatedLayout.addChildren([
@@ -138,6 +147,7 @@ const routeTree = rootRoute.addChildren([
         projectChatRoute,
         chatSessionRoute,
         projectArtifactsRoute,
+        projectPipelineRoute,
       ]),
     ]),
   ]),

@@ -1,11 +1,12 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { FileText, MessageSquare, Package } from "lucide-react";
+import { FileText, GitBranch, MessageSquare, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Sources", to: "/projects/$projectId/sources" as const, icon: FileText },
   { label: "Chat", to: "/projects/$projectId/chat" as const, icon: MessageSquare },
   { label: "Artifacts", to: "/projects/$projectId/artifacts" as const, icon: Package },
+  { label: "Pipeline", to: "/projects/$projectId/pipeline" as const, icon: GitBranch },
 ];
 
 export function ProjectNav() {
