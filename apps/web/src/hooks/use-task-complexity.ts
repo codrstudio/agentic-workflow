@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
 export type ComplexityLevel = "trivial" | "small" | "medium" | "large";
@@ -73,5 +73,34 @@ export function useGetTemplate(projectSlug: string) {
       apiFetch<SpecTemplate & { markdown_template: string }>(
         `/hub/projects/${projectSlug}/tasks/templates/${level}`
       ),
+  });
+}
+
+export function useAllTemplates(projectSlug: string) {
+  return useQuery({
+    queryKey: taskComplexityKeys.templates(projectSlug),
+    queryFn: () =>
+      apiFetch<SpecTemplate[]>(
+        `/hub/projects/${projectSlug}/tasks/templates`
+      ),
+  });
+}
+
+export function useUpdateTemplates(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (templates: SpecTemplate[]) =>
+      apiFetch<SpecTemplate[]>(
+        `/hub/projects/${projectSlug}/tasks/templates`,
+        {
+          method: "PUT",
+          body: JSON.stringify(templates),
+        }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: taskComplexityKeys.templates(projectSlug),
+      });
+    },
   });
 }

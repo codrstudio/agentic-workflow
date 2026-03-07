@@ -6,7 +6,10 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { useSprintFile, useSprintFeatures } from "@/hooks/use-sprints";
+import { useAllTemplates } from "@/hooks/use-task-complexity";
+import type { ComplexityLevel } from "@/hooks/use-task-complexity";
 import { Badge } from "@/components/ui/badge";
+import { ComplexityBadge } from "@/components/complexity-badge";
 import { PipelineFileViewer } from "@/components/pipeline-file-viewer";
 import { RankingTable, type RankingDiscovery } from "@/components/ranking-table";
 import { FeatureStatusTable } from "@/components/feature-status-table";
@@ -186,6 +189,13 @@ function CardPhaseView({
   files: string[];
   onFileClick: (filename: string) => void;
 }) {
+  const { data: templates } = useAllTemplates(projectSlug);
+
+  // Specs = medium (spec_completa), PRPs = large (prp_completo)
+  const complexityLevel: ComplexityLevel =
+    phase === "2-specs" ? "medium" : "large";
+  const template = templates?.find((t) => t.level === complexityLevel);
+
   if (files.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4 text-center">
@@ -203,6 +213,8 @@ function CardPhaseView({
           sprintNumber={sprintNumber}
           phase={phase}
           filename={filename}
+          complexityLevel={complexityLevel}
+          requiredSections={template?.required_sections}
           onClick={() => onFileClick(filename)}
         />
       ))}
@@ -226,12 +238,16 @@ function SpecPrpCard({
   sprintNumber,
   phase,
   filename,
+  complexityLevel,
+  requiredSections,
   onClick,
 }: {
   projectSlug: string;
   sprintNumber: number;
   phase: string;
   filename: string;
+  complexityLevel?: ComplexityLevel;
+  requiredSections?: string[];
   onClick: () => void;
 }) {
   const { data: file } = useSprintFile(
@@ -264,11 +280,19 @@ function SpecPrpCard({
     >
       <Icon className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">
-        {id && (
-          <Badge variant="secondary" className="mb-1.5 text-xs">
-            {id}
-          </Badge>
-        )}
+        <div className="flex items-center gap-1.5 mb-1.5">
+          {id && (
+            <Badge variant="secondary" className="text-xs">
+              {id}
+            </Badge>
+          )}
+          {complexityLevel && (
+            <ComplexityBadge
+              level={complexityLevel}
+              requiredSections={requiredSections}
+            />
+          )}
+        </div>
         <p className="font-medium leading-snug">
           {title ?? fallbackTitle}
         </p>
