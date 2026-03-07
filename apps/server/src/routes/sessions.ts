@@ -5,7 +5,7 @@ import path from "node:path";
 import { readdir, unlink, appendFile, writeFile } from "node:fs/promises";
 import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
-import { getClaudeClient } from "../lib/claude-client.js";
+import { spawnClaudeStream } from "../lib/claude-client.js";
 import { composePrompt, type ChatMessage } from "../lib/context-composer.js";
 import { extractArtifacts } from "../lib/artifact-detector.js";
 import {
@@ -432,97 +432,114 @@ sessions.post("/hub/projects/:slug/sessions/:id/messages", async (c) => {
     slug
   );
 
-  // 4. Stream response via SSE
+  // 4. Stream response via SSE using Claude Code CLI
   const assistantMessageId = randomUUID();
 
+  // Build the user prompt from composed messages
+  const userPrompt = composed.messages
+    .map((m) => {
+      const prefix = m.role === "user" ? "User" : "Assistant";
+      return `${prefix}: ${m.content}`;
+    })
+    .join("\n\n");
+
   return streamSSE(c, async (stream) => {
-    let fullContent = "";
+    // Emit message.start
+    await stream.writeSSE({
+      event: "message.start",
+      data: JSON.stringify({ message_id: assistantMessageId }),
+    });
 
-    try {
-      // Emit message.start
-      await stream.writeSSE({
-        event: "message.start",
-        data: JSON.stringify({ message_id: assistantMessageId }),
-      });
+    await new Promise<void>((resolve) => {
+      const proc = spawnClaudeStream(
+        {
+          prompt: userPrompt,
+          systemPrompt: composed.system,
+          cwd: projectDir(slug),
+        },
+        {
+          onDelta: async (text) => {
+            try {
+              await stream.writeSSE({
+                event: "message.delta",
+                data: JSON.stringify({ content: text }),
+              });
+            } catch {
+              // Stream closed by client (abort)
+              proc.kill("SIGTERM");
+            }
+          },
+          onJsonlLine: (line) => {
+            // Append raw JSONL from Claude Code to audit trail
+            appendFile(jsonlPath(slug, id), line + "\n", "utf-8").catch(
+              () => {}
+            );
+          },
+          onComplete: async (fullContent) => {
+            try {
+              // 5. Detect and create artifacts from response
+              const artifactIds = await createChatArtifacts(
+                slug,
+                project.id,
+                id,
+                fullContent,
+              );
 
-      // Invoke Claude with streaming
-      const claude = getClaudeClient();
-      const anthropicStream = claude.messages.stream({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 4096,
-        system: composed.system,
-        messages: composed.messages.map((m) => ({
-          role: m.role === "system" ? ("user" as const) : (m.role as "user" | "assistant"),
-          content: m.content,
-        })),
-      });
+              // 6. Save assistant message to session
+              const assistantMessage: Message = {
+                id: assistantMessageId,
+                role: "assistant",
+                content: fullContent,
+                created_at: new Date().toISOString(),
+                artifacts: artifactIds,
+              };
 
-      for await (const event of anthropicStream) {
-        if (
-          event.type === "content_block_delta" &&
-          event.delta.type === "text_delta"
-        ) {
-          const text = event.delta.text;
-          fullContent += text;
-          await stream.writeSSE({
-            event: "message.delta",
-            data: JSON.stringify({ content: text }),
-          });
-        }
-      }
+              // Re-load session to avoid stale data
+              const freshSession = await loadSession(slug, id);
+              if (freshSession) {
+                freshSession.messages.push(assistantMessage);
+                freshSession.updated_at = new Date().toISOString();
+                await saveSession(slug, freshSession);
+              }
 
-      // 5. Detect and create artifacts from response
-      const artifactIds = await createChatArtifacts(
-        slug,
-        project.id,
-        id,
-        fullContent,
+              // 7. Append summary to JSONL audit trail
+              await appendAuditLog(slug, id, {
+                timestamp: new Date().toISOString(),
+                user_message_id: userMessageId,
+                assistant_message_id: assistantMessageId,
+                user_content: content.trim(),
+                assistant_content: fullContent,
+                artifact_ids: artifactIds,
+              });
+
+              // Emit message.complete
+              await stream.writeSSE({
+                event: "message.complete",
+                data: JSON.stringify({
+                  message_id: assistantMessageId,
+                  artifacts: artifactIds,
+                }),
+              });
+            } catch (err) {
+              const errorMessage =
+                err instanceof Error ? err.message : "Unknown error";
+              await stream.writeSSE({
+                event: "message.error",
+                data: JSON.stringify({ error: errorMessage }),
+              });
+            }
+            resolve();
+          },
+          onError: async (errorMessage) => {
+            await stream.writeSSE({
+              event: "message.error",
+              data: JSON.stringify({ error: errorMessage }),
+            });
+            resolve();
+          },
+        },
       );
-
-      // 6. Save assistant message to session
-      const assistantMessage: Message = {
-        id: assistantMessageId,
-        role: "assistant",
-        content: fullContent,
-        created_at: new Date().toISOString(),
-        artifacts: artifactIds,
-      };
-
-      // Re-load session to avoid stale data
-      const freshSession = await loadSession(slug, id);
-      if (freshSession) {
-        freshSession.messages.push(assistantMessage);
-        freshSession.updated_at = new Date().toISOString();
-        await saveSession(slug, freshSession);
-      }
-
-      // 7. Append to JSONL audit trail
-      await appendAuditLog(slug, id, {
-        timestamp: new Date().toISOString(),
-        user_message_id: userMessageId,
-        assistant_message_id: assistantMessageId,
-        user_content: content.trim(),
-        assistant_content: fullContent,
-        model: "claude-sonnet-4-20250514",
-        artifact_ids: artifactIds,
-      });
-
-      // Emit message.complete
-      await stream.writeSSE({
-        event: "message.complete",
-        data: JSON.stringify({
-          message_id: assistantMessageId,
-          artifacts: artifactIds,
-        }),
-      });
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Unknown error";
-      await stream.writeSSE({
-        event: "message.error",
-        data: JSON.stringify({ error: errorMessage }),
-      });
-    }
+    });
   });
 });
 
