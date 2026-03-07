@@ -30,6 +30,7 @@ import { evaluations } from "./routes/evaluations.js";
 import { compliance } from "./routes/compliance.js";
 import { acrs } from "./routes/acrs.js";
 import { tokenUsage } from "./routes/token-usage.js";
+import { agentActions } from "./routes/agent-actions.js";
 
 const app = new Hono();
 
@@ -69,5 +70,6 @@ app.route("/api/v1", evaluations);
 app.route("/api/v1", compliance);
 app.route("/api/v1", acrs);
 app.route("/api/v1", tokenUsage);
+app.route("/api/v1", agentActions);
 
 export { app };
