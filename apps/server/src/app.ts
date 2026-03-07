@@ -18,6 +18,7 @@ import { agentReview } from "./routes/agent-review.js";
 import { mcpServers } from "./routes/mcp-servers.js";
 import { qualityGates } from "./routes/quality-gates.js";
 import { snapshots } from "./routes/snapshots.js";
+import { burnout } from "./routes/burnout.js";
 
 const app = new Hono();
 
@@ -45,5 +46,6 @@ app.route("/api/v1", agentReview);
 app.route("/api/v1", mcpServers);
 app.route("/api/v1", qualityGates);
 app.route("/api/v1", snapshots);
+app.route("/api/v1", burnout);
 
 export { app };
