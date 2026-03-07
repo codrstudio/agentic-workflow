@@ -9,6 +9,7 @@ export { WorktreeManager } from './core/worktree-manager.js';
 export { Notifier } from './core/notifier.js';
 export { TemplateRenderer } from './core/template-renderer.js';
 export { SSEAdapter } from './core/sse-adapter.js';
+export { ModelResolver } from './core/model-resolver.js';
 
 // Schemas
 export * from './schemas/index.js';

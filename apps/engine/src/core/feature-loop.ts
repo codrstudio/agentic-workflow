@@ -9,6 +9,7 @@ import { TemplateRenderer } from './template-renderer.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
+import { ModelResolver } from './model-resolver.js';
 
 export interface FeatureLoopContext {
   worktreeDir: string;
@@ -20,6 +21,10 @@ export interface FeatureLoopContext {
   sprintNumber: number;
   templateContext: Record<string, string>;
   project?: string;
+  stepModel?: string;
+  projectSlug?: string;
+  workflowSlug?: string;
+  modelResolver?: ModelResolver;
 }
 
 export interface FeatureLoopOptions {
@@ -168,6 +173,15 @@ export class FeatureLoop {
         const featureContext = `\n\n## Feature: ${feature.id} — ${feature.name}\n\n${feature.description}\n\nTests:\n${(feature.tests ?? []).map((t) => `- ${t}`).join('\n')}`;
         const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}`;
 
+        const resolver = ctx.modelResolver ?? new ModelResolver();
+        const resolvedModel = await resolver.resolve({
+          stepModel: ctx.stepModel,
+          profileModel: agentFrontmatter.model as string | undefined,
+          stepName: taskSlug,
+          projectSlug: ctx.projectSlug,
+          workflowSlug: ctx.workflowSlug,
+        });
+
         const meta: SpawnMeta = {
           task: taskSlug,
           agent: agentName,
@@ -179,6 +193,7 @@ export class FeatureLoop {
           pid: 0,
           started_at: now(),
           timed_out: false,
+          model_used: resolvedModel,
         };
 
         await this.spawner.writeSpawnMeta(attemptDir, meta);
@@ -190,7 +205,7 @@ export class FeatureLoop {
           agentConfig: {
             allowedTools: agentFrontmatter.allowedTools as string | undefined,
             max_turns: agentFrontmatter.max_turns as number | undefined,
-            model: agentFrontmatter.model as string | undefined,
+            model: resolvedModel,
           },
           timeoutMs: timeoutMs > 0 ? timeoutMs : undefined,
         });

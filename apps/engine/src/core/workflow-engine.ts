@@ -11,10 +11,13 @@ import { detectNextWave, resolveSprintForWave, setupWave } from './bootstrap.js'
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
 import type { WorkflowState } from '../schemas/workflow-state.js';
 import type { EngineEventType } from '../schemas/event.js';
+import { ModelResolver } from './model-resolver.js';
 
 export interface WorkflowRunnerContext {
   workflow: Workflow;
   projectName: string;
+  projectSlug?: string;
+  workflowSlug?: string;
   workspaceDir: string;
   projectDir: string;
   repoDir: string;
@@ -37,6 +40,7 @@ export class WorkflowRunner {
   readonly spawner = new AgentSpawner();
   readonly notifier = new Notifier();
   readonly renderer = new TemplateRenderer();
+  readonly modelResolver = new ModelResolver();
 
   private stopRequested = false;
 
@@ -162,6 +166,13 @@ export class WorkflowRunner {
     const mergeDir = join(ctx.waveDir, 'merge');
     const { prompt, agentName, frontmatter } = await this.composePrompt('merge-worktree', ctx);
 
+    const resolvedModel = await this.modelResolver.resolve({
+      profileModel: frontmatter.model as string | undefined,
+      stepName: 'merge-worktree',
+      projectSlug: ctx.projectSlug,
+      workflowSlug: ctx.workflowSlug,
+    });
+
     this.emitEvent('agent:spawn', { task: 'merge-worktree', agent: agentName, mode: 'background' });
 
     const meta: SpawnMeta = {
@@ -173,6 +184,7 @@ export class WorkflowRunner {
       pid: 0,
       started_at: now(),
       timed_out: false,
+      model_used: resolvedModel,
     };
 
     await this.spawner.writeSpawnMeta(mergeDir, meta);
@@ -185,7 +197,7 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: frontmatter.model as string | undefined,
+        model: resolvedModel,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
     }).then(async (result) => {
@@ -222,6 +234,13 @@ export class WorkflowRunner {
     const mergeDir = join(ctx.waveDir, 'merge');
     const { prompt, agentName, frontmatter } = await this.composePrompt('merge-worktree', ctx);
 
+    const resolvedModel = await this.modelResolver.resolve({
+      profileModel: frontmatter.model as string | undefined,
+      stepName: 'merge-worktree',
+      projectSlug: ctx.projectSlug,
+      workflowSlug: ctx.workflowSlug,
+    });
+
     this.emitEvent('agent:spawn', { task: 'merge-worktree', agent: agentName, mode: 'sync' });
 
     const meta: SpawnMeta = {
@@ -233,6 +252,7 @@ export class WorkflowRunner {
       pid: 0,
       started_at: now(),
       timed_out: false,
+      model_used: resolvedModel,
     };
 
     await this.spawner.writeSpawnMeta(mergeDir, meta);
@@ -244,7 +264,7 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: frontmatter.model as string | undefined,
+        model: resolvedModel,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
     });
@@ -337,13 +357,13 @@ export class WorkflowRunner {
   ): Promise<{ exitCode: number; reason: string }> {
     switch (step.type) {
       case 'spawn-agent':
-        return this.executeSpawnAgent(step.task, stepIndex, ctx);
+        return this.executeSpawnAgent(step.task, step.model, stepIndex, ctx);
 
       case 'spawn-agent-call':
-        return this.executeSpawnAgentCall(step.task, step.schema, step.stop_on, stepIndex, ctx);
+        return this.executeSpawnAgentCall(step.task, step.schema, step.stop_on, step.model, stepIndex, ctx);
 
       case 'ralph-wiggum-loop':
-        return this.executeFeatureLoop(step.task, stepIndex, ctx);
+        return this.executeFeatureLoop(step.task, step.model, stepIndex, ctx);
 
       case 'chain-workflow':
         return this.executeChainWorkflow(step.workflow, ctx);
@@ -358,13 +378,23 @@ export class WorkflowRunner {
 
   private async executeSpawnAgent(
     taskSlug: string,
+    stepModel: string | undefined,
     stepIndex: number,
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: taskSlug }));
     const { prompt, agentName, frontmatter } = await this.composePrompt(taskSlug, ctx);
 
-    this.emitEvent('agent:spawn', { task: taskSlug, agent: agentName });
+    const stepName = taskSlug;
+    const resolvedModel = await this.modelResolver.resolve({
+      stepModel,
+      profileModel: frontmatter.model as string | undefined,
+      stepName,
+      projectSlug: ctx.projectSlug,
+      workflowSlug: ctx.workflowSlug,
+    });
+
+    this.emitEvent('agent:spawn', { task: taskSlug, agent: agentName, model: resolvedModel });
 
     const meta: SpawnMeta = {
       task: taskSlug,
@@ -375,6 +405,7 @@ export class WorkflowRunner {
       pid: 0,
       started_at: now(),
       timed_out: false,
+      model_used: resolvedModel,
     };
 
     await this.spawner.writeSpawnMeta(stepDir, meta);
@@ -386,7 +417,7 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: frontmatter.model as string | undefined,
+        model: resolvedModel,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
     });
@@ -410,13 +441,23 @@ export class WorkflowRunner {
     taskSlug: string,
     schema: Record<string, unknown>,
     stopOn: string,
+    stepModel: string | undefined,
     stepIndex: number,
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent-call', task: taskSlug, schema, stop_on: stopOn }));
     const { prompt, agentName, frontmatter } = await this.composePrompt(taskSlug, ctx);
 
-    this.emitEvent('agent:spawn', { task: taskSlug, agent: agentName, mode: 'call' });
+    const stepName = taskSlug;
+    const resolvedModel = await this.modelResolver.resolve({
+      stepModel,
+      profileModel: frontmatter.model as string | undefined,
+      stepName,
+      projectSlug: ctx.projectSlug,
+      workflowSlug: ctx.workflowSlug,
+    });
+
+    this.emitEvent('agent:spawn', { task: taskSlug, agent: agentName, mode: 'call', model: resolvedModel });
 
     const meta: SpawnMeta = {
       task: taskSlug,
@@ -427,6 +468,7 @@ export class WorkflowRunner {
       pid: 0,
       started_at: now(),
       timed_out: false,
+      model_used: resolvedModel,
     };
 
     await this.spawner.writeSpawnMeta(stepDir, meta);
@@ -438,7 +480,7 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: frontmatter.model as string | undefined,
+        model: resolvedModel,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
       jsonSchema: schema,
@@ -477,6 +519,7 @@ export class WorkflowRunner {
 
   private async executeFeatureLoop(
     taskSlug: string,
+    stepModel: string | undefined,
     stepIndex: number,
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string }> {
@@ -494,6 +537,10 @@ export class WorkflowRunner {
       sprintNumber: ctx.sprintNumber,
       templateContext: this.buildTemplateContext(ctx),
       project: ctx.projectName,
+      stepModel,
+      projectSlug: ctx.projectSlug,
+      workflowSlug: ctx.workflowSlug,
+      modelResolver: this.modelResolver,
     });
   }
 

@@ -116,6 +116,8 @@ async function main(): Promise<void> {
   const ctx: WorkflowRunnerContext = {
     workflow: result.workflow,
     projectName: result.projectConfig.name,
+    projectSlug,
+    workflowSlug,
     workspaceDir: result.workspaceDir,
     projectDir: result.projectDir,
     repoDir: result.repoDir,
