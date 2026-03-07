@@ -20,6 +20,7 @@ import { streamChatMessage } from "@/lib/sse-chat";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSessionMetrics, metricsKeys } from "@/hooks/use-metrics";
 import { SessionMetricsBar } from "@/components/session-metrics-bar";
+import { SessionDurationAlert } from "@/components/session-duration-alert";
 import type { SessionMetricsData } from "@/components/session-metrics-bar";
 import type { ChatMessage } from "@/hooks/use-sessions";
 
@@ -381,6 +382,9 @@ export function ChatSessionPage() {
           <Paperclip className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Session Duration Alert */}
+      <SessionDurationAlert projectSlug={projectId} />
 
       {/* Messages area */}
       <div ref={containerRef} className="flex-1 overflow-y-auto">

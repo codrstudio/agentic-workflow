@@ -24,6 +24,7 @@ import { ProjectSettingsPage } from "@/pages/project-settings";
 import { McpServerDetailPage } from "@/pages/mcp-server-detail";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
+import { BreakReminder } from "@/components/break-reminder";
 
 function ProjectLayout() {
   const { projectId } = useParams({ strict: false }) as { projectId: string };
@@ -32,6 +33,7 @@ function ProjectLayout() {
       <ProjectNav />
       <ResumeBanner projectSlug={projectId} />
       <Outlet />
+      <BreakReminder projectSlug={projectId} />
     </>
   );
 }
