@@ -29,6 +29,7 @@ import { productivity } from "./routes/productivity.js";
 import { evaluations } from "./routes/evaluations.js";
 import { compliance } from "./routes/compliance.js";
 import { acrs } from "./routes/acrs.js";
+import { tokenUsage } from "./routes/token-usage.js";
 
 const app = new Hono();
 
@@ -67,5 +68,6 @@ app.route("/api/v1", productivity);
 app.route("/api/v1", evaluations);
 app.route("/api/v1", compliance);
 app.route("/api/v1", acrs);
+app.route("/api/v1", tokenUsage);
 
 export { app };
