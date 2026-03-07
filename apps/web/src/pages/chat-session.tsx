@@ -14,6 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { streamChatMessage } from "@/lib/sse-chat";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSessionMetrics, metricsKeys } from "@/hooks/use-metrics";
+import { SessionMetricsBar } from "@/components/session-metrics-bar";
+import type { SessionMetricsData } from "@/components/session-metrics-bar";
 import type { ChatMessage } from "@/hooks/use-sessions";
 
 function ChatSessionSkeleton() {
@@ -55,7 +58,45 @@ export function ChatSessionPage() {
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [sourceSheetOpen, setSourceSheetOpen] = useState(false);
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
+  const [streamStartTime, setStreamStartTime] = useState<number | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Session metrics from API
+  const { data: sessionMetricsList } = useSessionMetrics(projectId);
+  const apiMetrics = useMemo(
+    () => sessionMetricsList?.find((m) => m.id === sessionId) ?? null,
+    [sessionMetricsList, sessionId],
+  );
+
+  // Compute real-time metrics during streaming
+  const metricsData = useMemo((): SessionMetricsData | null => {
+    if (!apiMetrics && !isStreaming) return null;
+    const baseTokens = apiMetrics?.tokens ?? 0;
+    const baseCost = apiMetrics?.cost_usd ?? 0;
+    const baseDuration = apiMetrics?.duration_ms ?? 0;
+
+    // During streaming, estimate incremental tokens from streamed content
+    const streamTokens = isStreaming ? Math.floor(streamingContent.length / 4) : 0;
+    const streamDuration = isStreaming && streamStartTime ? Date.now() - streamStartTime : 0;
+    // Rough cost: $3/M input + $15/M output for Claude Sonnet estimate
+    const streamCost = streamTokens > 0 ? streamTokens * 0.000015 : 0;
+
+    const totalTokens = baseTokens + streamTokens;
+    const totalCost = baseCost + streamCost;
+    const totalDuration = baseDuration + streamDuration;
+
+    // Estimate input vs output split: input ~= 60%, output ~= 40% heuristic
+    const inputTokens = Math.floor(totalTokens * 0.6);
+    const outputTokens = totalTokens - inputTokens;
+
+    return {
+      tokens: totalTokens,
+      input_tokens: inputTokens,
+      output_tokens: outputTokens,
+      cost_usd: totalCost,
+      duration_ms: totalDuration > 0 ? totalDuration : null,
+    };
+  }, [apiMetrics, isStreaming, streamingContent.length, streamStartTime]);
 
   // Sync local messages from session data
   useEffect(() => {
@@ -96,6 +137,7 @@ export function ChatSessionPage() {
     setIsStreaming(true);
     setStreamingContent("");
     setStreamingMessageId(null);
+    setStreamStartTime(Date.now());
 
     const controller = streamChatMessage(projectId, sessionId, content, {
       onStart: (messageId) => {
@@ -118,6 +160,7 @@ export function ChatSessionPage() {
         });
         setIsStreaming(false);
         setStreamingMessageId(null);
+        setStreamStartTime(null);
         abortControllerRef.current = null;
         // Invalidate session query to sync with server
         queryClient.invalidateQueries({
@@ -125,6 +168,10 @@ export function ChatSessionPage() {
         });
         queryClient.invalidateQueries({
           queryKey: sessionKeys.list(projectId),
+        });
+        // Invalidate metrics to refresh after streaming
+        queryClient.invalidateQueries({
+          queryKey: metricsKeys.sessions(projectId),
         });
         // Show toast and invalidate artifacts cache if artifacts were created
         if (artifacts.length > 0) {
@@ -153,6 +200,7 @@ export function ChatSessionPage() {
         setIsStreaming(false);
         setStreamingContent("");
         setStreamingMessageId(null);
+        setStreamStartTime(null);
         abortControllerRef.current = null;
         // Add error as a system message for visibility
         const errorMessage: ChatMessage = {
@@ -186,6 +234,7 @@ export function ChatSessionPage() {
     setIsStreaming(false);
     setStreamingContent("");
     setStreamingMessageId(null);
+    setStreamStartTime(null);
   }, [streamingContent, streamingMessageId]);
 
   const handleBack = () => {
@@ -360,6 +409,9 @@ export function ChatSessionPage() {
 
         {!hasMessages && <div ref={messagesEndRef} />}
       </div>
+
+      {/* Session Metrics Bar */}
+      {metricsData && <SessionMetricsBar metrics={metricsData} />}
 
       {/* Chat Input */}
       <ChatInput
