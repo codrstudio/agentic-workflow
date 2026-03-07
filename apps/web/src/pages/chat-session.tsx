@@ -1,9 +1,10 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "@tanstack/react-router";
-import { ArrowLeft, MessageSquare, Paperclip } from "lucide-react";
+import { ArrowLeft, Eye, MessageSquare, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, sessionKeys } from "@/hooks/use-sessions";
 import { useSources } from "@/hooks/use-sources";
+import { useReviews, useCreateReview, reviewKeys } from "@/hooks/use-reviews";
 import { artifactKeys } from "@/hooks/use-artifacts";
 import { MessageBubble, TypingIndicator } from "@/components/message-bubble";
 import { ChatInput } from "@/components/chat-input";
@@ -40,6 +41,8 @@ export function ChatSessionPage() {
   });
   const { data: session, isLoading, isError, error } = useSession(projectId, sessionId);
   const { data: sources } = useSources(projectId);
+  const { data: reviews } = useReviews(projectId);
+  const createReview = useCreateReview(projectId);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -196,6 +199,45 @@ export function ChatSessionPage() {
     selectedSourceIds.includes(s.id),
   );
 
+  // Review button logic
+  const sessionReview = useMemo(
+    () => reviews?.find((r) => r.chat_session_id === sessionId),
+    [reviews, sessionId],
+  );
+
+  const hasArtifactsOrModifiedFiles = useMemo(
+    () => allMessages.some((m) => m.artifacts.length > 0),
+    [allMessages],
+  );
+
+  const showReviewButton = hasArtifactsOrModifiedFiles || !!sessionReview;
+
+  const handleReviewClick = useCallback(async () => {
+    if (sessionReview) {
+      toast.info(`Review: ${sessionReview.title}`, {
+        description: `Status: ${sessionReview.status} | ${sessionReview.items_pending} items pendentes`,
+      });
+      return;
+    }
+
+    try {
+      const review = await createReview.mutateAsync({
+        title: `Review: ${session?.title ?? "Sessao de chat"}`,
+        chat_session_id: sessionId,
+      });
+      queryClient.invalidateQueries({
+        queryKey: reviewKeys.all(projectId),
+      });
+      toast.success("Review criada", {
+        description: `${review.items.length} arquivos detectados`,
+      });
+    } catch (err) {
+      toast.error("Falha ao criar review", {
+        description: err instanceof Error ? err.message : "Erro desconhecido",
+      });
+    }
+  }, [sessionReview, session?.title, sessionId, createReview, queryClient, projectId]);
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -229,6 +271,26 @@ export function ChatSessionPage() {
             )}
           </div>
         </div>
+        {showReviewButton && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleReviewClick}
+            className="relative shrink-0"
+            aria-label="Review"
+            disabled={createReview.isPending}
+          >
+            <Eye className="h-4 w-4" />
+            {sessionReview && sessionReview.items_pending > 0 && (
+              <Badge
+                variant="destructive"
+                className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px]"
+              >
+                {sessionReview.items_pending}
+              </Badge>
+            )}
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon"
