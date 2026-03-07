@@ -1,4 +1,5 @@
-import { useQuery, useQueries } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import type { Project } from "@/hooks/use-projects";
 
@@ -59,11 +60,21 @@ export interface StepDetail {
   loop: LoopMeta | null;
 }
 
+export interface StepLog {
+  wave: number;
+  step: number;
+  total_lines: number;
+  returned_lines: number;
+  lines: string[];
+}
+
 export const harnessKeys = {
   all: ["harness"] as const,
   status: (slug: string) => [...harnessKeys.all, "status", slug] as const,
   stepDetail: (slug: string, wave: number, step: number) =>
     [...harnessKeys.all, "step", slug, wave, step] as const,
+  stepLog: (slug: string, wave: number, step: number, tail: number) =>
+    [...harnessKeys.all, "log", slug, wave, step, tail] as const,
 };
 
 export function useHarnessStatus(slug: string) {
@@ -103,4 +114,55 @@ export function useAllHarnessStatuses(projects: Project[] | undefined) {
       retry: false,
     })),
   });
+}
+
+export function useStepLog(
+  slug: string,
+  wave: number,
+  step: number,
+  tail: number,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: harnessKeys.stepLog(slug, wave, step, tail),
+    queryFn: () =>
+      apiFetch<StepLog>(
+        `/hub/projects/${slug}/harness/waves/${wave}/steps/${step}/log?tail=${tail}`
+      ),
+    enabled: enabled && wave > 0 && step > 0,
+    retry: false,
+  });
+}
+
+export function useHarnessSSE(slug: string, enabled = true) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!enabled || !slug) return;
+
+    const url = `/api/v1/hub/projects/${slug}/harness/events`;
+    const eventSource = new EventSource(url);
+
+    const handleEvent = () => {
+      queryClient.invalidateQueries({ queryKey: harnessKeys.status(slug) });
+      queryClient.invalidateQueries({
+        queryKey: [...harnessKeys.all, "log"],
+        exact: false,
+      });
+      queryClient.invalidateQueries({
+        queryKey: [...harnessKeys.all, "step"],
+        exact: false,
+      });
+    };
+
+    eventSource.addEventListener("step.start", handleEvent);
+    eventSource.addEventListener("step.complete", handleEvent);
+    eventSource.addEventListener("step.fail", handleEvent);
+    eventSource.addEventListener("loop.iteration", handleEvent);
+    eventSource.addEventListener("wave.complete", handleEvent);
+
+    return () => {
+      eventSource.close();
+    };
+  }, [slug, enabled, queryClient]);
 }

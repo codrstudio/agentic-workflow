@@ -6,9 +6,10 @@ import {
   Layers,
   Clock,
 } from "lucide-react";
-import { useHarnessStatus, useStepDetail, type StepInfo, type WaveInfo } from "@/hooks/use-harness";
+import { useHarnessStatus, useStepDetail, useHarnessSSE, type StepInfo, type WaveInfo } from "@/hooks/use-harness";
 import { useSprintFeatures } from "@/hooks/use-sprints";
 import { LoopProgressCard } from "@/components/loop-progress-card";
+import { LogViewer } from "@/components/log-viewer";
 import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
@@ -126,6 +127,14 @@ function StepDetailPanel({
       {isLoop && stepDetail?.loop && features && (
         <LoopProgressCard loop={stepDetail.loop} features={features} />
       )}
+
+      {/* LogViewer */}
+      <LogViewer
+        projectSlug={projectSlug}
+        waveNumber={waveNumber}
+        stepNumber={step.number}
+        isRunning={step.status === "running"}
+      />
     </div>
   );
 }
@@ -136,6 +145,9 @@ export function WorkspaceDetailPage() {
   const [selectedWave, setSelectedWave] = useState<number | null>(null);
   const [selectedStep, setSelectedStep] = useState<StepInfo | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // SSE subscription for live updates
+  useHarnessSSE(projectId, true);
 
   // Determine the active wave
   const activeWaveNumber = selectedWave ?? status?.current_wave ?? null;
