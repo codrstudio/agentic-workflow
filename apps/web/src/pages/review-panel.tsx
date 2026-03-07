@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useParams } from "@tanstack/react-router";
 import {
   Plus,
@@ -10,6 +10,7 @@ import {
   Eye,
   AlertCircle,
   ArrowLeft,
+  Bot,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -18,6 +19,7 @@ import {
   useUpdateItemStatus,
   type ReviewDetail,
 } from "@/hooks/use-reviews";
+import { useAgentReview } from "@/hooks/use-agent-review";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -31,6 +33,7 @@ import { cn } from "@/lib/utils";
 import { DiffViewer } from "@/components/diff-viewer";
 import { ReviewChecklist } from "@/components/review-checklist";
 import { AgentReviewButton } from "@/components/agent-review-button";
+import { AgentReviewResultsPanel } from "@/components/agent-review-results-panel";
 
 type ReviewStatus = ReviewDetail["status"];
 type ItemStatus = "pending" | "approved" | "flagged";
@@ -234,6 +237,8 @@ function DiffViewerPanel({
   );
 }
 
+type PanelTab = "files" | "ai-findings";
+
 export function ReviewPanelPage() {
   const { projectId, reviewId } = useParams({
     from: "/_authenticated/projects/$projectId/reviews/$reviewId",
@@ -242,6 +247,7 @@ export function ReviewPanelPage() {
   const isMobile = useIsMobile();
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<PanelTab>("files");
 
   const {
     data: review,
@@ -251,6 +257,23 @@ export function ReviewPanelPage() {
   } = useReviewDetail(projectId, reviewId);
 
   const updateItem = useUpdateItemStatus(projectId, reviewId);
+  const {
+    agentResults,
+    totalFindings: agentTotalFindings,
+    dismissFinding,
+  } = useAgentReview(projectId, reviewId);
+
+  const handleNavigateToFile = useCallback(
+    (filePath: string, _line?: number) => {
+      const item = review?.items.find((it) => it.file_path === filePath);
+      if (item) {
+        setSelectedItemId(item.id);
+        setActiveTab("files");
+        if (isMobile) setSheetOpen(true);
+      }
+    },
+    [review, isMobile]
+  );
 
   const selectedItem = review?.items.find((it) => it.id === selectedItemId);
 
@@ -349,29 +372,129 @@ export function ReviewPanelPage() {
 
       {/* Content */}
       {isMobile ? (
-        /* Mobile: full-width list, click opens diff in Sheet */
-        <div className="flex-1 overflow-auto p-4">
-          {itemsList}
-          <div className="mt-4 border-t pt-4">
-            <ReviewChecklist
-              projectSlug={projectId}
-              reviewId={reviewId}
-              review={review}
-            />
+        /* Mobile: full-width with tabs */
+        <div className="flex-1 overflow-auto">
+          {/* Tab bar */}
+          <div className="flex items-center gap-1 border-b px-4 pt-2">
+            <button
+              className={cn(
+                "px-3 py-1.5 text-xs font-medium rounded-t transition-colors",
+                activeTab === "files"
+                  ? "bg-background border border-b-0 border-border text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setActiveTab("files")}
+            >
+              Arquivos
+            </button>
+            <button
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors",
+                activeTab === "ai-findings"
+                  ? "bg-background border border-b-0 border-border text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => setActiveTab("ai-findings")}
+            >
+              <Bot className="h-3 w-3" />
+              AI Findings
+              {agentTotalFindings > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="h-4 min-w-4 justify-center rounded-full px-1 text-[9px]"
+                >
+                  {agentTotalFindings}
+                </Badge>
+              )}
+            </button>
+          </div>
+
+          <div className="p-4">
+            {activeTab === "files" ? (
+              <>
+                {itemsList}
+                <div className="mt-4 border-t pt-4">
+                  <ReviewChecklist
+                    projectSlug={projectId}
+                    reviewId={reviewId}
+                    review={review}
+                  />
+                </div>
+              </>
+            ) : (
+              <AgentReviewResultsPanel
+                agentResults={agentResults}
+                onDismissFinding={(findingId) =>
+                  dismissFinding.mutate({ findingId, dismissed: true })
+                }
+                isDismissing={dismissFinding.isPending}
+                onNavigateToFile={handleNavigateToFile}
+              />
+            )}
           </div>
         </div>
       ) : (
         /* Desktop: split view */
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: items list + checklist */}
-          <div className="w-80 shrink-0 overflow-auto border-r p-4">
-            {itemsList}
-            <div className="mt-4 border-t pt-4">
-              <ReviewChecklist
-                projectSlug={projectId}
-                reviewId={reviewId}
-                review={review}
-              />
+          {/* Left: tabs (files / AI findings) + checklist */}
+          <div className="w-80 shrink-0 overflow-auto border-r">
+            {/* Tab bar */}
+            <div className="flex items-center gap-1 border-b px-3 pt-2">
+              <button
+                className={cn(
+                  "px-3 py-1.5 text-xs font-medium rounded-t transition-colors",
+                  activeTab === "files"
+                    ? "bg-background border border-b-0 border-border text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setActiveTab("files")}
+              >
+                Arquivos
+              </button>
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t transition-colors",
+                  activeTab === "ai-findings"
+                    ? "bg-background border border-b-0 border-border text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                onClick={() => setActiveTab("ai-findings")}
+              >
+                <Bot className="h-3 w-3" />
+                AI Findings
+                {agentTotalFindings > 0 && (
+                  <Badge
+                    variant="secondary"
+                    className="h-4 min-w-4 justify-center rounded-full px-1 text-[9px]"
+                  >
+                    {agentTotalFindings}
+                  </Badge>
+                )}
+              </button>
+            </div>
+
+            <div className="p-4">
+              {activeTab === "files" ? (
+                <>
+                  {itemsList}
+                  <div className="mt-4 border-t pt-4">
+                    <ReviewChecklist
+                      projectSlug={projectId}
+                      reviewId={reviewId}
+                      review={review}
+                    />
+                  </div>
+                </>
+              ) : (
+                <AgentReviewResultsPanel
+                  agentResults={agentResults}
+                  onDismissFinding={(findingId) =>
+                    dismissFinding.mutate({ findingId, dismissed: true })
+                  }
+                  isDismissing={dismissFinding.isPending}
+                  onNavigateToFile={handleNavigateToFile}
+                />
+              )}
             </div>
           </div>
           {/* Right: diff viewer */}

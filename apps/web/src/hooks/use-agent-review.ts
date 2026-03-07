@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
-type ReviewAgentType = "correctness" | "security" | "performance" | "standards";
+export type ReviewAgentType = "correctness" | "security" | "performance" | "standards";
 
 interface ReviewAgent {
   type: ReviewAgentType;
@@ -12,20 +12,25 @@ interface ReviewAgent {
   enabled: boolean;
 }
 
-interface AgentReviewResult {
+export interface ReviewFinding {
+  id: string;
+  agent_type: ReviewAgentType;
+  severity: "critical" | "warning" | "info";
+  file_path: string;
+  line_start?: number;
+  line_end?: number;
+  title: string;
+  description: string;
+  suggestion?: string;
+  dismissed: boolean;
+}
+
+export interface AgentReviewResult {
   id: string;
   review_id: string;
   agent_type: ReviewAgentType;
   status: "pending" | "running" | "completed" | "failed";
-  findings: Array<{
-    id: string;
-    agent_type: ReviewAgentType;
-    severity: "critical" | "warning" | "info";
-    file_path: string;
-    title: string;
-    description: string;
-    dismissed: boolean;
-  }>;
+  findings: ReviewFinding[];
   summary?: string;
   tokens_used: number;
   duration_ms: number;
@@ -172,11 +177,39 @@ export function useAgentReview(projectSlug: string, reviewId: string) {
     return sum;
   }, 0);
 
+  const dismissFinding = useMutation({
+    mutationFn: ({
+      findingId,
+      dismissed,
+    }: {
+      findingId: string;
+      dismissed: boolean;
+    }) =>
+      apiFetch<{ id: string; dismissed: boolean }>(
+        `/hub/projects/${projectSlug}/reviews/${reviewId}/findings/${findingId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ dismissed }),
+        }
+      ),
+    onSuccess: (data) => {
+      setAgentResults((prev) =>
+        prev.map((r) => ({
+          ...r,
+          findings: r.findings.map((f) =>
+            f.id === data.id ? { ...f, dismissed: data.dismissed } : f
+          ),
+        }))
+      );
+    },
+  });
+
   return {
     state,
     agentResults,
     totalFindings,
     requestReview,
+    dismissFinding,
     isRunning: state === "running",
   };
 }
