@@ -6,6 +6,7 @@
     "build": "npm -w @aw/engine run build",
     "typecheck": "npm -w @aw/engine run typecheck",
     "dev": "npm -w @aw/engine run dev",
+    "dev:all": "npm -w @arc/server run dev & npm -w @arc/web run dev",
     "aw:run": "node apps/engine/dist/cli.js",
     "aw:status": "node apps/engine/dist/status.js"
   }
