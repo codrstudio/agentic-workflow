@@ -8,6 +8,7 @@ import {
 import { useSprintFile, useSprintFeatures } from "@/hooks/use-sprints";
 import { Badge } from "@/components/ui/badge";
 import { PipelineFileViewer } from "@/components/pipeline-file-viewer";
+import { RankingTable, type RankingDiscovery } from "@/components/ranking-table";
 import { cn } from "@/lib/utils";
 
 interface PhaseContentViewProps {
@@ -35,19 +36,32 @@ export function PhaseContentView({
   }
 
   if (phase === "1-brainstorming") {
+    const hasRanking = files.includes("ranking.json");
+    // Don't open ranking.json in the generic file viewer — RankingTable handles it
+    const viewerFile =
+      selectedFile === "ranking.json" ? null : selectedFile;
+
     return (
       <>
         <BrainstormingPhaseView
+          projectSlug={projectSlug}
+          sprintNumber={sprintNumber}
           files={files}
           onFileClick={setSelectedFile}
         />
-        {selectedFile && (
+        {hasRanking && (
+          <BrainstormingRankingSection
+            projectSlug={projectSlug}
+            sprintNumber={sprintNumber}
+          />
+        )}
+        {viewerFile && (
           <PipelineFileViewer
             projectSlug={projectSlug}
             sprintNumber={sprintNumber}
             phase={phase}
-            filename={selectedFile}
-            open={!!selectedFile}
+            filename={viewerFile}
+            open={!!viewerFile}
             onOpenChange={(open) => {
               if (!open) setSelectedFile(null);
             }}
@@ -83,10 +97,48 @@ export function PhaseContentView({
   );
 }
 
+function BrainstormingRankingSection({
+  projectSlug,
+  sprintNumber,
+}: {
+  projectSlug: string;
+  sprintNumber: number;
+}) {
+  const { data: file } = useSprintFile(
+    projectSlug,
+    sprintNumber,
+    "1-brainstorming",
+    "ranking.json"
+  );
+
+  if (!file) return null;
+
+  let discoveries: RankingDiscovery[] = [];
+  try {
+    const parsed = JSON.parse(file.content) as { discoveries?: RankingDiscovery[] };
+    discoveries = parsed.discoveries ?? [];
+  } catch {
+    return null;
+  }
+
+  if (discoveries.length === 0) return null;
+
+  return (
+    <div className="mt-4 space-y-2">
+      <h3 className="text-sm font-semibold text-foreground">Ranking</h3>
+      <RankingTable discoveries={discoveries} />
+    </div>
+  );
+}
+
 function BrainstormingPhaseView({
+  projectSlug,
+  sprintNumber,
   files,
   onFileClick,
 }: {
+  projectSlug: string;
+  sprintNumber: number;
   files: string[];
   onFileClick: (filename: string) => void;
 }) {
