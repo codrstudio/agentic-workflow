@@ -6,6 +6,7 @@ export const SourceTypeEnum = z.enum([
   "pdf",
   "url",
   "code",
+  "codebase_graph",
 ]);
 
 export const SourceCategoryEnum = z.enum([
@@ -43,6 +44,16 @@ export const CreateSourceBody = z.object({
   content: z.string().optional(),
   url: z.string().url().optional(),
   tags: z.array(z.string()).default([]),
+  graph_config: z.object({
+    provider: z.enum(["gitnexus", "graphiti", "custom_mcp"]),
+    mcp_server_url: z.string().url(),
+    mcp_auth_token: z.string().optional(),
+    mcp_tools: z.array(z.string()).optional(),
+    repo_path: z.string().optional(),
+    index_patterns: z.array(z.string()).optional(),
+    exclude_patterns: z.array(z.string()).optional(),
+    auto_reindex_on_merge: z.boolean().optional(),
+  }).optional(),
 });
 
 export const UpdateSourceBody = z.object({
