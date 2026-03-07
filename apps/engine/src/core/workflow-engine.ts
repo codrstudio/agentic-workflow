@@ -7,14 +7,18 @@ import { AgentSpawner, type SpawnMeta } from './agent-spawner.js';
 import { FeatureLoop } from './feature-loop.js';
 import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
+import { OperatorQueue } from './operator-queue.js';
+import { PlanResolver } from './plan-resolver.js';
 import { detectNextWave, resolveSprintForWave, setupWave } from './bootstrap.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
+import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { WorkflowState } from '../schemas/workflow-state.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
 
 export interface WorkflowRunnerContext {
   workflow: Workflow;
+  plan: Plan;
   projectName: string;
   workspaceDir: string;
   projectDir: string;
@@ -38,6 +42,8 @@ export class WorkflowRunner {
   readonly spawner = new AgentSpawner();
   readonly notifier = new Notifier();
   readonly renderer = new TemplateRenderer();
+  readonly planResolver = new PlanResolver();
+  readonly operatorQueue = new OperatorQueue(this.state, this.spawner, this.notifier, this.renderer);
 
   private stopRequested = false;
 
@@ -50,6 +56,30 @@ export class WorkflowRunner {
 
     // Load existing workflow state (for resume support)
     const workflowState = await this.state.readJson<WorkflowState>(statePath);
+
+    // Sanitize stale fields from steps that didn't finish cleanly
+    if (workflowState?.steps) {
+      let dirty = false;
+      for (const step of workflowState.steps) {
+        if (step.status !== 'completed' && step.status !== 'pending') {
+          // Step was running/failed/interrupted when engine died — clear stale completion data
+          if (step.completed_at !== null || step.exit_code !== null) {
+            step.completed_at = null;
+            step.exit_code = null;
+            dirty = true;
+          }
+          // Also reset status to pending so it's cleanly re-executed
+          if (step.status === 'running') {
+            step.status = 'pending';
+            step.started_at = null;
+            dirty = true;
+          }
+        }
+      }
+      if (dirty) {
+        await this.state.writeJson(statePath, workflowState);
+      }
+    }
 
     this.emitEvent('workflow:start', {
       workflow: workflow.name,
@@ -80,10 +110,12 @@ export class WorkflowRunner {
           continue;
         }
 
-        // Update state → running
+        // Update state → running (reset stale fields from previous execution)
         await this.updateStepState(statePath, i, {
           status: 'running',
           started_at: now(),
+          completed_at: null,
+          exit_code: null,
         });
 
         this.emitEvent('workflow:step:start', {
@@ -91,6 +123,9 @@ export class WorkflowRunner {
           type: step.type,
           index: stepIndex,
         });
+
+        // Operator queue checkpoint — drain pending messages before each step
+        await this.drainOperatorQueue(ctx);
 
         const result = await this.executeStep(step, stepIndex, ctx);
 
@@ -159,12 +194,40 @@ export class WorkflowRunner {
   }
 
   /**
+   * Enqueue an operator message for processing at the next checkpoint.
+   */
+  async enqueue(ctx: WorkflowRunnerContext, message: string, source?: string): Promise<void> {
+    const queuePath = join(ctx.workspaceDir, 'operator-queue.jsonl');
+    await this.operatorQueue.enqueue(queuePath, message, source);
+  }
+
+  /**
+   * Drain pending operator messages if any exist.
+   */
+  private async drainOperatorQueue(ctx: WorkflowRunnerContext): Promise<void> {
+    const queuePath = join(ctx.workspaceDir, 'operator-queue.jsonl');
+    if (!(await this.operatorQueue.hasPending(queuePath))) return;
+    await this.operatorQueue.drainAll(queuePath, {
+      worktreeDir: ctx.worktreeDir,
+      sprintDir: ctx.sprintDir,
+      waveDir: ctx.waveDir,
+      agentsDir: ctx.agentsDir,
+      tasksDir: ctx.tasksDir,
+      waveNumber: ctx.waveNumber,
+      sprintNumber: ctx.sprintNumber,
+      templateContext: this.buildTemplateContext(ctx),
+      project: ctx.projectName,
+    });
+  }
+
+  /**
    * Spawn merge agent in background for a wave.
    * Fire-and-forget: does not block the caller.
    */
   async spawnMergeBackground(ctx: WorkflowRunnerContext): Promise<void> {
     const mergeDir = join(ctx.waveDir, 'merge');
-    const { prompt, agentName, frontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const resolved = this.resolveSpawnModelEffort('merge-worktree', taskFrontmatter, frontmatter, ctx.plan);
 
     this.emitEvent('agent:spawn', { task: 'merge-worktree', agent: agentName, mode: 'background' });
 
@@ -189,9 +252,14 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: frontmatter.model as string | undefined,
+        model: resolved.model,
+        effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      onSpawn: (pid) => {
+        meta.pid = pid;
+        this.spawner.writeSpawnMeta(mergeDir, meta);
+      },
     }).then(async (result) => {
       meta.pid = result.pid;
       meta.finished_at = now();
@@ -224,7 +292,8 @@ export class WorkflowRunner {
    */
   async spawnMerge(ctx: WorkflowRunnerContext): Promise<{ exitCode: number }> {
     const mergeDir = join(ctx.waveDir, 'merge');
-    const { prompt, agentName, frontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const resolved = this.resolveSpawnModelEffort('merge-worktree', taskFrontmatter, frontmatter, ctx.plan);
 
     this.emitEvent('agent:spawn', { task: 'merge-worktree', agent: agentName, mode: 'sync' });
 
@@ -248,9 +317,14 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: frontmatter.model as string | undefined,
+        model: resolved.model,
+        effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      onSpawn: (pid) => {
+        meta.pid = pid;
+        this.spawner.writeSpawnMeta(mergeDir, meta);
+      },
     });
 
     meta.pid = result.pid;
@@ -293,6 +367,49 @@ export class WorkflowRunner {
     return `step-${nn}-${this.stepSlug(step)}`;
   }
 
+  /**
+   * Resolve model/effort for a task spawn.
+   * Priority: task frontmatter model/effort > plan tier > task tier > agent tier > env > fallback.
+   */
+  private resolveSpawnModelEffort(
+    taskSlug: string,
+    taskFrontmatter: import('../schemas/task.js').TaskFrontmatter,
+    agentFrontmatter: Record<string, unknown>,
+    plan: Plan,
+    attempt: number = 1,
+  ): { model?: string; effort?: string } {
+    // 1. Task frontmatter model/effort (explicit escape hatch)
+    if (taskFrontmatter.model || taskFrontmatter.effort) {
+      return {
+        model: taskFrontmatter.model,
+        effort: taskFrontmatter.effort,
+      };
+    }
+
+    // 2. Plan tier for this task (with escalation for attempt > 1)
+    if (plan.tiers[taskSlug]) {
+      return this.planResolver.resolveModelEffort(plan, taskSlug, attempt);
+    }
+
+    // 3. Task frontmatter tier
+    if (taskFrontmatter.tier) {
+      return TIER_MAP[taskFrontmatter.tier];
+    }
+
+    // 4. Agent frontmatter tier
+    if (agentFrontmatter.tier && typeof agentFrontmatter.tier === 'string') {
+      return TIER_MAP[agentFrontmatter.tier as TierSlug] ?? {};
+    }
+
+    // 5. Agent frontmatter model (legacy)
+    if (agentFrontmatter.model) {
+      return { model: agentFrontmatter.model as string };
+    }
+
+    // 6. Fallback — let spawner use env vars or its own defaults
+    return {};
+  }
+
   private buildTemplateContext(ctx: WorkflowRunnerContext): Record<string, string> {
     const templateContext: Record<string, string> = {
       workspace: ctx.workspaceDir,
@@ -321,7 +438,7 @@ export class WorkflowRunner {
   private async composePrompt(
     taskSlug: string,
     ctx: WorkflowRunnerContext,
-  ): Promise<{ prompt: string; agentName: string; frontmatter: Record<string, unknown> }> {
+  ): Promise<{ prompt: string; agentName: string; frontmatter: Record<string, unknown>; taskFrontmatter: import('../schemas/task.js').TaskFrontmatter }> {
     const task = await this.spawner.resolveTask(taskSlug, ctx.tasksDir);
     const agentName = task.frontmatter.agent;
     const { frontmatter, body: agentBody } = await this.spawner.resolveAgentProfile(agentName, ctx.agentsDir);
@@ -331,7 +448,7 @@ export class WorkflowRunner {
     const taskPrompt = this.renderer.render(task.body, templateContext);
     const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}`;
 
-    return { prompt, agentName, frontmatter };
+    return { prompt, agentName, frontmatter, taskFrontmatter: task.frontmatter };
   }
 
   private async executeStep(
@@ -366,7 +483,8 @@ export class WorkflowRunner {
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: taskSlug }));
-    const { prompt, agentName, frontmatter } = await this.composePrompt(taskSlug, ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt(taskSlug, ctx);
+    const resolved = this.resolveSpawnModelEffort(taskSlug, taskFrontmatter, frontmatter, ctx.plan);
 
     this.emitEvent('agent:spawn', { task: taskSlug, agent: agentName });
 
@@ -390,9 +508,14 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: frontmatter.model as string | undefined,
+        model: resolved.model,
+        effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      onSpawn: (pid) => {
+        meta.pid = pid;
+        this.spawner.writeSpawnMeta(stepDir, meta);
+      },
     });
 
     meta.pid = result.pid;
@@ -418,7 +541,8 @@ export class WorkflowRunner {
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent-call', task: taskSlug, schema, stop_on: stopOn }));
-    const { prompt, agentName, frontmatter } = await this.composePrompt(taskSlug, ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt(taskSlug, ctx);
+    const resolved = this.resolveSpawnModelEffort(taskSlug, taskFrontmatter, frontmatter, ctx.plan);
 
     this.emitEvent('agent:spawn', { task: taskSlug, agent: agentName, mode: 'call' });
 
@@ -442,10 +566,15 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: frontmatter.model as string | undefined,
+        model: resolved.model,
+        effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
       jsonSchema: schema,
+      onSpawn: (pid) => {
+        meta.pid = pid;
+        this.spawner.writeSpawnMeta(stepDir, meta);
+      },
     });
 
     meta.pid = result.pid;
@@ -510,10 +639,12 @@ export class WorkflowRunner {
       stepDir,
       agentsDir: ctx.agentsDir,
       tasksDir: ctx.tasksDir,
+      plan: ctx.plan,
       waveNumber: ctx.waveNumber,
       sprintNumber: ctx.sprintNumber,
       templateContext: this.buildTemplateContext(ctx),
       project: ctx.projectName,
+      onCheckpoint: () => this.drainOperatorQueue(ctx),
     });
   }
 

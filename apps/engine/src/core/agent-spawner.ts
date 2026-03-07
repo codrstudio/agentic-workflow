@@ -19,9 +19,11 @@ export interface SpawnAgentParams {
     allowedTools?: string;
     max_turns?: number | string;
     model?: string;
+    effort?: string;
   };
   timeoutMs?: number;
   jsonSchema?: Record<string, unknown>;
+  onSpawn?: (pid: number) => void;
 }
 
 export interface SpawnAgentResult {
@@ -57,6 +59,9 @@ export class AgentSpawner {
       frontmatter: {
         agent: (frontmatter.agent as 'coder' | 'researcher' | 'general') ?? 'coder',
         description: (frontmatter.description as string) ?? '',
+        model: frontmatter.model as TaskFrontmatter['model'],
+        effort: frontmatter.effort as TaskFrontmatter['effort'],
+        tier: frontmatter.tier as TaskFrontmatter['tier'],
       },
       body,
     };
@@ -105,9 +110,12 @@ export class AgentSpawner {
       args.push('--max-turns', String(maxTurns));
     }
 
-    const model = process.env.MODEL ?? agentConfig.model;
-    if (model) {
-      args.push('--model', model);
+    const model = agentConfig.model ?? process.env.MODEL ?? 'sonnet';
+    args.push('--model', model);
+
+    const effort = agentConfig.effort ?? process.env.EFFORT;
+    if (effort) {
+      args.push('--effort', effort);
     }
 
     const logPath = join(outputDir, 'spawn.jsonl');
@@ -121,6 +129,7 @@ export class AgentSpawner {
       });
 
       const pid = proc.pid ?? 0;
+      if (pid > 0 && params.onSpawn) params.onSpawn(pid);
       const stdoutChunks: Buffer[] = [];
 
       proc.stdout?.on('data', (chunk: Buffer) => {

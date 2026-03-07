@@ -21,6 +21,9 @@ export const EngineEventTypeSchema = z.enum([
   'workflow:chain',
   'workflow:spawn',
   'workflow:resume',
+  'queue:received',
+  'queue:processing',
+  'queue:done',
 ]);
 
 export const EngineEventSchema = z.object({

@@ -6,6 +6,8 @@ import { FeatureSelector } from './feature-selector.js';
 import { GutterDetector, type RollbackMode } from './gutter-detector.js';
 import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
+import { PlanResolver } from './plan-resolver.js';
+import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
@@ -16,10 +18,12 @@ export interface FeatureLoopContext {
   stepDir: string;
   agentsDir: string;
   tasksDir: string;
+  plan: Plan;
   waveNumber: number;
   sprintNumber: number;
   templateContext: Record<string, string>;
   project?: string;
+  onCheckpoint?: () => Promise<void>;
 }
 
 export interface FeatureLoopOptions {
@@ -37,6 +41,7 @@ export class FeatureLoop {
   readonly selector = new FeatureSelector();
   readonly gutter = new GutterDetector();
   readonly renderer = new TemplateRenderer();
+  readonly planResolver = new PlanResolver();
 
   private stopRequested = false;
   private iteration = 0;
@@ -185,6 +190,9 @@ export class FeatureLoop {
 
         await this.spawner.writeSpawnMeta(attemptDir, meta);
 
+        // Resolve model/effort from plan with escalation support
+        const resolved = this.resolveSpawnModelEffort(taskSlug, task.frontmatter, agentFrontmatter, ctx.plan, attempt);
+
         const result = await this.spawner.spawnAgent({
           prompt,
           cwd: worktreeDir,
@@ -192,9 +200,14 @@ export class FeatureLoop {
           agentConfig: {
             allowedTools: agentFrontmatter.allowedTools as string | undefined,
             max_turns: agentFrontmatter.max_turns as number | undefined,
-            model: agentFrontmatter.model as string | undefined,
+            model: resolved.model,
+            effort: resolved.effort,
           },
           timeoutMs: timeoutMs > 0 ? timeoutMs : undefined,
+          onSpawn: (pid) => {
+            meta.pid = pid;
+            this.spawner.writeSpawnMeta(attemptDir, meta);
+          },
         });
 
         meta.pid = result.pid;
@@ -254,6 +267,9 @@ export class FeatureLoop {
           await this.state.saveFeatures(featuresPath, updatedFeatures);
         }
 
+        // Operator queue checkpoint — drain pending messages between features
+        await ctx.onCheckpoint?.();
+
         if (await checkStop()) {
           await writeLoopState({ status: 'exited', exit_reason: 'stopped' });
           await this.emitEvent('loop:end', ctx, { reason: 'stopped' });
@@ -281,6 +297,31 @@ export class FeatureLoop {
 
   stop(): void {
     this.stopRequested = true;
+  }
+
+  private resolveSpawnModelEffort(
+    taskSlug: string,
+    taskFrontmatter: import('../schemas/task.js').TaskFrontmatter,
+    agentFrontmatter: Record<string, unknown>,
+    plan: Plan,
+    attempt: number = 1,
+  ): { model?: string; effort?: string } {
+    if (taskFrontmatter.model || taskFrontmatter.effort) {
+      return { model: taskFrontmatter.model, effort: taskFrontmatter.effort };
+    }
+    if (plan.tiers[taskSlug]) {
+      return this.planResolver.resolveModelEffort(plan, taskSlug, attempt);
+    }
+    if (taskFrontmatter.tier) {
+      return TIER_MAP[taskFrontmatter.tier];
+    }
+    if (agentFrontmatter.tier && typeof agentFrontmatter.tier === 'string') {
+      return TIER_MAP[agentFrontmatter.tier as TierSlug] ?? {};
+    }
+    if (agentFrontmatter.model) {
+      return { model: agentFrontmatter.model as string };
+    }
+    return {};
   }
 
   private async emitEvent(

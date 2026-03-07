@@ -53,3 +53,335 @@
   - Prioridades: 1-30, ordem logica (infra→dashboard→gestao→chat→canais→memoria→cron)
   - Todas as 26 discoveries do brainstorming cobertas
   - Artefato: features.json atualizado em sprints/sprint-1/
+[2026-03-07 04:22:38] Step 5 (plan-features): Completed. ok
+[2026-03-07] Feature F-001 (Setup Vite + React 19 + TanStack Router): PASSING
+  - Criado apps/hub/ com Vite 6, React 19, TanStack Router (file-based routing)
+  - package.json com react@19, react-dom@19, @tanstack/react-router, @tanstack/router-plugin
+  - vite.config.ts com TanStackRouterVite(), react(), proxy /api para backbone, porta HUB_PORT
+  - tsconfig.json com strict: true, target ES2022, path alias @/*
+  - Entry points: index.html, main.tsx, App.tsx com RouterProvider
+  - File-based routing: routes/__root.tsx + routes/index.tsx, routeTree.gen.ts gerado automaticamente
+  - Renomeado hub.old package name para evitar conflito de workspace
+  - npm run dev:hub inicia sem erros (Vite v6.4.1)
+  - npm run build:hub (tsc --noEmit + vite build) passa sem erros
+[2026-03-07] Feature F-002 (Tailwind CSS 4 + shadcn/ui + CSS tokens): PASSING
+  - Instalado tailwindcss@4, @tailwindcss/vite, configurado plugin no vite.config.ts
+  - Inicializado shadcn/ui (shadcn@4.0.0) com Tailwind CSS v4
+  - 17 componentes shadcn instalados: button, card, input, label, badge, switch, select, dialog, dropdown-menu, tabs, table, tooltip, separator, sheet, sidebar, scroll-area, skeleton
+  - CSS tokens semanticos em index.css com oklch: background, foreground, primary, secondary, muted, accent, destructive, border, ring, card, popover, sidebar, chart
+  - Dark mode via class strategy (@custom-variant dark, .dark class)
+  - Nenhuma cor Tailwind direta no codigo fonte (verificado via grep)
+  - npm run build:hub passa sem erros (tsc + vite build)
+[2026-03-07] Feature F-003 (Auth store + API client + Login page): PASSING
+  - Instalado zustand para state management
+  - lib/api.ts: request<T> generico com JWT injection automatica via useAuthStore, interceptacao 401 (limpa token + redireciona /login), ApiError tipado com status e body
+  - lib/auth.ts: useAuthStore Zustand com persist em localStorage (key ab-hub-auth), login() via POST /api/v1/ai/auth/login, logout() limpa token e redireciona
+  - routes/login.tsx: formulario com campos usuario/senha, validacao client-side (campos obrigatorios), feedback de erro inline, redirect para / apos sucesso, redirect automatico se ja autenticado
+  - Usa componentes shadcn (Card, Input, Label, Button) e CSS tokens semanticos
+  - Interface em pt-BR conforme requisito
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-004 (Layout responsivo - sidebar + bottom nav): PASSING
+  - Instalado @tanstack/react-query para QueryClientProvider
+  - routes/__root.tsx: root layout com QueryClientProvider (queryClient com staleTime 30s, retry 1)
+  - routes/_authenticated.tsx: auth guard (verifica token, Navigate /login se ausente), layout com SidebarProvider + AppSidebar + SidebarInset + BreadcrumbBar + BottomNav
+  - components/layout/app-sidebar.tsx: sidebar desktop com shadcn Sidebar, 5 items de navegacao (Agentes, Conversas, Canais, Agenda, Configuracoes) com icones lucide e Link do TanStack Router, item ativo via useMatchRoute
+  - components/layout/bottom-nav.tsx: barra fixa no fundo para mobile (<768px), 4 items com destaque visual no ativo, hidden em md+
+  - components/layout/breadcrumb-bar.tsx: top bar com SidebarTrigger (hamburger em mobile) e breadcrumbs baseados na rota atual
+  - lib/query-client.ts: instancia QueryClient exportada
+  - 5 paginas placeholder sob _authenticated/ (agents, conversations, channels, cron, settings) com titulo + "Em breve"
+  - routes/index.tsx atualizado: redireciona / para /agents
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-005 (SSE hook + Query client + UI store): PASSING
+  - lib/query-client.ts ja existia de F-004 com staleTime 30s e retry 1
+  - hooks/use-sse.ts: conecta em /system/events com token JWT, reconexao com backoff exponencial (1s-30s), invalida queries por tipo de evento (heartbeat:status, registry:adapters, channel:message, job:status)
+  - lib/store.ts: useUIStore Zustand com theme (light/dark/system) persistido em localStorage (key ab-hub-ui), aplica classe dark no html, sidebarOpen
+  - Theme toggle na breadcrumb-bar com icones Sun/Moon (lucide-react)
+  - Inicializacao antecipada do tema em main.tsx para evitar flash
+  - SSE integrado no layout _authenticated.tsx (ativa quando token presente)
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-006 (PWA + paginas placeholder + componentes shared): PASSING
+  - Instalado vite-plugin-pwa com manifest (AB Hub), service worker (NetworkFirst API, CacheFirst assets)
+  - Build gera manifest.webmanifest, sw.js, registerSW.js (PWA instalavel)
+  - Componentes shared criados: PageHeader, EmptyState, StatusBadge, ConfirmDialog
+  - 5 paginas placeholder atualizadas com PageHeader + EmptyState + icones lucide
+  - / redireciona para /agents (ja existia de F-004)
+  - API query factory stubs criados: agents, conversations, channels, cron, settings, users
+  - Cada stub exporta queryOptions com queryKey e queryFn usando request<T>
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-007 (Lista de agentes + AgentCard): PASSING
+  - Substituido placeholder /agents com pagina funcional
+  - components/agents/agent-card.tsx: AgentCard com nome, owner badge, StatusBadge, icone Activity pulsante (animate-pulse), ultima atividade relativa, custo formatado, Switch para toggle enabled
+  - Grid responsivo: 1 col mobile, 2 cols sm (>=640px), 3 cols lg (>=1024px)
+  - Busca client-side por nome com icone de lupa
+  - Filtro toggle group: Todos / Ativos / Inativos
+  - Botao Novo Agente no PageHeader (navega para /agents/new)
+  - Toggle enabled via Switch no card: POST /agents/:id/heartbeat/toggle + invalidacao de queries
+  - Click no card navega para /agents/:id (rota sera criada em F-008)
+  - SSE heartbeat:status atualiza card em tempo real com icone pulsante verde
+  - useSSEEvent hook adicionado ao use-sse.ts (subscriber pattern sem criar segundo EventSource)
+  - API stubs atualizados: AgentStats com campos corretos (totalRuns, byStatus, lastTimestamp), endpoint /heartbeat/stats, toggleAgentEnabled()
+  - Loading state com Skeleton placeholders, empty states contextuais
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-008 (Pagina de detalhe do agente + tabs): PASSING
+  - Criado routes/_authenticated/agents.$id.tsx com fetch agente via agentQueryOptions
+  - 5 tabs horizontais (Visao Geral, Configuracao, Conversas, Memoria, Agenda) usando shadcn Tabs
+  - Tab ativa controlada via search param ?tab= (URL como source of truth, default: overview)
+  - Header com breadcrumb inline (Agentes > slug) e StatusBadge ativo/inativo
+  - Tabs nao implementadas exibem placeholder "Em breve" com borda dashed
+  - BreadcrumbBar atualizado com dynamicRoutePatterns para rotas /agents/:id
+  - Loading state com Skeleton, estado vazio com link de volta
+  - AgentCard ja navegava para /agents/:id (implementado em F-007)
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-009 (Metricas de heartbeat): PASSING
+  - Criado components/agents/agent-metrics.tsx: grid 4 cards (sm:2, lg:4 colunas)
+  - Card 1: Total execucoes (toLocaleString pt-BR com separador de milhar) + breakdown ok/skip/erro
+  - Card 2: OK / Skip / Erro com valores coloridos (verde/amarelo/vermelho)
+  - Card 3: Custo total USD com 4 decimais (toFixed(4))
+  - Card 4: Duracao media em segundos (1 decimal)
+  - Integrado na tab Visao Geral de agents.$id.tsx via agentStatsQueryOptions(id)
+  - SSE heartbeat:status ja invalidava query ["agents", agentId, "stats"] (implementado em F-005)
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-010 (Timeline de heartbeat + acoes do agente): PASSING
+  - Criado components/agents/heartbeat-timeline.tsx: lista vertical com ScrollArea (400px), ultimos 20 entries
+  - Cada entry: status badge (ok=verde, skip=amarelo, erro=vermelho), timestamp relativo, duracao, preview expandivel com click
+  - Criado components/agents/agent-actions.tsx: toggle heartbeat (Switch), trigger manual (botao Play), nova conversa (botao MessageSquarePlus)
+  - API: agentHeartbeatHistoryQueryOptions(id), triggerHeartbeat(id), createConversation(agentId)
+  - SSE heartbeat:status prepend nova entry no topo via useState + merge com history query
+  - SSE invalidacao central estendida para ["agents", agentId, "heartbeat-history"]
+  - Toggle heartbeat usa useMutation com invalidacao de queries
+  - Trigger manual dispara POST /agents/:id/heartbeat/trigger e invalida history
+  - Nova Conversa cria sessao via POST /conversations e navega para /conversations/:id
+  - Integrado na tab Visao Geral: AgentActions + AgentMetrics + HeartbeatTimeline
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-011 (Formulario de criacao de agente): PASSING
+  - Criado routes/_authenticated/agents.new.tsx com rota /agents/new
+  - Criado components/agents/agent-form.tsx: formulario com campos slug (kebab-case, validacao regex), owner (select com system + users), descricao (textarea), enabled (switch, default true)
+  - API createAgent() adicionada em api/agents.ts (POST /agents com payload tipado)
+  - Adicionado componente shadcn Textarea
+  - Validacao client-side: slug obrigatorio, formato kebab-case via regex
+  - Erro do backend exibido inline (slug duplicado etc.) via ApiError parsing
+  - Sucesso: invalida query ["agents"], navega para /agents/:id?tab=config
+  - Botao Cancelar navega de volta para /agents
+  - BreadcrumbBar atualizado com label "Novo Agente" para rota /agents/new
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-012 (Editor markdown + sub-tabs de configuracao): PASSING
+  - Instalado react-markdown para preview de markdown
+  - Criado components/shared/markdown-editor.tsx: textarea monospace, toggle editar/preview, indicador de estado (Salvo/Salvando/Erro)
+  - Criado components/agents/agent-config-tabs.tsx: sub-tabs verticais (Identidade=SOUL.md, Conversa=CONVERSATION.md, Heartbeat=HEARTBEAT.md)
+  - Sub-tab ativa controlada via search param ?subtab= (URL como source of truth, default: identity)
+  - Auto-save com debounce 2s via PUT /agents/:id/files/{filename}
+  - Fetch conteudo inicial via GET /agents/:id/files/{filename} (retorna { filename, content })
+  - API: agentFileQueryOptions(id, filename), saveAgentFile(id, filename, content) adicionadas em api/agents.ts
+  - Preview markdown renderiza via react-markdown (headers, listas, codigo, links)
+  - Substituido placeholder da tab Configuracao em agents.$id.tsx com AgentConfigTabs
+  - Search param subtab adicionado ao validateSearch da rota
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-013 (Configuracao visual de heartbeat): PASSING
+  - Instalado componentes shadcn: slider (base-ui), checkbox
+  - Criado components/agents/heartbeat-config.tsx: configuracao visual completa
+  - Switch para heartbeat ativo/inativo
+  - Slider + input numerico sincronizados para intervalo (10-3600s)
+  - Time inputs para horario ativo inicio/fim (HH:MM)
+  - Checkbox group para dias da semana (Seg-Dom)
+  - Preview legivel: "Heartbeat a cada 30 segundos, das 08:00 as 18:00, de segunda a sexta"
+  - Botao Salvar explicito (nao auto-save, config critica)
+  - API: extractHeartbeatConfig() le config do agente, saveHeartbeatConfig() via PATCH /agents/:id
+  - Active hours salvos via metadata (active-hours-start, active-hours-end, active-hours-days)
+  - Integrado na sub-tab Heartbeat do AgentConfigTabs, abaixo do editor de HEARTBEAT.md
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07 05:33:33] Step 6 (ralph-wiggum-loop): Failed (exit 1). error: EPERM: operation not permitted, rename 'D:\sources\_unowned\agentic-workflow\context\workspaces\ab-hub\wave-1\worktree\sprints\sprint-1\features.json.tmp' -> 'D:\sources\_unowned\agentic-workflow\context\workspaces\ab-hub\wave-1\worktree\sprints\sprint-1\features.json'
+[2026-03-07] Feature F-014 (Gestao de skills e tools): PASSING
+  - Criado api/skills.ts: tipos Resource, query options e mutations para skills (GET /skills, GET /agents/:id/skills, POST /skills/assign, DELETE /skills/:scope/:slug) e services (mesma estrutura)
+  - Criado components/shared/resource-assigner.tsx: componente generico com lista de items com Switch toggle, agrupamento visual por escopo (shared/system/agent), Badge de escopo, nome, descricao, loading e empty states
+  - Atualizado agent-config-tabs.tsx: adicionadas sub-tabs Skills (icone Sparkles) e Tools (icone Wrench) na navegacao vertical
+  - SkillsPanel: busca skills globais + do agente, assign/unassign via mutations com invalidacao de queries
+  - ToolsPanel: mesmo padrao usando endpoints /services (backend nao expoe /tools como REST)
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-015 (Acoes avancadas - duplicar, excluir agente): PASSING
+  - Criado components/agents/agent-advanced-panel.tsx: painel com secao Duplicar e Zona Perigosa
+  - Duplicar Agente: POST /agents/:id/duplicate, invalida queries, navega para novo agente
+  - Excluir Agente: Dialog com input de confirmacao do slug, DELETE /agents/:id, navega para /agents
+  - API: duplicateAgent() e deleteAgent() adicionadas em api/agents.ts
+  - Atualizado agent-config-tabs.tsx: sub-tab Avancado (icone Shield) na navegacao vertical
+  - AgentConfigTabs agora recebe prop agent para passar ao AgentAdvancedPanel
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-016 (Lista de conversas): PASSING
+  - Substituido placeholder /conversations com pagina funcional
+  - Lista vertical com ConversationItem: badge agente (Bot icon + slug), titulo (ou "Sem titulo"), preview ultima mensagem truncada, timestamp relativo
+  - Busca client-side por titulo com icone de lupa
+  - Filtro por agente via Select (mostra apenas agentes com conversas existentes)
+  - Botao Nova Conversa no PageHeader: abre Dialog para escolher agente ativo, POST /conversations, navega para /conversations/:id
+  - Ordenacao por updated_at (mais recente primeiro)
+  - SSE channel:message invalida query ["conversations"] para atualizacao em tempo real
+  - Loading state com Skeleton placeholders, empty states contextuais
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-017 (Chat view com streaming): PASSING
+  - Criado lib/chat-stream.ts: streamMessage() consome SSE com eventos init/text/result/usage, AbortController support
+  - Criado components/chat/message-bubble.tsx: bubbles com assistant esquerda (bg-muted) e user direita (bg-primary), markdown via react-markdown, botao copiar no hover
+  - Criado components/chat/message-list.tsx: scroll container com auto-scroll quando perto do fundo, botao scroll-to-bottom quando usuario scrollou para cima
+  - Criado components/chat/streaming-indicator.tsx: cursor piscante (animate-pulse) durante streaming
+  - Criado routes/_authenticated/conversations.$id.tsx: fetch sessao + historico, streaming via streamMessage(), input com Enter envia/Shift+Enter nova linha, botao Parar durante streaming
+  - API: conversationMessagesQueryOptions(id) adicionado em api/conversations.ts
+  - BreadcrumbBar atualizado com pattern para /conversations/:id
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-018 (Input de mensagem + abort): PASSING
+  - Criado components/chat/message-input.tsx: componente dedicado extraido do inline do chat page
+  - Textarea expansivel 1-5 linhas com auto-resize via scrollHeight, leading-6 (24px line height)
+  - Enter envia mensagem, Shift+Enter insere nova linha
+  - Botao enviar (icone Send) desabilitado quando vazio ou streaming
+  - Durante streaming botao muda para Parar (icone Square, variant destructive)
+  - Focus automatico via useEffect no mount
+  - Placeholder pt-BR "Digite sua mensagem..."
+  - conversations.$id.tsx refatorado para usar MessageInput (removido textarea inline)
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-019 (Gerenciamento de sessoes): PASSING
+  - Menu dropdown no header do chat com 3 acoes: Renomear, Exportar, Excluir
+  - Renomear: dialog com input, PATCH /conversations/:id, invalida queries
+  - Exportar: window.open com token JWT para GET /conversations/:id/export
+  - Excluir: dialog de confirmacao, DELETE /conversations/:id, navega para /conversations
+  - API: renameConversation(), deleteConversation(), agentConversationsQueryOptions() adicionadas
+  - Tab Conversas em agents.$id.tsx substituida por AgentConversations (lista filtrada por agente)
+  - Componente agent-conversations.tsx: fetch via agentConversationsQueryOptions, lista ordenada por updated_at
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-020 (Lista de canais + ChannelCard): PASSING
+  - Substituido placeholder /channels com pagina funcional
+  - api/channels.ts: Channel interface atualizada (slug, owner, type, metadata, description, listeners), channelsQueryOptions e channelQueryOptions
+  - components/channels/channel-card.tsx: ChannelCard com nome, tipo (badge com icone diferenciado: MessageSquare=chat, Phone=whatsapp, PhoneCall=voice), owner, listeners, StatusBadge de conexao (conectado/desconectado via metadata.connected)
+  - Grid responsivo: 1 col mobile, 2 cols sm (>=640px), 3 cols lg (>=1024px)
+  - Filtro por tipo via Select (Todos/Chat/WhatsApp/Voz)
+  - Busca client-side por nome com icone de lupa
+  - Botao Novo Canal no PageHeader
+  - Click no card navega para /channels/:slug
+  - SSE registry:adapters ja invalidava query ["channels"] (implementado em F-005)
+  - Loading state com Skeleton placeholders, empty states contextuais
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-021 (Detalhe do canal + status + config): PASSING
+  - Criado routes/_authenticated/channels.$slug.tsx com fetch canal e 3 tabs (Status, Configuracao, Mensagens)
+  - Tab ativa controlada via search param ?tab= (URL como source of truth, default: status)
+  - Header com breadcrumb inline (Canais > slug) e StatusBadge conectado/desconectado
+  - Tab Status: info adapter (tipo, owner, listeners, connector, numero), status de conexao com icone Wifi/WifiOff, botoes Reconectar/Desconectar, atribuicao a agente via Select
+  - Tab Configuracao: form edicao (owner, descricao) com botao Salvar, Zona Perigosa com botao Excluir Canal + ConfirmDialog
+  - Tab Mensagens: placeholder para F-023
+  - API channels.ts: adicionadas updateChannel() e deleteChannel()
+  - BreadcrumbBar atualizado com dynamicRoutePattern para /channels/:slug
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-022 (Setup WhatsApp - wizard QR Code): PASSING
+  - Instalado qrcode.react para renderizacao de QR codes
+  - Criado api/evolution.ts: funcoes para criar instancia, buscar QR code, consultar status (endpoints /connectors/evolution/instances/*)
+  - Criado components/channels/whatsapp-setup.tsx: wizard 3 passos
+  - Passo 1: input nome instancia, POST /connectors/evolution/instances para criar
+  - Passo 2: renderiza QR Code via QRCodeSVG, polling condicional 5s para status, auto-refresh QR 30s
+  - Passo 3: exibe numero pareado e status Conectado, botao Concluir
+  - Integrado na pagina /channels: botao Novo Canal abre Dialog com WhatsAppSetup
+  - Step indicator visual com 3 passos (circulo numerado, check para concluido)
+  - Botao Concluir invalida queries ["channels"] e ["adapters"]
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-023 (Feed de mensagens do canal): PASSING
+  - Criado components/channels/channel-message-feed.tsx: componente dedicado para feed de mensagens do canal
+  - Conecta SSE per-channel via /channels/:slug/events com reconexao automatica e backoff exponencial
+  - Escuta evento nomeado "channel:message" (compativel com Hono streamSSE named events)
+  - Timeline vertical com mensagens inbound (ArrowDownLeft, role=user) e outbound (ArrowUpRight, role=assistant/system)
+  - Cada mensagem exibe: icone de direcao, remetente (Contato/Agente/Sistema), conteudo, timestamp formatado pt-BR, badge entrada/saida
+  - Auto-scroll com novas mensagens via bottomRef.scrollIntoView, desativa quando usuario scrollou para cima (threshold 80px)
+  - ScrollArea do shadcn com scroll interno (h-[500px]), scroll tracking via viewport data-slot query
+  - Empty state com icone Bot e status de conexao (conectando/conectado)
+  - Substituido placeholder "Mensagens — Em breve" na tab Mensagens de channels.$slug.tsx
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-024 (Status da memoria + MEMORY.md viewer): PASSING
+  - Criado components/agents/memory-status-panel.tsx: painel completo com status + viewer
+  - Secao Status: 2 cards numericos (Arquivos indexados, Chunks) via GET /agents/:id/memory/status
+  - Timestamp ultima sincronizacao exibido em formato relativo
+  - Secao Fatos Aprendidos: fetch MEMORY.md via agentFileQueryOptions, renderiza markdown via react-markdown
+  - Empty state com icone Brain e mensagem orientativa quando MEMORY.md vazio/inexistente
+  - Cards numericos formatados com toLocaleString pt-BR (separador de milhar)
+  - API: MemoryStatus interface + agentMemoryStatusQueryOptions adicionadas em api/agents.ts
+  - Substituido placeholder da tab Memoria em agents.$id.tsx com MemoryStatusPanel
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-025 (Busca semantica): PASSING
+  - Criado components/agents/memory-search-box.tsx: input com debounce 500ms, POST /agents/:id/memory/search
+  - Criado components/agents/memory-search-result.tsx: lista com badge arquivo, snippet expandivel, barra de score visual (width %), badge fonte (vetor/texto)
+  - API: MemorySearchResult interface + searchAgentMemory() adicionadas em api/agents.ts
+  - Integrado na secao Busca Semantica do MemoryStatusPanel (Card dedicado)
+  - Loading state com Skeleton placeholders, empty state "Nenhum resultado encontrado"
+  - Placeholder pt-BR "Pesquisar na memoria do agente..."
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-026 (Controles de sincronizacao e reset): PASSING
+  - Instalado sonner para toast notifications, Toaster adicionado ao __root.tsx
+  - API: syncAgentMemory() e resetAgentMemory() adicionadas em api/agents.ts
+  - Botao Sincronizar com POST /agents/:id/memory/sync, icone RefreshCw com animate-spin durante loading
+  - Botao Limpar Memoria com variant destructive, ConfirmDialog com mensagem sobre irreversibilidade
+  - Reset via POST /agents/:id/memory/reset, invalida queries de memoria
+  - Toast sucesso/erro via sonner (richColors, position bottom-right)
+  - Botoes desabilitados durante operacoes pendentes (syncing || resetting)
+  - StatusCards refatorado para incluir barra de acoes abaixo dos cards
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-027 (Lista de cron jobs): PASSING
+  - Instalado cronstrue + cron-parser para descricao legivel e calculo de proxima execucao
+  - API cron.ts reescrito: tipos CronJob, CronJobDef, CronJobState, CronSchedule, CronPayload alinhados com backbone
+  - cronJobsQueryOptions com filtros agentId e includeDisabled, runCronJobManually com mode=force
+  - Substituido placeholder /cron com pagina funcional: tabela shadcn com 7 colunas
+  - Coluna Agenda: cronstrue/i18n pt_BR para descricoes legiveis (ex: "As 09:00", "A cada 5 minutos")
+  - Coluna Proxima execucao: CronExpressionParser para calcular, fallback para state.nextRunAtMs
+  - Coluna Ultima execucao: timestamp relativo + StatusBadge (ok/erro/skip)
+  - Filtro por agente via Select (lista dinamica de agentes com jobs)
+  - Filtro ativo/inativo via toggle group (mesmo padrao de /agents)
+  - Busca client-side por nome/slug
+  - Botao Play por linha: POST /cron/jobs/:agentId/:slug/run?mode=force, toast sucesso/erro
+  - Botao Novo Job (disabled, sera habilitado em F-029)
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-028 (Builder visual de agenda - CronScheduleBuilder): PASSING
+  - Instalado componente shadcn radio-group (base-ui)
+  - Criado components/cron/cron-schedule-builder.tsx: componente completo
+  - RadioGroup com 5 tipos: Intervalo, Diario, Semanal, Mensal, Personalizado
+  - Tipo Intervalo: input N + select minutos/horas, gera */N * * * * ou 0 */N * * *
+  - Tipo Diario: time picker HH:MM, gera MM HH * * *
+  - Tipo Semanal: checkbox dias (Seg-Dom) + time picker, gera MM HH * * D
+  - Tipo Mensal: input dia (1-28) + time picker, gera MM HH D * *
+  - Tipo Personalizado: input cron manual com validacao via cron-parser, erro inline
+  - Preview legivel via cronstrue/i18n pt_BR
+  - Preview de proximas 5 execucoes via CronExpressionParser, formatadas pt-BR no fuso do usuario
+  - Auto-deteccao do tipo a partir de cron expression existente (para edicao)
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-029 (Formulario de criacao/edicao de cron job): PASSING
+  - Criado components/cron/cron-job-form.tsx: dialog com formulario completo
+  - Campos: agente (select, pre-selecionado se vindo do contexto), slug (kebab-case com validacao), nome de exibicao, instrucoes (textarea obrigatorio), agenda (CronScheduleBuilder), ativo (switch)
+  - Criacao via POST /cron/jobs com createCronJob(), edicao via PATCH /cron/jobs/:agentId/:slug com updateCronJob()
+  - API cron.ts: adicionadas createCronJob(), updateCronJob() com tipos CreateCronJobPayload e UpdateCronJobPayload
+  - Validacao client-side: slug kebab-case, instrucoes obrigatorias, agente obrigatorio na criacao
+  - Erro do backend exibido inline via ApiError parsing
+  - Sucesso fecha dialog, invalida queries ["cron-jobs"], toast de confirmacao
+  - Botao Novo Job habilitado na pagina /cron, abre dialog de criacao
+  - Botao Editar (icone Pencil) por linha na tabela, abre dialog com valores pre-carregados
+  - ScrollArea para dialog nao estourar em telas pequenas
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07] Feature F-030 (Historico de execucoes + tab Agenda no agente): PASSING
+  - Criado components/cron/cron-run-history.tsx: tabela paginada (20/pag) com data/hora, status badge, duracao, tokens, custo, preview expandivel com click
+  - Criado components/cron/cron-job-detail.tsx: resumo do job (nome, agente, schedule, status) + acoes (executar, editar, toggle ativo/inativo, excluir com confirmacao via ConfirmDialog)
+  - API cron.ts: adicionadas deleteCronJob(), CronRunEntry interface, cronRunHistoryQueryOptions(agentId, slug, page, limit)
+  - Criado components/agents/agent-cron-tab.tsx: lista de jobs filtrada por agente, click na linha abre detalhe com historico, botao Novo Job pre-seleciona agente no CronJobForm
+  - Substituido placeholder tab Agenda em agents.$id.tsx com AgentCronTab
+  - Removido PlaceholderTab (nao mais utilizado)
+  - Pagina /cron atualizada: click na linha abre detalhe com historico e acoes, botao Voltar retorna a lista
+  - Paginacao com botoes Anterior/Proxima e indicador "Pagina X de Y (N execucoes)"
+  - Toggle ativo/inativo via Switch com feedback toast, sem recarregar
+  - Excluir job com ConfirmDialog destructive
+  - tsc --noEmit + vite build passam sem erros
+[2026-03-07 13:03:37] Step 6 (ralph-wiggum-loop): Completed. completed
+[2026-03-07] Step: wave-limit (COMPLETED)
+  - Decisao: CONTINUE (encadear mais uma wave)
+  - Wave atual: 1 (< limite de 5)
+  - Features: 30/30 passing, 0 skipped, 0 failing (taxa de falha 0%)
+  - Discoveries com score > 5 nao implementadas (ranking.json): 25 de 26
+  - Discoveries com score >= 8: 15 (incluindo 2 com score 10)
+  - Sem sprints anteriores para comparar rendimentos decrescentes
+  - Todos os 5 criterios apontam para CONTINUE
+[2026-03-07 13:05:09] Step 7 (wave-limit): Completed. decide:continue
+[2026-03-07] Step: merge-worktree (COMPLETED)
+  - Worktree limpa (nenhuma alteracao pendente)
+  - Merge fast-forward de harness/wave-1 (000f7ff) em hub-harness (dc86191)
+  - 114 arquivos alterados, +14.878 linhas
+  - Worktree ja desregistrada do git (nao era mais tracked)
+  - Branch harness/wave-1 deletado apos merge
+  - Estado final: hub-harness em 000f7ff com todos os 30 features da wave-1
+[2026-03-07 13:07:12] Step 8 (merge-worktree): Completed. ok
+[2026-03-07 15:59:54] Step 9 (spawn-vibe-app): Failed (exit 1). step_failed: spawn-vibe-app

@@ -6,6 +6,7 @@ export const AgentProfileSchema = z.object({
   rollback: z.enum(['stash', 'reset', 'none']).default('none'),
   timeout_minutes: z.number().positive().optional(),
   model: z.string().optional(),
+  tier: z.string().optional(),
 });
 
 export type AgentProfile = z.infer<typeof AgentProfileSchema>;

@@ -17,6 +17,7 @@ export const ProjectConfigSchema = z.object({
   source_folder: z.string().optional(),
   target_folder: z.string().optional(),
   params: z.record(z.unknown()).optional(),
+  plan: z.string().optional(),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;

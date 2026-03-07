@@ -1,0 +1,19 @@
+slug: economic
+name: Economico
+description: Minimizar custos — haiku e sonnet onde possivel
+
+tiers:
+  pain-gain-analysis: balanced
+  go-no-go: cheap
+  derive-specs: thorough
+  derive-prps: thorough
+  plan-features: thorough
+  vibe-code: light
+  test-fix: light
+  wave-limit: cheap
+  merge-worktree: cheap
+  operator-message: light
+
+escalation:
+  vibe-code: strong
+  test-fix: strong

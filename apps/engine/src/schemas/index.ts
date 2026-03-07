@@ -9,3 +9,5 @@ export * from './task.js';
 export * from './project.js';
 export * from './event.js';
 export * from './workflow-state.js';
+export * from './operator-queue.js';
+export * from './tier.js';

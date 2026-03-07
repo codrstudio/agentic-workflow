@@ -5,7 +5,9 @@ import { parse as parseYaml } from 'yaml';
 import { WorkflowSchema, type Workflow } from '../schemas/workflow.js';
 import { ProjectConfigSchema, type ProjectConfig, type RepoConfig } from '../schemas/project.js';
 import { type WorkflowState, type WorkflowStepState } from '../schemas/workflow-state.js';
+import type { Plan } from '../schemas/tier.js';
 import { WorktreeManager, type WorktreeInfo } from './worktree-manager.js';
+import { PlanResolver } from './plan-resolver.js';
 import { StateManager, now } from './state-manager.js';
 
 export interface ResolvedRepoConfig {
@@ -18,6 +20,7 @@ export interface ResolvedRepoConfig {
 export interface BootstrapResult {
   projectConfig: ProjectConfig;
   workflow: Workflow;
+  plan: Plan;
   workspaceDir: string;
   projectDir: string;
   repoDir: string;
@@ -319,10 +322,17 @@ export async function bootstrap(
   contextDir: string,
   projectSlug: string,
   workflowSlug: string,
+  planSlug?: string,
 ): Promise<BootstrapResult> {
   const projectConfig = await loadProjectConfig(contextDir, projectSlug);
   const workflow = await loadWorkflow(contextDir, workflowSlug);
   const resolvedRepoConfig = resolveRepoConfig(projectConfig);
+
+  // Load plan: CLI arg > project config > fallback 'standard'
+  const effectivePlanSlug = planSlug ?? projectConfig.plan ?? 'standard';
+  const planResolver = new PlanResolver();
+  const plansDir = join(contextDir, 'plans');
+  const plan = await planResolver.loadPlan(plansDir, effectivePlanSlug);
 
   const { workspaceDir, repoDir } = await ensureWorkspace(
     contextDir,
@@ -358,6 +368,7 @@ export async function bootstrap(
     return {
       projectConfig,
       workflow,
+      plan,
       workspaceDir,
       projectDir,
       repoDir,
@@ -386,6 +397,7 @@ export async function bootstrap(
   return {
     projectConfig,
     workflow,
+    plan,
     workspaceDir,
     projectDir,
     repoDir,

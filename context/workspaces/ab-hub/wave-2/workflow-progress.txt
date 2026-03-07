@@ -235,3 +235,12 @@
   - Destaques pendentes: D-014/G-014 custos (9), D-004 governanca (8), D-022/G-021 analytics (8), G-008 auditabilidade (8)
   - 10 discoveries implementadas nesta wave: D-015, D-016, D-018, D-019, D-021, G-015, G-016, G-018, G-019, G-020
   - Nenhum criterio de parada atingido — workflow deve encadear wave 3
+[2026-03-07 15:27:04] Step 7 (wave-limit): Completed. decide:continue
+[2026-03-07] Step 9 — merge-worktree: COMPLETE.
+  - Worktree branch harness/wave-2 (c7e3caa) merged into hub-harness via fast-forward
+  - Sem conflitos — fast-forward merge (59 arquivos, +7360/-37 linhas)
+  - Worktree removida do git (automaticamente desvinculada apos merge)
+  - Branch local harness/wave-2 deletado
+  - Repo limpo: apenas branches hub-harness e main
+[2026-03-07 15:28:53] Step 8 (merge-worktree): Completed. ok
+[2026-03-07 15:59:53] Step 9 (spawn-vibe-app): Failed (exit 1). step_failed: derive-prps

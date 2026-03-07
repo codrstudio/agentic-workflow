@@ -334,3 +334,5 @@
   - 104 arquivos alterados, 12083 insercoes, 60 delecoes
   - Worktree desregistrada do git (node_modules residual no diretorio e esperado)
   - Branch harness/wave-3 deletado localmente
+[2026-03-07 19:17:21] Step 8 (merge-worktree): Completed. ok
+[2026-03-07 19:32:51] Step 9 (spawn-vibe-app): Failed (exit 1). step_failed: go-no-go
