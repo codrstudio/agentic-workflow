@@ -38,3 +38,49 @@ export function useSprintDetail(projectSlug: string, sprintNumber: number) {
     enabled: sprintNumber > 0,
   });
 }
+
+export interface SprintFile {
+  filename: string;
+  phase: string;
+  sprint: number;
+  content: string;
+  type: "markdown" | "json" | "text";
+}
+
+export function useSprintFile(
+  projectSlug: string,
+  sprintNumber: number,
+  phase: string,
+  filename: string
+) {
+  return useQuery({
+    queryKey: [...sprintKeys.detail(projectSlug, sprintNumber), "file", phase, filename] as const,
+    queryFn: () =>
+      apiFetch<SprintFile>(
+        `/hub/projects/${projectSlug}/sprints/${sprintNumber}/files/${phase}/${filename}`
+      ),
+    enabled: sprintNumber > 0 && !!phase && !!filename,
+  });
+}
+
+export interface SprintFeature {
+  id: string;
+  name: string;
+  description: string;
+  status: string;
+  priority: number;
+  dependencies: string[];
+  tests: string[];
+  completed_at?: string;
+}
+
+export function useSprintFeatures(projectSlug: string, sprintNumber: number) {
+  return useQuery({
+    queryKey: [...sprintKeys.detail(projectSlug, sprintNumber), "features"] as const,
+    queryFn: () =>
+      apiFetch<SprintFeature[]>(
+        `/hub/projects/${projectSlug}/sprints/${sprintNumber}/features`
+      ),
+    enabled: sprintNumber > 0,
+  });
+}

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams } from "@tanstack/react-router";
 import { GitBranch } from "lucide-react";
-import { useSprints } from "@/hooks/use-sprints";
+import { useSprints, useSprintDetail } from "@/hooks/use-sprints";
 import { EmptyState } from "@/components/empty-state";
 import { PipelineStepper, computePhaseStatus } from "@/components/pipeline-stepper";
+import { PhaseContentView } from "@/components/phase-content-view";
 
 export function ProjectPipelinePage() {
   const { projectId } = useParams({
@@ -23,6 +24,7 @@ export function ProjectPipelinePage() {
 
   const currentSprint = sprints?.find((s) => s.number === selectedSprint);
   const [activePhase, setActivePhase] = useState<string | undefined>();
+  const { data: sprintDetail } = useSprintDetail(projectId, selectedSprint);
 
   const pipelinePhases = currentSprint
     ? computePhaseStatus(currentSprint.phases, currentSprint.features_count)
@@ -121,6 +123,31 @@ export function ProjectPipelinePage() {
               <p className="text-xs text-muted-foreground">Features</p>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Phase content view */}
+      {activePhase && currentSprint && sprintDetail && (
+        <div className="rounded-lg border bg-card p-4">
+          <h2 className="mb-3 text-lg font-semibold">
+            {activePhase === "1-brainstorming"
+              ? "Brainstorming"
+              : activePhase === "2-specs"
+                ? "Specs"
+                : activePhase === "3-prps"
+                  ? "PRPs"
+                  : "Features"}
+          </h2>
+          <PhaseContentView
+            projectSlug={projectId}
+            sprintNumber={selectedSprint}
+            phase={activePhase}
+            files={
+              activePhase === "features"
+                ? []
+                : sprintDetail.phases[activePhase] ?? []
+            }
+          />
         </div>
       )}
     </div>
