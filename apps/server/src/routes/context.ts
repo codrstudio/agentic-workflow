@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import path from "node:path";
-import { readdir } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
 import { type Source } from "../schemas/source.js";
@@ -422,5 +422,185 @@ context.get("/hub/projects/:slug/context/metrics", async (c) => {
     total_sessions: logs.length,
   });
 });
+
+// --- F-066: Source compression API ---
+
+async function loadContentForSource(
+  slug: string,
+  source: Source
+): Promise<string | undefined> {
+  if (source.content !== undefined) return source.content;
+  if (source.file_path) {
+    const fullPath = path.join(projectDir(slug), "sources", source.file_path);
+    try {
+      return await readFile(fullPath, "utf-8");
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
+type MarkdownBlock =
+  | { type: "heading"; content: string }
+  | { type: "code_block"; content: string }
+  | { type: "table"; content: string }
+  | { type: "list"; content: string }
+  | { type: "paragraph"; content: string };
+
+function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
+  const lines = markdown.split("\n");
+  const blocks: MarkdownBlock[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i]!;
+
+    // Empty line — skip
+    if (line.trim() === "") {
+      i++;
+      continue;
+    }
+
+    // Heading
+    if (/^#{1,6}\s/.test(line)) {
+      blocks.push({ type: "heading", content: line });
+      i++;
+      continue;
+    }
+
+    // Fenced code block
+    if (/^```/.test(line.trimStart())) {
+      const codeLines: string[] = [line];
+      i++;
+      while (i < lines.length) {
+        codeLines.push(lines[i]!);
+        if (/^```/.test(lines[i]!.trimStart()) && codeLines.length > 1) {
+          i++;
+          break;
+        }
+        i++;
+      }
+      blocks.push({ type: "code_block", content: codeLines.join("\n") });
+      continue;
+    }
+
+    // Table (line starts with |)
+    if (line.trimStart().startsWith("|")) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i]!.trimStart().startsWith("|")) {
+        tableLines.push(lines[i]!);
+        i++;
+      }
+      blocks.push({ type: "table", content: tableLines.join("\n") });
+      continue;
+    }
+
+    // List item (unordered: - or *, ordered: 1.)
+    if (/^(\s{0,3}[-*+]|\s{0,3}\d+\.)\s/.test(line)) {
+      const listLines: string[] = [];
+      while (i < lines.length) {
+        const l = lines[i]!;
+        // Continue list: list item or continuation (indented) or empty line between items
+        if (/^(\s{0,3}[-*+]|\s{0,3}\d+\.)\s/.test(l)) {
+          listLines.push(l);
+          i++;
+        } else if (l.trim() === "" && i + 1 < lines.length && /^(\s{0,3}[-*+]|\s{0,3}\d+\.)\s/.test(lines[i + 1]!)) {
+          listLines.push(l);
+          i++;
+        } else {
+          break;
+        }
+      }
+      blocks.push({ type: "list", content: listLines.join("\n") });
+      continue;
+    }
+
+    // Paragraph (everything else)
+    const paraLines: string[] = [];
+    while (i < lines.length) {
+      const l = lines[i]!;
+      if (l.trim() === "") { i++; break; }
+      if (/^#{1,6}\s/.test(l)) break;
+      if (/^```/.test(l.trimStart())) break;
+      if (l.trimStart().startsWith("|")) break;
+      if (/^(\s{0,3}[-*+]|\s{0,3}\d+\.)\s/.test(l)) break;
+      paraLines.push(l);
+      i++;
+    }
+    if (paraLines.length > 0) {
+      blocks.push({ type: "paragraph", content: paraLines.join("\n") });
+    }
+  }
+
+  return blocks;
+}
+
+function compressMarkdown(markdown: string, targetTokens?: number): {
+  compressed_content: string;
+  original_tokens: number;
+  compressed_tokens: number;
+} {
+  const originalTokens = estimateTokens(markdown);
+  const blocks = parseMarkdownBlocks(markdown);
+
+  // Keep headings, code blocks, tables, lists; discard paragraphs
+  const kept = blocks.filter((b) => b.type !== "paragraph");
+  let compressed = kept.map((b) => b.content).join("\n\n");
+
+  let compressedTokens = estimateTokens(compressed);
+
+  // If target_tokens specified and we're still over, truncate
+  if (targetTokens !== undefined && targetTokens > 0 && compressedTokens > targetTokens) {
+    const targetChars = targetTokens * 4;
+    compressed = compressed.slice(0, targetChars);
+    compressedTokens = estimateTokens(compressed);
+  }
+
+  return {
+    compressed_content: compressed,
+    original_tokens: originalTokens,
+    compressed_tokens: compressedTokens,
+  };
+}
+
+// POST /hub/projects/:slug/sources/:sourceId/compress
+context.post(
+  "/hub/projects/:slug/sources/:sourceId/compress",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const sourceId = c.req.param("sourceId");
+
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    const allSources = await loadSources(slug);
+    const source = allSources.find((s) => s.id === sourceId);
+    if (!source) return c.json({ error: "Source not found" }, 404);
+
+    const content = await loadContentForSource(slug, source);
+    if (content === undefined || content === "") {
+      return c.json({ error: "Source has no content" }, 400);
+    }
+
+    let targetTokens: number | undefined;
+    try {
+      const body = await c.req.json<{ target_tokens?: number }>();
+      if (body.target_tokens !== undefined) {
+        targetTokens = body.target_tokens;
+      }
+    } catch {
+      // No body or invalid JSON — that's fine, target_tokens is optional
+    }
+
+    const result = compressMarkdown(content, targetTokens);
+
+    return c.json(result);
+  }
+);
 
 export { context };
