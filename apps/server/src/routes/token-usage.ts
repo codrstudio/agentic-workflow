@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
-import { readdir } from "node:fs/promises";
+import { readdir, stat } from "node:fs/promises";
 import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
 import {
@@ -184,6 +184,223 @@ tokenUsage.get("/hub/projects/:slug/token-usage", async (c) => {
   }
 
   return c.json(records);
+});
+
+// --- Cost summary cache helpers ---
+
+interface CostSummaryCache {
+  cached_at: string;
+  period_from: string;
+  period_to: string;
+  top_features: number;
+  top_sessions: number;
+  data: CostSummaryResponse;
+}
+
+interface CostSummaryResponse {
+  project_id: string;
+  period_from: string;
+  period_to: string;
+  computed_at: string;
+  total_cost_usd: number;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_cache_read_tokens: number;
+  by_model: Record<string, { cost_usd: number; input_tokens: number; output_tokens: number }>;
+  by_phase: Record<string, { cost_usd: number; total_tokens: number }>;
+  by_feature: Array<{ feature_id: string; cost_usd: number; total_tokens: number }>;
+  by_session: Array<{ session_id: string; cost_usd: number; total_tokens: number }>;
+}
+
+function costSummaryCachePath(slug: string): string {
+  return path.join(projectDir(slug), "cost-summary-cache.json");
+}
+
+async function loadCostSummaryCache(slug: string): Promise<CostSummaryCache | null> {
+  try {
+    return await readJSON<CostSummaryCache>(costSummaryCachePath(slug));
+  } catch {
+    return null;
+  }
+}
+
+function isCacheValid(
+  cache: CostSummaryCache,
+  from: string,
+  to: string,
+  topFeatures: number,
+  topSessions: number
+): boolean {
+  if (cache.period_from !== from || cache.period_to !== to) return false;
+  if (cache.top_features !== topFeatures || cache.top_sessions !== topSessions) return false;
+  const cachedAt = new Date(cache.cached_at).getTime();
+  const now = Date.now();
+  return now - cachedAt < 5 * 60 * 1000; // 5 minutes TTL
+}
+
+function loadRecordsInPeriod(
+  records: TokenUsageRecord[],
+  from: string,
+  to: string
+): TokenUsageRecord[] {
+  return records.filter((r) => r.recorded_at >= from && r.recorded_at <= to);
+}
+
+function computeCostSummary(
+  slug: string,
+  records: TokenUsageRecord[],
+  from: string,
+  to: string,
+  topFeatures: number,
+  topSessions: number
+): CostSummaryResponse {
+  let total_cost_usd = 0;
+  let total_input_tokens = 0;
+  let total_output_tokens = 0;
+  let total_cache_read_tokens = 0;
+
+  const byModel: Record<string, { cost_usd: number; input_tokens: number; output_tokens: number }> = {};
+  const byPhase: Record<string, { cost_usd: number; total_tokens: number }> = {};
+  const featureMap: Record<string, { cost_usd: number; total_tokens: number }> = {};
+  const sessionMap: Record<string, { cost_usd: number; total_tokens: number }> = {};
+
+  for (const r of records) {
+    total_cost_usd += r.cost_usd;
+    total_input_tokens += r.input_tokens;
+    total_output_tokens += r.output_tokens;
+    total_cache_read_tokens += r.cache_read_tokens;
+
+    // by_model
+    const model = r.model;
+    if (!byModel[model]) byModel[model] = { cost_usd: 0, input_tokens: 0, output_tokens: 0 };
+    byModel[model]!.cost_usd += r.cost_usd;
+    byModel[model]!.input_tokens += r.input_tokens;
+    byModel[model]!.output_tokens += r.output_tokens;
+
+    // by_phase
+    const phase = r.phase ?? "unknown";
+    if (!byPhase[phase]) byPhase[phase] = { cost_usd: 0, total_tokens: 0 };
+    byPhase[phase]!.cost_usd += r.cost_usd;
+    byPhase[phase]!.total_tokens += r.input_tokens + r.output_tokens + r.cache_read_tokens;
+
+    // by_feature
+    if (r.feature_id) {
+      if (!featureMap[r.feature_id]) featureMap[r.feature_id] = { cost_usd: 0, total_tokens: 0 };
+      featureMap[r.feature_id]!.cost_usd += r.cost_usd;
+      featureMap[r.feature_id]!.total_tokens += r.input_tokens + r.output_tokens + r.cache_read_tokens;
+    }
+
+    // by_session
+    if (r.session_id) {
+      if (!sessionMap[r.session_id]) sessionMap[r.session_id] = { cost_usd: 0, total_tokens: 0 };
+      sessionMap[r.session_id]!.cost_usd += r.cost_usd;
+      sessionMap[r.session_id]!.total_tokens += r.input_tokens + r.output_tokens + r.cache_read_tokens;
+    }
+  }
+
+  const by_feature = Object.entries(featureMap)
+    .map(([feature_id, v]) => ({ feature_id, ...v }))
+    .sort((a, b) => b.cost_usd - a.cost_usd)
+    .slice(0, topFeatures);
+
+  const by_session = Object.entries(sessionMap)
+    .map(([session_id, v]) => ({ session_id, ...v }))
+    .sort((a, b) => b.cost_usd - a.cost_usd)
+    .slice(0, topSessions);
+
+  return {
+    project_id: slug,
+    period_from: from,
+    period_to: to,
+    computed_at: new Date().toISOString(),
+    total_cost_usd,
+    total_input_tokens,
+    total_output_tokens,
+    total_cache_read_tokens,
+    by_model: byModel,
+    by_phase: byPhase,
+    by_feature,
+    by_session,
+  };
+}
+
+// GET /hub/projects/:slug/cost-summary — aggregated cost summary with cache
+tokenUsage.get("/hub/projects/:slug/cost-summary", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const from = c.req.query("from") ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const to = c.req.query("to") ?? new Date().toISOString();
+  const topFeatures = parseInt(c.req.query("top_features") ?? "10", 10);
+  const topSessions = parseInt(c.req.query("top_sessions") ?? "5", 10);
+
+  // Check cache
+  const cache = await loadCostSummaryCache(slug);
+  if (cache && isCacheValid(cache, from, to, topFeatures, topSessions)) {
+    return c.json(cache.data);
+  }
+
+  // Compute fresh
+  const allRecords = await loadAllRecords(slug);
+  const periodRecords = loadRecordsInPeriod(allRecords, from, to);
+  const summary = computeCostSummary(slug, periodRecords, from, to, topFeatures, topSessions);
+
+  // Save cache
+  const cacheData: CostSummaryCache = {
+    cached_at: new Date().toISOString(),
+    period_from: from,
+    period_to: to,
+    top_features: topFeatures,
+    top_sessions: topSessions,
+    data: summary,
+  };
+  await ensureDir(projectDir(slug));
+  await writeJSON(costSummaryCachePath(slug), cacheData);
+
+  return c.json(summary);
+});
+
+// GET /hub/projects/:slug/model-recommendations — static recommendations per phase
+tokenUsage.get("/hub/projects/:slug/model-recommendations", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const recommendations = [
+    { phase: "brainstorming", recommended_model: "claude-haiku-4-5", rationale: "Low-cost model sufficient for ideation and brainstorming", cost_tier: "low", quality_tier: "standard" },
+    { phase: "specs", recommended_model: "claude-sonnet-4-6", rationale: "Premium quality needed for precise specification derivation", cost_tier: "medium", quality_tier: "premium" },
+    { phase: "prps", recommended_model: "claude-sonnet-4-6", rationale: "Premium quality needed for detailed PRP generation", cost_tier: "medium", quality_tier: "premium" },
+    { phase: "implementation", recommended_model: "claude-sonnet-4-6", rationale: "Premium quality for code generation and implementation", cost_tier: "medium", quality_tier: "premium" },
+    { phase: "review", recommended_model: "claude-sonnet-4-6", rationale: "Premium quality for thorough code review", cost_tier: "medium", quality_tier: "premium" },
+    { phase: "merge", recommended_model: "claude-haiku-4-5", rationale: "Low-cost model sufficient for merge conflict resolution", cost_tier: "low", quality_tier: "standard" },
+  ];
+
+  return c.json(recommendations);
+});
+
+// GET /hub/projects/:slug/token-usage/features/:featureId — cost detail for a specific feature
+tokenUsage.get("/hub/projects/:slug/token-usage/features/:featureId", async (c) => {
+  const slug = c.req.param("slug");
+  const featureId = c.req.param("featureId");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const allRecords = await loadAllRecords(slug);
+  const featureRecords = allRecords.filter((r) => r.feature_id === featureId);
+
+  const total_cost_usd = featureRecords.reduce((sum, r) => sum + r.cost_usd, 0);
+  const total_tokens = featureRecords.reduce(
+    (sum, r) => sum + r.input_tokens + r.output_tokens + r.cache_read_tokens,
+    0
+  );
+
+  return c.json({
+    feature_id: featureId,
+    total_cost_usd,
+    total_tokens,
+    records: featureRecords,
+  });
 });
 
 export { tokenUsage };
