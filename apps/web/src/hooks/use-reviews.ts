@@ -46,11 +46,15 @@ export const reviewKeys = {
     [...reviewKeys.all(projectSlug), "list"] as const,
 };
 
-export function useReviews(projectSlug: string) {
+export function useReviews(projectSlug: string, status?: string) {
   return useQuery({
-    queryKey: reviewKeys.list(projectSlug),
-    queryFn: () =>
-      apiFetch<ReviewSummary[]>(`/hub/projects/${projectSlug}/reviews`),
+    queryKey: [...reviewKeys.list(projectSlug), status ?? "all"] as const,
+    queryFn: () => {
+      const params = status ? `?status=${status}` : "";
+      return apiFetch<ReviewSummary[]>(
+        `/hub/projects/${projectSlug}/reviews${params}`
+      );
+    },
   });
 }
 

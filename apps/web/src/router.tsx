@@ -15,6 +15,7 @@ import { ProjectArtifactsPage } from "@/pages/project-artifacts";
 import { ChatSessionPage } from "@/pages/chat-session";
 import { ProjectPipelinePage } from "@/pages/project-pipeline";
 import { HarnessOverviewPage } from "@/pages/harness-overview";
+import { ProjectReviewsPage } from "@/pages/project-reviews";
 import { ProjectNav } from "@/components/layout/project-nav";
 
 interface RouterContext {
@@ -137,6 +138,14 @@ const projectPipelineRoute = createRoute({
   staticData: { breadcrumb: "Pipeline" },
 });
 
+// /projects/$projectId/reviews
+const projectReviewsRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/reviews",
+  component: ProjectReviewsPage,
+  staticData: { breadcrumb: "Reviews" },
+});
+
 // /harness
 const harnessRoute = createRoute({
   getParentRoute: () => authenticatedLayout,
@@ -165,6 +174,7 @@ const routeTree = rootRoute.addChildren([
         chatSessionRoute,
         projectArtifactsRoute,
         projectPipelineRoute,
+        projectReviewsRoute,
       ]),
     ]),
     harnessRoute.addChildren([harnessDetailRoute]),

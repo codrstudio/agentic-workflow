@@ -1,5 +1,5 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { FileText, GitBranch, MessageSquare, Package } from "lucide-react";
+import { ClipboardCheck, FileText, GitBranch, MessageSquare, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -7,6 +7,7 @@ const tabs = [
   { label: "Chat", to: "/projects/$projectId/chat" as const, icon: MessageSquare },
   { label: "Artifacts", to: "/projects/$projectId/artifacts" as const, icon: Package },
   { label: "Pipeline", to: "/projects/$projectId/pipeline" as const, icon: GitBranch },
+  { label: "Reviews", to: "/projects/$projectId/reviews" as const, icon: ClipboardCheck },
 ];
 
 export function ProjectNav() {
