@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   RefreshCw,
   TrendingUp,
@@ -10,10 +10,24 @@ import {
   Zap,
   AlertTriangle,
 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 import { KpiCard, KpiCardSkeleton } from "@/components/kpi-card";
 import {
   useProductivitySnapshot,
+  useProductivityHistory,
   type AIProductivitySnapshot,
+  type ProductivityHistoryEntry,
 } from "@/hooks/use-productivity-snapshot";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -305,6 +319,178 @@ function ProductivityKpiCards({
 }
 
 // ----------------------------------------------------------------
+// Charts
+// ----------------------------------------------------------------
+
+interface ChartDataPoint {
+  week: string;
+  roi: number;
+  rework: number;
+  firstPass: number;
+  generationHours: number;
+  reviewHours: number;
+}
+
+function buildChartData(entries: ProductivityHistoryEntry[]): ChartDataPoint[] {
+  return entries.map((entry) => {
+    const s = entry.snapshot;
+    const weekLabel = entry.week_start.slice(5, 10); // "MM-DD"
+    return {
+      week: weekLabel,
+      roi: parseFloat(s.net_roi_hours.toFixed(2)),
+      rework: parseFloat((s.ai_rework_ratio * 100).toFixed(1)),
+      firstPass: parseFloat((s.first_pass_accuracy * 100).toFixed(1)),
+      generationHours: parseFloat(s.total_generation_hours.toFixed(2)),
+      reviewHours: parseFloat(s.total_review_hours.toFixed(2)),
+    };
+  });
+}
+
+function ProductivityLineChart({ data }: { data: ChartDataPoint[] }) {
+  return (
+    <div className="rounded-lg border bg-card p-4 shadow-sm">
+      <p className="mb-3 text-sm font-semibold text-card-foreground">
+        Produtividade ao Longo do Tempo
+      </p>
+      {data.length === 0 ? (
+        <div className="flex h-[200px] items-center justify-center text-xs text-muted-foreground">
+          Sem dados suficientes para o periodo selecionado
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart
+            data={data}
+            margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis
+              dataKey="week"
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+            <RechartsTooltip
+              contentStyle={{
+                fontSize: 12,
+                borderRadius: "6px",
+                border: "1px solid hsl(var(--border))",
+                background: "hsl(var(--card))",
+                color: "hsl(var(--card-foreground))",
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Line
+              type="monotone"
+              dataKey="roi"
+              name="ROI (h)"
+              stroke="#22c55e"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="rework"
+              name="Rework (%)"
+              stroke="#f97316"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="firstPass"
+              name="First-Pass (%)"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
+function VerificationTaxAreaChart({ data }: { data: ChartDataPoint[] }) {
+  return (
+    <div className="rounded-lg border bg-card p-4 shadow-sm">
+      <p className="mb-3 text-sm font-semibold text-card-foreground">
+        Verification Tax Trend
+      </p>
+      {data.length === 0 ? (
+        <div className="flex h-[200px] items-center justify-center text-xs text-muted-foreground">
+          Sem dados suficientes para o periodo selecionado
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={200}>
+          <AreaChart
+            data={data}
+            margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+          >
+            <defs>
+              <linearGradient id="gradGeneration" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#22c55e" stopOpacity={0.05} />
+              </linearGradient>
+              <linearGradient id="gradReview" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#eab308" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#eab308" stopOpacity={0.05} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis
+              dataKey="week"
+              tick={{ fontSize: 11 }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+            <RechartsTooltip
+              contentStyle={{
+                fontSize: 12,
+                borderRadius: "6px",
+                border: "1px solid hsl(var(--border))",
+                background: "hsl(var(--card))",
+                color: "hsl(var(--card-foreground))",
+              }}
+            />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Area
+              type="monotone"
+              dataKey="generationHours"
+              name="Geracao (h)"
+              stroke="#22c55e"
+              strokeWidth={2}
+              fill="url(#gradGeneration)"
+            />
+            <Area
+              type="monotone"
+              dataKey="reviewHours"
+              name="Revisao (h)"
+              stroke="#eab308"
+              strokeWidth={2}
+              fill="url(#gradReview)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  );
+}
+
+function ChartsSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <Skeleton className="h-[260px] w-full rounded-lg" />
+      <Skeleton className="h-[260px] w-full rounded-lg" />
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------
 // Skeleton
 // ----------------------------------------------------------------
 
@@ -332,8 +518,26 @@ export function AIProductivityDashboard({
 }) {
   const [periodDays, setPeriodDays] = useState<number>(30);
 
+  const { from, to } = useMemo(() => {
+    const toDate = new Date();
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - periodDays);
+    return {
+      from: fromDate.toISOString().slice(0, 10),
+      to: toDate.toISOString().slice(0, 10),
+    };
+  }, [periodDays]);
+
   const { data: snapshot, isLoading, isError, error, refetch } =
     useProductivitySnapshot(projectId, periodDays);
+
+  const { data: historyData, isLoading: isHistoryLoading } =
+    useProductivityHistory(projectId, from, to);
+
+  const chartData = useMemo(
+    () => buildChartData(historyData?.history ?? []),
+    [historyData]
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -384,6 +588,15 @@ export function AIProductivityDashboard({
           <RoiHeroCard snapshot={snapshot} />
           <ProductivityKpiCards snapshot={snapshot} />
         </>
+      )}
+
+      {/* Charts */}
+      {isHistoryLoading && <ChartsSkeleton />}
+      {!isHistoryLoading && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <ProductivityLineChart data={chartData} />
+          <VerificationTaxAreaChart data={chartData} />
+        </div>
       )}
 
       {/* Empty / no records */}
