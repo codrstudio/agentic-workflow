@@ -328,9 +328,11 @@ handoffRequests.patch("/hub/projects/:slug/handoff-template", async (c) => {
     );
   }
 
+  const patch = parsed.data;
   const updated: HandoffTemplate = {
     ...existing,
-    ...parsed.data,
+    ...patch,
+    default_sprint: patch.default_sprint === null ? undefined : (patch.default_sprint ?? existing.default_sprint),
     project_id: existing.project_id,
     updated_at: new Date().toISOString(),
   };
