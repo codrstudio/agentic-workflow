@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
@@ -22,6 +23,7 @@ import {
   formatCost,
   formatDuration,
 } from "@/components/metrics-table";
+import { ContextMetricsTab } from "@/components/context-metrics-tab";
 import { cn } from "@/lib/utils";
 
 // --- Column definitions ---
@@ -62,6 +64,15 @@ const stepColumns: MetricsColumn<StepMetrics>[] = [
   },
 ];
 
+// --- Sub-tabs ---
+
+type MetricsTab = "general" | "context";
+
+const TABS: { value: MetricsTab; label: string }[] = [
+  { value: "general", label: "Geral" },
+  { value: "context", label: "Context" },
+];
+
 // --- Main Page ---
 
 export function ProjectMetricsPage() {
@@ -69,6 +80,7 @@ export function ProjectMetricsPage() {
     from: "/_authenticated/projects/$projectId/metrics",
   });
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<MetricsTab>("general");
 
   const {
     data: metrics,
@@ -105,119 +117,148 @@ export function ProjectMetricsPage() {
         </p>
       </div>
 
-      {/* KPI Cards */}
-      {isLoading && (
-        <KpiCardGrid>
-          {[1, 2, 3, 4].map((i) => (
-            <KpiCardSkeleton key={i} />
-          ))}
-        </KpiCardGrid>
-      )}
-
-      {metrics && (
-        <KpiCardGrid>
-          <KpiCard
-            icon={Zap}
-            iconClassName="bg-blue-500/10 text-blue-600 dark:text-blue-400"
-            label="Total Tokens"
-            value={formatTokens(metrics.total_tokens)}
-            subtitle={`~${formatTokens(metrics.avg_session_tokens)} por sessao`}
-          />
-          <KpiCard
-            icon={DollarSign}
-            iconClassName="bg-green-500/10 text-green-600 dark:text-green-400"
-            label="Custo Estimado"
-            value={formatCost(metrics.total_cost_usd)}
-          />
-          <KpiCard
-            icon={MessageSquare}
-            iconClassName="bg-purple-500/10 text-purple-600 dark:text-purple-400"
-            label="Sessoes"
-            value={metrics.total_sessions.toString()}
-            subtitle={
-              metrics.avg_session_duration_ms
-                ? `~${formatDuration(metrics.avg_session_duration_ms)} em media`
-                : undefined
-            }
-          />
-          <KpiCard
-            icon={CheckCircle}
-            iconClassName="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-            label="Features"
-            value={`${metrics.features_passing}/${metrics.total_features}`}
-            subtitle={
-              metrics.total_features > 0
-                ? `${Math.round((metrics.features_passing / metrics.total_features) * 100)}% passing`
-                : undefined
-            }
-          />
-        </KpiCardGrid>
-      )}
-
-      {/* Sessions table */}
-      <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-foreground">
-          Sessoes recentes
-        </h2>
-        {sessionsLoading && (
-          <div className="h-32 animate-pulse rounded-lg border bg-muted" />
-        )}
-        {sessions && (
-          <MetricsTable
-            data={sessions}
-            columns={sessionColumns}
-            keyFn={(s) => s.id}
-            defaultSortKey="last_message_at"
-            defaultSortDir="desc"
-            emptyMessage="Nenhuma sessao encontrada"
-            onRowClick={(s) =>
-              navigate({
-                to: "/projects/$projectId/chat/$sessionId",
-                params: { projectId, sessionId: s.id },
-              })
-            }
-          />
-        )}
+      {/* Sub-tabs */}
+      <div className="flex gap-1 border-b">
+        {TABS.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            onClick={() => setActiveTab(tab.value)}
+            className={cn(
+              "whitespace-nowrap px-3 py-2 text-sm font-medium transition-colors border-b-2",
+              activeTab === tab.value
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/40",
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Steps table */}
-      <div className="flex flex-col gap-3">
-        <h2 className="text-lg font-semibold text-foreground">
-          Steps do harness
-        </h2>
-        {stepsLoading && (
-          <div className="h-32 animate-pulse rounded-lg border bg-muted" />
-        )}
-        {steps && (
-          <MetricsTable
-            data={steps}
-            columns={stepColumns}
-            keyFn={(s) => `w${s.wave}-s${s.step}`}
-            defaultSortKey="step"
-            defaultSortDir="asc"
-            emptyMessage="Nenhum step encontrado"
-            onRowClick={() =>
-              navigate({
-                to: "/harness/$projectId",
-                params: { projectId },
-              })
-            }
-          />
-        )}
-      </div>
+      {/* General tab content */}
+      {activeTab === "general" && (
+        <>
+          {/* KPI Cards */}
+          {isLoading && (
+            <KpiCardGrid>
+              {[1, 2, 3, 4].map((i) => (
+                <KpiCardSkeleton key={i} />
+              ))}
+            </KpiCardGrid>
+          )}
 
-      {/* Empty state when no data at all */}
-      {!isLoading &&
-        metrics &&
-        metrics.total_sessions === 0 &&
-        metrics.total_features === 0 && (
-          <EmptyState
-            icon={BarChart3}
-            title="Sem metricas ainda"
-            description="Metricas aparecerão aqui quando sessoes de chat ou steps do harness forem executados."
-            className="min-h-[30vh]"
-          />
-        )}
+          {metrics && (
+            <KpiCardGrid>
+              <KpiCard
+                icon={Zap}
+                iconClassName="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                label="Total Tokens"
+                value={formatTokens(metrics.total_tokens)}
+                subtitle={`~${formatTokens(metrics.avg_session_tokens)} por sessao`}
+              />
+              <KpiCard
+                icon={DollarSign}
+                iconClassName="bg-green-500/10 text-green-600 dark:text-green-400"
+                label="Custo Estimado"
+                value={formatCost(metrics.total_cost_usd)}
+              />
+              <KpiCard
+                icon={MessageSquare}
+                iconClassName="bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                label="Sessoes"
+                value={metrics.total_sessions.toString()}
+                subtitle={
+                  metrics.avg_session_duration_ms
+                    ? `~${formatDuration(metrics.avg_session_duration_ms)} em media`
+                    : undefined
+                }
+              />
+              <KpiCard
+                icon={CheckCircle}
+                iconClassName="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                label="Features"
+                value={`${metrics.features_passing}/${metrics.total_features}`}
+                subtitle={
+                  metrics.total_features > 0
+                    ? `${Math.round((metrics.features_passing / metrics.total_features) * 100)}% passing`
+                    : undefined
+                }
+              />
+            </KpiCardGrid>
+          )}
+
+          {/* Sessions table */}
+          <div className="flex flex-col gap-3">
+            <h2 className="text-lg font-semibold text-foreground">
+              Sessoes recentes
+            </h2>
+            {sessionsLoading && (
+              <div className="h-32 animate-pulse rounded-lg border bg-muted" />
+            )}
+            {sessions && (
+              <MetricsTable
+                data={sessions}
+                columns={sessionColumns}
+                keyFn={(s) => s.id}
+                defaultSortKey="last_message_at"
+                defaultSortDir="desc"
+                emptyMessage="Nenhuma sessao encontrada"
+                onRowClick={(s) =>
+                  navigate({
+                    to: "/projects/$projectId/chat/$sessionId",
+                    params: { projectId, sessionId: s.id },
+                  })
+                }
+              />
+            )}
+          </div>
+
+          {/* Steps table */}
+          <div className="flex flex-col gap-3">
+            <h2 className="text-lg font-semibold text-foreground">
+              Steps do harness
+            </h2>
+            {stepsLoading && (
+              <div className="h-32 animate-pulse rounded-lg border bg-muted" />
+            )}
+            {steps && (
+              <MetricsTable
+                data={steps}
+                columns={stepColumns}
+                keyFn={(s) => `w${s.wave}-s${s.step}`}
+                defaultSortKey="step"
+                defaultSortDir="asc"
+                emptyMessage="Nenhum step encontrado"
+                onRowClick={() =>
+                  navigate({
+                    to: "/harness/$projectId",
+                    params: { projectId },
+                  })
+                }
+              />
+            )}
+          </div>
+
+          {/* Empty state when no data at all */}
+          {!isLoading &&
+            metrics &&
+            metrics.total_sessions === 0 &&
+            metrics.total_features === 0 && (
+              <EmptyState
+                icon={BarChart3}
+                title="Sem metricas ainda"
+                description="Metricas aparecerão aqui quando sessoes de chat ou steps do harness forem executados."
+                className="min-h-[30vh]"
+              />
+            )}
+        </>
+      )}
+
+      {/* Context tab content */}
+      {activeTab === "context" && (
+        <ContextMetricsTab projectId={projectId} />
+      )}
     </div>
   );
 }

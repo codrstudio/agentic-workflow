@@ -414,12 +414,65 @@ context.get("/hub/projects/:slug/context/metrics", async (c) => {
     };
   }
 
+  // Per-session breakdown for bar chart (tokens by category per session)
+  const sessionBreakdown: Array<{
+    session_id: string;
+    total_tokens: number;
+    by_category: Record<string, number>;
+  }> = [];
+
+  for (const log of logs) {
+    const byCat: Record<string, number> = {};
+    let total = 0;
+    for (const entry of log.entries) {
+      if (!entry.included) continue;
+      const source = sourceMap.get(entry.source_id);
+      const cat = source?.category ?? "general";
+      byCat[cat] = (byCat[cat] ?? 0) + entry.tokens_used;
+      total += entry.tokens_used;
+    }
+    sessionBreakdown.push({
+      session_id: log.session_id,
+      total_tokens: total,
+      by_category: byCat,
+    });
+  }
+
+  // Source effectiveness list for the table
+  const sourceEffectiveness: Array<{
+    source_id: string;
+    name: string;
+    category: string;
+    included: number;
+    referenced: number;
+    ratio: number;
+  }> = [];
+
+  for (const [sourceId, stats] of sourceStats) {
+    const source = sourceMap.get(sourceId);
+    const ratio = stats.included > 0
+      ? Math.round((stats.referenced / stats.included) * 1000) / 1000
+      : 0;
+    sourceEffectiveness.push({
+      source_id: sourceId,
+      name: source?.name ?? sourceId,
+      category: stats.category,
+      included: stats.included,
+      referenced: stats.referenced,
+      ratio,
+    });
+  }
+
+  sourceEffectiveness.sort((a, b) => a.ratio - b.ratio);
+
   return c.json({
     avg_context_tokens: avgContextTokens,
     avg_sources_per_session: avgSourcesPerSession,
     effectiveness_ratio: effectivenessRatio,
     category_distribution: categoryDistribution,
     total_sessions: logs.length,
+    session_breakdown: sessionBreakdown,
+    source_effectiveness: sourceEffectiveness,
   });
 });
 
