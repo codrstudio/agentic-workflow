@@ -293,3 +293,11 @@
     - PRP-024 (Agent Evaluation, F-140-F-144) e PRP-025 (Context Engineering, F-145-F-150) parcialmente incompletos
   - Artefato: workflow-progress.txt (este arquivo)
 [2026-03-07 21:05:00] Step 7 (wave-limit): Completed. decide:stop
+[2026-03-07 21:03:19] Step 7 (wave-limit): Completed. decide:continue
+[2026-03-07] Step: merge-worktree COMPLETED.
+  - Merge de harness/wave-5 -> develop em arc/repo (--no-ff)
+  - 48 arquivos adicionados, 11.602 inserções
+  - Arquivos: 12 schemas Zod, 4 routes (autonomy/compliance/evaluations/productivity), 11 componentes React, 10 hooks, sprints/sprint-5 completo
+  - Sem conflitos de merge
+  - Branch harness/wave-5 deletado de arc/repo após merge bem-sucedido
+  - Nota: worktree não estava registrada como git worktree (sem .git), apenas branch removido
