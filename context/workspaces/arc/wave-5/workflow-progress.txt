@@ -226,3 +226,53 @@
   - useProductivityHistory importado do hook existente (use-productivity-snapshot.ts)
   - TypeScript: sem erros no componente
   - 5/5 testes passing
+[2026-03-07] F-136 Compliance Dashboard: PASSING
+  - Componente ComplianceDashboard como sub-tab "Compliance" em Metrics (apps/web/src/components/compliance-dashboard.tsx)
+  - Header "Compliance & Governance" com periodo seletor (7d/30d/90d) + ShadowRiskBadge (low=verde, moderate=amarelo, high=vermelho)
+  - 4 KPI cards: Proporção AI/Humano (ai_ratio%), Oversight Coverage (oversight_ratio%), Review Coverage (review_coverage%, features com review), AI sem Review (count, vermelho se >0)
+  - Chart "Timeline de Decisões": ScatterChart (Recharts) com eixo X=tempo, eixo Y=tipo de decisão (8 tipos mapeados), tooltip com tipo/actor/data
+  - Chart "Proporção AI/Humano por Origem": stacked BarChart com 4 series (ai_generated/ai_assisted/mixed/human_written)
+  - Secao shadow AI risk: indicador + mensagem descritiva + botao "Iniciar review" quando unreviewed_ai_artifacts > 0
+  - Loading skeletons para KPI cards e charts
+  - Integrado em project-metrics.tsx (nova tab "Compliance" apos "Produtividade AI")
+  - TypeScript: sem novos erros (2 erros pre-existentes em project-sources.tsx nao relacionados)
+  - 5/5 testes passing
+[2026-03-07] F-138 Decision Timeline + Compliance Export Dialog: PASSING
+  - DecisionTimeline: timeline vertical em apps/web/src/components/decision-timeline.tsx
+  - Agrupa ultimos 50 eventos por dia (groupByDay), cada grupo com label data formatada em pt-BR
+  - Cada evento: DecisionTypeBadge (8 tipos com cores distintas), ActorBadge (human=azul, system=cinza, agent=roxo), timestamp, target e details
+  - Filtros client-side: select actor (todos/human/system/agent) + select tipo (todos + 8 tipos)
+  - Contador "X de Y eventos" atualizado ao filtrar
+  - ComplianceExportDialog: Dialog com DateRange (from/to via input[type=date]), 5 checkboxes de conteudo, format selector JSON/ZIP (radio visual)
+  - Botao Gerar e Baixar chama useComplianceExport, filtra keys selecionadas, gera Blob JSON e dispara download
+  - Download via URL.createObjectURL + anchor click
+  - Integrado em compliance-dashboard.tsx: DecisionTimeline substitui ScatterChart no primeiro card de charts; ComplianceExportDialog adicionado como botao "Exportar" no header
+  - TypeScript: sem novos erros (2 erros pre-existentes em project-sources.tsx nao relacionados)
+  - 5/5 testes passing
+[2026-03-07] F-137 IP Attribution Report View: PASSING
+  - Componente IPAttributionReportView em apps/web/src/components/ip-attribution-report.tsx
+  - Header com periodo e data de geracao + botao Exportar JSON (download cliente-side via Blob + URL.createObjectURL)
+  - Summary card: protectable ratio grande com cor por faixa (verde >=80%, amarelo >=50%, vermelho <50%), breakdown por origin (4 contadores coloridos)
+  - Pie chart Recharts (PieChart + Pie + Cell) com distribuicao de origem, labels com percentuais, legend
+  - Tabela per-feature: Feature ID (mono), Origin badge (cores por tipo), Human Oversight Count (badge circular), Has Human Edit (Check/XCircle icons), AI Models
+  - Sort por feature_id, origin, human_oversight_count com toggle asc/desc
+  - Secao Human Oversight Evidence: 3 KPIs (intervencoes totais, features com review, features com edicao)
+  - Recommendation card com aviso "nao constitui aconselhamento juridico"
+  - Botao Gerar Relatorio IP adicionado ao ComplianceDashboard header
+  - Ao clicar: dispara POST via useCreateIpReport, ao receber response renderiza IPAttributionReportView no lugar do dashboard
+  - Botao voltar (breadcrumb) retorna ao compliance dashboard limpando estado
+  - TypeScript: sem novos erros (2 erros pre-existentes em project-sources.tsx nao relacionados)
+  - 5/5 testes passing
+[2026-03-07] F-132 ROI Summary Widget + Verification Tax Indicator: PASSING
+  - ROISummaryWidget: card compacto em apps/web/src/components/roi-summary-widget.tsx
+  - TrendingUp/TrendingDown icon + valor net_roi_hours com cor verde (positivo) ou vermelho (negativo)
+  - Mini sparkline (Recharts LineChart sem eixos) com dados dos ultimos 4 snapshots semanais
+  - Link "Ver detalhes" navega para /projects/:id/metrics?tab=produtividade-ai
+  - Integrado em project-pipeline.tsx em grid 2 colunas ao lado de BurnoutRiskWidget
+  - VerificationTaxIndicator: apps/web/src/components/verification-tax-indicator.tsx
+  - Clock icon + "Review: Xmin | Geracao: Ymin" com cor por severity
+  - Cores: verde (<0.5), amarelo (0.5-1.0), vermelho (>1.0) via getSeverityConfig
+  - Tooltip com sugestao por nivel de severity
+  - Integrado no footer do chat-session.tsx acima de SessionMetricsBar
+  - TypeScript: sem novos erros (2 erros pre-existentes em project-sources.tsx nao relacionados)
+  - 5/5 testes passing
