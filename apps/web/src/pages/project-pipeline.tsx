@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams } from "@tanstack/react-router";
-import { GitBranch } from "lucide-react";
+import { GitBranch, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TaskComplexityClassifier } from "@/components/task-complexity-classifier";
 import { useSprints, useSprintDetail } from "@/hooks/use-sprints";
 import { useQualityGates, resolveGateStatus } from "@/hooks/use-quality-gates";
 import type { PipelineGate } from "@/components/pipeline-stepper";
@@ -33,6 +35,7 @@ export function ProjectPipelinePage() {
   const currentSprint = sprints?.find((s) => s.number === selectedSprint);
   const [activePhase, setActivePhase] = useState<string | undefined>();
   const [selectedGate, setSelectedGate] = useState<GateTransition | null>(null);
+  const [classifierOpen, setClassifierOpen] = useState(false);
   const { data: sprintDetail } = useSprintDetail(projectId, selectedSprint);
   const { data: gatesData } = useQualityGates(projectId, selectedSprint);
 
@@ -61,6 +64,17 @@ export function ProjectPipelinePage() {
           </p>
         </div>
 
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setClassifierOpen(true)}
+            className="gap-1.5"
+          >
+            <Plus className="h-4 w-4" />
+            Nova tarefa
+          </Button>
+
         {sprints && sprints.length > 0 && (
           <select
             value={selectedSprint}
@@ -74,6 +88,7 @@ export function ProjectPipelinePage() {
             ))}
           </select>
         )}
+        </div>
       </div>
 
       {/* Loading */}
@@ -198,6 +213,13 @@ export function ProjectPipelinePage() {
         onOpenChange={(open) => {
           if (!open) setSelectedGate(null);
         }}
+      />
+
+      {/* Task complexity classifier dialog */}
+      <TaskComplexityClassifier
+        open={classifierOpen}
+        onOpenChange={setClassifierOpen}
+        projectSlug={projectId}
       />
     </div>
   );

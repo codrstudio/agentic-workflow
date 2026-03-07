@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "@tanstack/react-router";
-import { ArrowLeft, Eye, MessageSquare, Paperclip, Minimize2 } from "lucide-react";
+import { ArrowLeft, Eye, MessageSquare, Paperclip, Minimize2, Plus } from "lucide-react";
+import { TaskComplexityClassifier } from "@/components/task-complexity-classifier";
 import { ContextSummaryBadges } from "@/components/context-summary-badges";
 import { toast } from "sonner";
 import { useSession, sessionKeys } from "@/hooks/use-sessions";
@@ -68,6 +69,7 @@ export function ChatSessionPage() {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [streamStartTime, setStreamStartTime] = useState<number | null>(null);
   const [compressedSourceIds, setCompressedSourceIds] = useState<string[]>([]);
+  const [classifierOpen, setClassifierOpen] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Session metrics from API
@@ -375,6 +377,15 @@ export function ChatSessionPage() {
         <Button
           variant="ghost"
           size="icon"
+          onClick={() => setClassifierOpen(true)}
+          className="shrink-0"
+          aria-label="Nova tarefa"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => setSourceSheetOpen(true)}
           className="shrink-0"
           aria-label="Selecionar sources de contexto"
@@ -473,6 +484,13 @@ export function ChatSessionPage() {
         compressedIds={compressedSourceIds}
         onCompressedIdsChange={setCompressedSourceIds}
         budget={project?.settings?.context_budget}
+      />
+
+      {/* Task complexity classifier dialog */}
+      <TaskComplexityClassifier
+        open={classifierOpen}
+        onOpenChange={setClassifierOpen}
+        projectSlug={projectId}
       />
     </div>
   );
