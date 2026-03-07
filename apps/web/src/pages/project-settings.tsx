@@ -1,9 +1,33 @@
 import { useState } from "react";
 import { useParams } from "@tanstack/react-router";
-import { Bot, RotateCcw, Eye, EyeOff } from "lucide-react";
+import {
+  Bot,
+  RotateCcw,
+  Eye,
+  EyeOff,
+  Plug,
+  Plus,
+  MoreVertical,
+  Pencil,
+  Power,
+  PowerOff,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   useReviewAgents,
   useReviewAgentDefaults,
@@ -11,6 +35,14 @@ import {
   type ReviewAgent,
 } from "@/hooks/use-review-agents-settings";
 import type { ReviewAgentType } from "@/hooks/use-agent-review";
+import {
+  useMcpServers,
+  useDeleteMcpServer,
+  useConnectMcpServer,
+  type McpServerConfig,
+  type McpStatus,
+} from "@/hooks/use-mcp-servers";
+import { McpServerDialog } from "@/components/mcp-server-dialog";
 
 function AgentCard({
   agent,
@@ -156,6 +188,272 @@ function AgentCard({
   );
 }
 
+// --- MCP Servers Section ---
+
+const STATUS_COLORS: Record<McpStatus, string> = {
+  disconnected: "bg-gray-400",
+  connecting: "bg-yellow-400 animate-pulse",
+  connected: "bg-green-500",
+  error: "bg-red-500",
+};
+
+const STATUS_LABELS: Record<McpStatus, string> = {
+  disconnected: "Desconectado",
+  connecting: "Conectando...",
+  connected: "Conectado",
+  error: "Erro",
+};
+
+function McpStatusDot({ status }: { status: McpStatus }) {
+  return (
+    <span
+      className={`inline-block size-2.5 rounded-full ${STATUS_COLORS[status]}`}
+      title={STATUS_LABELS[status]}
+    />
+  );
+}
+
+function McpServerCard({
+  server,
+  onEdit,
+  onConnect,
+  onDisconnect,
+  onRemove,
+  isActing,
+}: {
+  server: McpServerConfig;
+  onEdit: () => void;
+  onConnect: () => void;
+  onDisconnect: () => void;
+  onRemove: () => void;
+  isActing: boolean;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <div className="rounded-lg border bg-card p-4 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <McpStatusDot status={server.status} />
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold">{server.name}</h3>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+              {server.transport.toUpperCase()}
+            </Badge>
+          </div>
+        </div>
+        <div className="relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setMenuOpen(!menuOpen)}
+            disabled={isActing}
+          >
+            {isActing ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <MoreVertical className="size-4" />
+            )}
+          </Button>
+          {menuOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setMenuOpen(false)}
+              />
+              <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-md border bg-popover p-1 shadow-md">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onEdit();
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                  Editar
+                </button>
+                {server.status === "connected" ? (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onDisconnect();
+                    }}
+                  >
+                    <PowerOff className="size-3.5" />
+                    Desconectar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onConnect();
+                    }}
+                  >
+                    <Power className="size-3.5" />
+                    Conectar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-destructive hover:bg-accent"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onRemove();
+                  }}
+                >
+                  <Trash2 className="size-3.5" />
+                  Remover
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+      {server.description && (
+        <p className="text-xs text-muted-foreground pl-5.5">
+          {server.description}
+        </p>
+      )}
+      {server.status === "error" && server.last_error && (
+        <p className="text-xs text-red-500 pl-5.5">{server.last_error}</p>
+      )}
+    </div>
+  );
+}
+
+function McpServersSection({ projectSlug }: { projectSlug: string }) {
+  const { data: servers, isLoading } = useMcpServers(projectSlug);
+  const deleteServer = useDeleteMcpServer(projectSlug);
+  const connectServer = useConnectMcpServer(projectSlug);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingServer, setEditingServer] = useState<McpServerConfig | undefined>();
+  const [deleteTarget, setDeleteTarget] = useState<McpServerConfig | null>(null);
+
+  const handleEdit = (server: McpServerConfig) => {
+    setEditingServer(server);
+    setDialogOpen(true);
+  };
+
+  const handleAdd = () => {
+    setEditingServer(undefined);
+    setDialogOpen(true);
+  };
+
+  const handleConnect = (id: string) => {
+    connectServer.mutate({ id, action: "connect" });
+  };
+
+  const handleDisconnect = (id: string) => {
+    connectServer.mutate({ id, action: "disconnect" });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteTarget) {
+      deleteServer.mutate(deleteTarget.id);
+      setDeleteTarget(null);
+    }
+  };
+
+  return (
+    <>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Plug className="size-5" />
+            <h2 className="text-base font-semibold">Integracoes (MCP)</h2>
+          </div>
+          <Button size="sm" onClick={handleAdd}>
+            <Plus className="size-3.5 mr-1.5" />
+            Adicionar server
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Gerencie MCP servers para integrar ferramentas e recursos externos ao
+          projeto.
+        </p>
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : servers && servers.length > 0 ? (
+          <div className="space-y-3">
+            {servers.map((server) => (
+              <McpServerCard
+                key={server.id}
+                server={server}
+                onEdit={() => handleEdit(server)}
+                onConnect={() => handleConnect(server.id)}
+                onDisconnect={() => handleDisconnect(server.id)}
+                onRemove={() => setDeleteTarget(server)}
+                isActing={
+                  (connectServer.isPending &&
+                    connectServer.variables?.id === server.id) ||
+                  (deleteServer.isPending &&
+                    deleteServer.variables === server.id)
+                }
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <Plug className="size-8 mx-auto text-muted-foreground/50 mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Nenhum MCP server configurado.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={handleAdd}
+            >
+              <Plus className="size-3.5 mr-1.5" />
+              Adicionar primeiro server
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <McpServerDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        projectSlug={projectSlug}
+        server={editingServer}
+      />
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover MCP Server</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover o server &quot;{deleteTarget?.name}
+              &quot;? Esta acao nao pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 export function ProjectSettingsPage() {
   const { projectId } = useParams({
     from: "/_authenticated/projects/$projectId/settings",
@@ -224,6 +522,10 @@ export function ProjectSettingsPage() {
               ))}
             </div>
           )}
+        </div>
+
+        <div className="border-t pt-6">
+          <McpServersSection projectSlug={projectId} />
         </div>
       </div>
     </div>
