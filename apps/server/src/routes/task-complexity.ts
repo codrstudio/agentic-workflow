@@ -10,6 +10,9 @@ import {
   type TaskComplexity,
   type TaskComplexityLevel,
   type ClassifyTaskBody as ClassifyTaskBodyType,
+  type SpecTemplate,
+  SpecTemplateSchema,
+  UpdateTemplatesBody,
 } from "../schemas/task-complexity.js";
 import { type Project } from "../schemas/project.js";
 
@@ -109,6 +112,95 @@ const LEVEL_ORDER: TaskComplexityLevel[] = [
   "medium",
   "large",
 ];
+
+// --- Default spec templates (4 levels) ---
+
+const DEFAULT_TEMPLATES: SpecTemplate[] = [
+  {
+    level: "trivial",
+    template_name: "checklist",
+    required_sections: ["Titulo", "Descricao", "Criterios (3-5)"],
+    optional_sections: ["Rastreabilidade"],
+    estimated_effort: "5-15 min",
+  },
+  {
+    level: "small",
+    template_name: "spec_resumida",
+    required_sections: ["Objetivo", "Criterios de Aceite", "Rastreabilidade"],
+    optional_sections: ["Modelo de Dados", "Notas"],
+    estimated_effort: "15-30 min",
+  },
+  {
+    level: "medium",
+    template_name: "spec_completa",
+    required_sections: [
+      "Objetivo",
+      "Modelo de Dados",
+      "API",
+      "Telas",
+      "Criterios",
+      "Rastreabilidade",
+    ],
+    optional_sections: ["Componentes", "Data Layer"],
+    estimated_effort: "1-2h",
+  },
+  {
+    level: "large",
+    template_name: "prp_completo",
+    required_sections: [
+      "User Stories",
+      "ER Diagram",
+      "Design",
+      "Specs derivadas",
+      "Features",
+      "Criterios",
+    ],
+    optional_sections: ["Riscos", "Dependencias"],
+    estimated_effort: "2-4h",
+  },
+];
+
+function templatesFilePath(slug: string): string {
+  return path.join(projectDir(slug), "task-complexity", "templates.json");
+}
+
+async function loadTemplates(slug: string): Promise<SpecTemplate[]> {
+  try {
+    const custom = await readJSON<SpecTemplate[]>(templatesFilePath(slug));
+    if (Array.isArray(custom) && custom.length > 0) return custom;
+  } catch {
+    // No custom templates — use defaults
+  }
+  return DEFAULT_TEMPLATES;
+}
+
+function renderMarkdownTemplate(template: SpecTemplate): string {
+  const lines: string[] = [];
+  lines.push(`# {titulo}`);
+  lines.push("");
+
+  for (const section of template.required_sections) {
+    lines.push(`## ${section}`);
+    lines.push("");
+    lines.push(`<!-- Preencha: ${section} -->`);
+    lines.push("");
+  }
+
+  if (template.optional_sections.length > 0) {
+    lines.push("---");
+    lines.push("");
+    lines.push("*Secoes opcionais:*");
+    lines.push("");
+    for (const section of template.optional_sections) {
+      lines.push(`## ${section}`);
+      lines.push("");
+      lines.push(`<!-- Opcional: ${section} -->`);
+      lines.push("");
+    }
+  }
+
+  return lines.join("\n");
+}
 
 function classifyHeuristic(
   title: string,
@@ -349,5 +441,69 @@ taskComplexity.get(
     return c.json(result, 200);
   }
 );
+
+// GET /hub/projects/:slug/tasks/templates/:level
+taskComplexity.get(
+  "/hub/projects/:slug/tasks/templates/:level",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const level = c.req.param("level");
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    const validLevels = ["trivial", "small", "medium", "large"];
+    if (!validLevels.includes(level)) {
+      return c.json({ error: "Invalid level. Must be: trivial, small, medium, large" }, 400);
+    }
+
+    const templates = await loadTemplates(slug);
+    const template = templates.find((t) => t.level === level);
+    if (!template) {
+      return c.json({ error: `Template not found for level: ${level}` }, 404);
+    }
+
+    const markdown_template = renderMarkdownTemplate(template);
+
+    return c.json({ ...template, markdown_template }, 200);
+  }
+);
+
+// GET /hub/projects/:slug/tasks/templates
+taskComplexity.get("/hub/projects/:slug/tasks/templates", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const templates = await loadTemplates(slug);
+  return c.json(templates, 200);
+});
+
+// PUT /hub/projects/:slug/tasks/templates
+taskComplexity.put("/hub/projects/:slug/tasks/templates", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = UpdateTemplatesBody.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      { error: "Validation failed", details: parsed.error.flatten() },
+      400
+    );
+  }
+
+  const filePath = templatesFilePath(slug);
+  await ensureDir(path.dirname(filePath));
+  await writeJSON(filePath, parsed.data);
+
+  return c.json(parsed.data, 200);
+});
 
 export { taskComplexity };

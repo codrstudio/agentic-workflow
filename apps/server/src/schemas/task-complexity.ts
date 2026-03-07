@@ -54,3 +54,15 @@ export const ClassifyTaskBody = z.object({
 });
 
 export type ClassifyTaskBody = z.infer<typeof ClassifyTaskBody>;
+
+export const SpecTemplateSchema = z.object({
+  level: TaskComplexityLevelEnum,
+  template_name: SpecTemplateNameEnum,
+  required_sections: z.array(z.string()),
+  optional_sections: z.array(z.string()),
+  estimated_effort: z.string(),
+});
+
+export type SpecTemplate = z.infer<typeof SpecTemplateSchema>;
+
+export const UpdateTemplatesBody = z.array(SpecTemplateSchema);
