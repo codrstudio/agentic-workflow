@@ -578,4 +578,85 @@ agentReview.get(
   }
 );
 
+// GET /hub/projects/:slug/reviews/:reviewId/agent-review/:agentType
+agentReview.get(
+  "/hub/projects/:slug/reviews/:reviewId/agent-review/:agentType",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const reviewId = c.req.param("reviewId");
+    const agentType = c.req.param("agentType") as ReviewAgentType;
+
+    if (!AGENT_TYPES.includes(agentType)) {
+      return c.json({ error: `Invalid agent type: ${agentType}` }, 400);
+    }
+
+    const review = await loadReview(slug, reviewId);
+    if (!review) return c.json({ error: "Review not found" }, 404);
+
+    const agentResult = review.agent_reviews?.find(
+      (r) => r.agent_type === agentType
+    );
+
+    if (!agentResult) {
+      return c.json(
+        { error: `Agent '${agentType}' has not been executed for this review` },
+        404
+      );
+    }
+
+    // Filter out dismissed findings
+    const filteredResult: AgentReviewResult = {
+      ...agentResult,
+      findings: agentResult.findings.filter((f) => !f.dismissed),
+    };
+
+    return c.json(filteredResult);
+  }
+);
+
+// PATCH /hub/projects/:slug/reviews/:reviewId/findings/:findingId
+agentReview.patch(
+  "/hub/projects/:slug/reviews/:reviewId/findings/:findingId",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const reviewId = c.req.param("reviewId");
+    const findingId = c.req.param("findingId");
+
+    const review = await loadReview(slug, reviewId);
+    if (!review) return c.json({ error: "Review not found" }, 404);
+
+    if (!review.agent_reviews || review.agent_reviews.length === 0) {
+      return c.json({ error: "No agent reviews found" }, 404);
+    }
+
+    let body: { dismissed?: boolean } = {};
+    try {
+      body = await c.req.json();
+    } catch {
+      // default to dismissed = true
+    }
+    const dismissed = body.dismissed !== undefined ? body.dismissed : true;
+
+    // Find the finding across all agent reviews
+    let found = false;
+    for (const agentResult of review.agent_reviews) {
+      const finding = agentResult.findings.find((f) => f.id === findingId);
+      if (finding) {
+        finding.dismissed = dismissed;
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      return c.json({ error: "Finding not found" }, 404);
+    }
+
+    review.updated_at = new Date().toISOString();
+    await saveReview(slug, review);
+
+    return c.json({ id: findingId, dismissed });
+  }
+);
+
 export { agentReview };
