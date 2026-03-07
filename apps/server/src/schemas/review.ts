@@ -41,6 +41,11 @@ export const CreateReviewBody = z.object({
   step_ref: z.string().optional(),
 });
 
+export const UpdateReviewItemBody = z.object({
+  status: z.enum(["approved", "flagged"]),
+  comment: z.string().optional(),
+});
+
 export const UpdateReviewBody = z.object({
   status: z
     .enum(["pending", "in_review", "approved", "changes_requested"])

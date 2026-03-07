@@ -9,6 +9,7 @@ import { config } from "../lib/config.js";
 import {
   CreateReviewBody,
   UpdateReviewBody,
+  UpdateReviewItemBody,
   type Review,
   type ReviewItem,
   type ReviewCriterion,
@@ -305,5 +306,149 @@ reviews.delete("/hub/projects/:slug/reviews/:id", async (c) => {
 
   return c.body(null, 204);
 });
+
+// GET /hub/projects/:slug/reviews/:id/items/:itemId/diff — compute diff for a review item
+reviews.get(
+  "/hub/projects/:slug/reviews/:id/items/:itemId/diff",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const id = c.req.param("id");
+    const itemId = c.req.param("itemId");
+
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    const review = await loadReview(slug, id);
+    if (!review) return c.json({ error: "Review not found" }, 404);
+
+    const item = review.items.find((i) => i.id === itemId);
+    if (!item) return c.json({ error: "Review item not found" }, 404);
+
+    const wsDir = path.join(config.workspacesDir, slug);
+    const repoDir = path.join(wsDir, "repo");
+
+    let before = "";
+    let after = "";
+    let unified_diff = "";
+
+    try {
+      if (item.diff_type === "added") {
+        // New file — no "before", read current content as "after"
+        const { stdout } = await execFileAsync(
+          "git",
+          ["show", `HEAD:${item.file_path}`],
+          { cwd: repoDir, timeout: 10000 }
+        );
+        after = stdout;
+      } else if (item.diff_type === "deleted") {
+        // Deleted file — read from parent commit as "before", no "after"
+        const { stdout } = await execFileAsync(
+          "git",
+          ["show", `HEAD~1:${item.file_path}`],
+          { cwd: repoDir, timeout: 10000 }
+        );
+        before = stdout;
+      } else {
+        // Modified file — get before (HEAD~1) and after (HEAD)
+        try {
+          const beforeResult = await execFileAsync(
+            "git",
+            ["show", `HEAD~1:${item.file_path}`],
+            { cwd: repoDir, timeout: 10000 }
+          );
+          before = beforeResult.stdout;
+        } catch {
+          // File may not exist in parent commit (newly added in HEAD)
+          before = "";
+        }
+
+        try {
+          const afterResult = await execFileAsync(
+            "git",
+            ["show", `HEAD:${item.file_path}`],
+            { cwd: repoDir, timeout: 10000 }
+          );
+          after = afterResult.stdout;
+        } catch {
+          after = "";
+        }
+      }
+
+      // Compute unified diff
+      try {
+        const diffResult = await execFileAsync(
+          "git",
+          ["diff", "HEAD~1", "HEAD", "--", item.file_path],
+          { cwd: repoDir, timeout: 10000 }
+        );
+        unified_diff = diffResult.stdout;
+      } catch {
+        // diff may fail if file doesn't exist in one of the commits
+        unified_diff = "";
+      }
+    } catch {
+      // If git commands fail entirely, return empty diff
+      return c.json({
+        file_path: item.file_path,
+        diff_type: item.diff_type,
+        before: "",
+        after: "",
+        unified_diff: "",
+      });
+    }
+
+    return c.json({
+      file_path: item.file_path,
+      diff_type: item.diff_type,
+      before,
+      after,
+      unified_diff,
+    });
+  }
+);
+
+// PATCH /hub/projects/:slug/reviews/:id/items/:itemId — update item status and optional comment
+reviews.patch(
+  "/hub/projects/:slug/reviews/:id/items/:itemId",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const id = c.req.param("id");
+    const itemId = c.req.param("itemId");
+
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    const review = await loadReview(slug, id);
+    if (!review) return c.json({ error: "Review not found" }, 404);
+
+    const item = review.items.find((i) => i.id === itemId);
+    if (!item) return c.json({ error: "Review item not found" }, 404);
+
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const parsed = UpdateReviewItemBody.safeParse(body);
+    if (!parsed.success) {
+      return c.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        400
+      );
+    }
+
+    item.status = parsed.data.status;
+    if (parsed.data.comment !== undefined) {
+      item.comment = parsed.data.comment;
+    }
+
+    review.updated_at = new Date().toISOString();
+    await saveReview(slug, review);
+
+    return c.json(item);
+  }
+);
 
 export { reviews };
