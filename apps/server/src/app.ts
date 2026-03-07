@@ -21,6 +21,7 @@ import { snapshots } from "./routes/snapshots.js";
 import { burnout } from "./routes/burnout.js";
 import { taskComplexity } from "./routes/task-complexity.js";
 import { artifactOrigins } from "./routes/artifact-origins.js";
+import { prompts } from "./routes/prompts.js";
 
 const app = new Hono();
 
@@ -51,5 +52,6 @@ app.route("/api/v1", snapshots);
 app.route("/api/v1", burnout);
 app.route("/api/v1", taskComplexity);
 app.route("/api/v1", artifactOrigins);
+app.route("/api/v1", prompts);
 
 export { app };
