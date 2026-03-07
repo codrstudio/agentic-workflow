@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
+export type SourceCategory = "general" | "frontend" | "backend" | "business" | "reference" | "config";
+
 export interface Source {
   id: string;
   project_id: string;
@@ -13,6 +15,10 @@ export interface Source {
   created_at: string;
   updated_at: string;
   tags: string[];
+  category: SourceCategory;
+  pinned: boolean;
+  auto_include: boolean;
+  relevance_tags: string[];
 }
 
 export const sourceKeys = {
@@ -60,7 +66,16 @@ export function useSource(projectSlug: string, id: string | null) {
 export function useUpdateSource(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; name?: string; content?: string; tags?: string[] }) =>
+    mutationFn: ({ id, ...body }: {
+      id: string;
+      name?: string;
+      content?: string;
+      tags?: string[];
+      category?: SourceCategory;
+      pinned?: boolean;
+      auto_include?: boolean;
+      relevance_tags?: string[];
+    }) =>
       apiFetch<Source>(`/hub/projects/${projectSlug}/sources/${id}`, {
         method: "PATCH",
         body: JSON.stringify(body),
