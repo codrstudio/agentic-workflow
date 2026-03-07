@@ -32,6 +32,7 @@ import { acrs } from "./routes/acrs.js";
 import { tokenUsage } from "./routes/token-usage.js";
 import { agentActions } from "./routes/agent-actions.js";
 import { handoffRequests } from "./routes/handoff-requests.js";
+import { board } from "./routes/board.js";
 
 const app = new Hono();
 
@@ -73,5 +74,6 @@ app.route("/api/v1", acrs);
 app.route("/api/v1", tokenUsage);
 app.route("/api/v1", agentActions);
 app.route("/api/v1", handoffRequests);
+app.route("/api/v1", board);
 
 export { app };
