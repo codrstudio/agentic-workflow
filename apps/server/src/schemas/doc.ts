@@ -59,3 +59,70 @@ export const GenerateDocBody = z.object({
 });
 
 export type GenerateDocBody = z.infer<typeof GenerateDocBody>;
+
+// --- F-117: CRUD + versioning + verification ---
+
+export const PatchDocBody = z.object({
+  title: z.string().min(1).max(300).optional(),
+  content: z.string().optional(),
+  status: DocStatusEnum.optional(),
+  doc_type: DocTypeEnum.optional(),
+});
+
+export type PatchDocBody = z.infer<typeof PatchDocBody>;
+
+export const VerifyDocBody = z.object({
+  action: z.enum(["approve", "reject"]),
+  notes: z.string().optional(),
+  verified_by: z.string().default("user"),
+});
+
+export type VerifyDocBody = z.infer<typeof VerifyDocBody>;
+
+export const DocVerificationActionEnum = z.enum([
+  "comment",
+  "suggest_edit",
+  "approve",
+  "reject",
+]);
+
+export type DocVerificationAction = z.infer<typeof DocVerificationActionEnum>;
+
+export const LineRangeSchema = z.object({
+  start: z.number().int().min(1),
+  end: z.number().int().min(1),
+});
+
+export type LineRange = z.infer<typeof LineRangeSchema>;
+
+export const DocVerificationCommentSchema = z.object({
+  id: z.string().uuid(),
+  doc_id: z.string().uuid(),
+  author: z.string(),
+  content: z.string().min(1),
+  line_range: LineRangeSchema.optional(),
+  action: DocVerificationActionEnum,
+  created_at: z.string().datetime(),
+});
+
+export type DocVerificationComment = z.infer<typeof DocVerificationCommentSchema>;
+
+export const CreateCommentBody = z.object({
+  author: z.string().default("user"),
+  content: z.string().min(1),
+  line_range: LineRangeSchema.optional(),
+  action: DocVerificationActionEnum.default("comment"),
+});
+
+export type CreateCommentBody = z.infer<typeof CreateCommentBody>;
+
+export const DocVersionSchema = z.object({
+  doc_id: z.string().uuid(),
+  version: z.number().int().min(1),
+  content: z.string(),
+  title: z.string(),
+  status: DocStatusEnum,
+  created_at: z.string().datetime(),
+});
+
+export type DocVersion = z.infer<typeof DocVersionSchema>;
