@@ -114,3 +114,58 @@ export function useConnectMcpServer(projectSlug: string) {
     },
   });
 }
+
+// --- Discovery hooks (F-083) ---
+
+export interface McpTool {
+  name: string;
+  description?: string;
+  inputSchema: Record<string, unknown>;
+}
+
+export interface McpResource {
+  uri: string;
+  name: string;
+  description?: string;
+  mimeType?: string;
+}
+
+export function useMcpServerTools(projectSlug: string, serverId: string) {
+  return useQuery({
+    queryKey: ["projects", projectSlug, "mcp-servers", serverId, "tools"],
+    queryFn: async () => {
+      const data = await apiFetch<{ tools: McpTool[] }>(
+        `/hub/projects/${projectSlug}/mcp/servers/${serverId}/tools`
+      );
+      return data.tools;
+    },
+  });
+}
+
+export function useMcpServerResources(projectSlug: string, serverId: string) {
+  return useQuery({
+    queryKey: ["projects", projectSlug, "mcp-servers", serverId, "resources"],
+    queryFn: async () => {
+      const data = await apiFetch<{ resources: McpResource[] }>(
+        `/hub/projects/${projectSlug}/mcp/servers/${serverId}/resources`
+      );
+      return data.resources;
+    },
+  });
+}
+
+export function useImportMcpResource(projectSlug: string, serverId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (uri: string) =>
+      apiFetch<{ source: { id: string; name: string } }>(
+        `/hub/projects/${projectSlug}/mcp/servers/${serverId}/resources/import`,
+        { method: "POST", body: JSON.stringify({ uri }) }
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["projects", projectSlug, "sources"],
+      });
+    },
+  });
+}

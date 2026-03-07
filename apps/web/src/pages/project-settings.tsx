@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams } from "@tanstack/react-router";
+import { useParams, useNavigate } from "@tanstack/react-router";
 import {
   Bot,
   RotateCcw,
@@ -219,6 +219,7 @@ function McpServerCard({
   onConnect,
   onDisconnect,
   onRemove,
+  onClick,
   isActing,
 }: {
   server: McpServerConfig;
@@ -226,12 +227,16 @@ function McpServerCard({
   onConnect: () => void;
   onDisconnect: () => void;
   onRemove: () => void;
+  onClick: () => void;
   isActing: boolean;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-2">
+    <div
+      className="rounded-lg border bg-card p-4 space-y-2 cursor-pointer hover:bg-accent/50 transition-colors"
+      onClick={onClick}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <McpStatusDot status={server.status} />
@@ -247,7 +252,10 @@ function McpServerCard({
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0"
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen(!menuOpen);
+            }}
             disabled={isActing}
           >
             {isActing ? (
@@ -260,9 +268,15 @@ function McpServerCard({
             <>
               <div
                 className="fixed inset-0 z-40"
-                onClick={() => setMenuOpen(false)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                }}
               />
-              <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-md border bg-popover p-1 shadow-md">
+              <div
+                className="absolute right-0 top-full z-50 mt-1 w-44 rounded-md border bg-popover p-1 shadow-md"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <button
                   type="button"
                   className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
@@ -328,6 +342,7 @@ function McpServerCard({
 }
 
 function McpServersSection({ projectSlug }: { projectSlug: string }) {
+  const navigate = useNavigate();
   const { data: servers, isLoading } = useMcpServers(projectSlug);
   const deleteServer = useDeleteMcpServer(projectSlug);
   const connectServer = useConnectMcpServer(projectSlug);
@@ -395,6 +410,12 @@ function McpServersSection({ projectSlug }: { projectSlug: string }) {
                 onConnect={() => handleConnect(server.id)}
                 onDisconnect={() => handleDisconnect(server.id)}
                 onRemove={() => setDeleteTarget(server)}
+                onClick={() =>
+                  navigate({
+                    to: "/projects/$projectId/settings/mcp/$serverId",
+                    params: { projectId: projectSlug, serverId: server.id },
+                  })
+                }
                 isActing={
                   (connectServer.isPending &&
                     connectServer.variables?.id === server.id) ||

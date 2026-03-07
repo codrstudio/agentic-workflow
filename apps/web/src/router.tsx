@@ -20,6 +20,7 @@ import { ProjectReviewsPage } from "@/pages/project-reviews";
 import { ProjectMetricsPage } from "@/pages/project-metrics";
 import { ReviewPanelPage } from "@/pages/review-panel";
 import { ProjectSettingsPage } from "@/pages/project-settings";
+import { McpServerDetailPage } from "@/pages/mcp-server-detail";
 import { ProjectNav } from "@/components/layout/project-nav";
 
 interface RouterContext {
@@ -174,6 +175,14 @@ const projectSettingsRoute = createRoute({
   staticData: { breadcrumb: "Settings" },
 });
 
+// /projects/$projectId/settings/mcp/$serverId (F-083)
+const mcpServerDetailRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/settings/mcp/$serverId",
+  component: McpServerDetailPage,
+  staticData: { breadcrumb: "MCP Server" },
+});
+
 // /harness
 const harnessRoute = createRoute({
   getParentRoute: () => authenticatedLayout,
@@ -206,6 +215,7 @@ const routeTree = rootRoute.addChildren([
         reviewPanelRoute,
         projectMetricsRoute,
         projectSettingsRoute,
+        mcpServerDetailRoute,
       ]),
     ]),
     harnessRoute.addChildren([harnessDetailRoute]),
