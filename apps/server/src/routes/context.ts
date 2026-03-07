@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import path from "node:path";
 import { readdir } from "node:fs/promises";
-import { readJSON, ensureDir } from "../lib/fs-utils.js";
+import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
 import { type Source } from "../schemas/source.js";
 import { type Project } from "../schemas/project.js";
@@ -276,5 +276,151 @@ function extractKeywords(session: ChatSession): string[] {
 
   return Array.from(words);
 }
+
+// POST /hub/projects/:slug/context/usage-logs
+context.post("/hub/projects/:slug/context/usage-logs", async (c) => {
+  const slug = c.req.param("slug");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const body = await c.req.json<{
+    session_id: string;
+    entries: UsageLogEntry[];
+  }>();
+
+  if (!body.session_id || !Array.isArray(body.entries)) {
+    return c.json(
+      { error: "session_id and entries[] are required" },
+      400
+    );
+  }
+
+  const logData: UsageLogFile = {
+    session_id: body.session_id,
+    entries: body.entries,
+  };
+
+  const dir = usageLogsDir(slug);
+  await ensureDir(dir);
+  await writeJSON(path.join(dir, `${body.session_id}.json`), logData);
+
+  return c.json(logData, 201);
+});
+
+// GET /hub/projects/:slug/context/metrics
+context.get("/hub/projects/:slug/context/metrics", async (c) => {
+  const slug = c.req.param("slug");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const logs = await loadAllUsageLogs(slug);
+
+  if (logs.length === 0) {
+    return c.json({
+      avg_context_tokens: 0,
+      avg_sources_per_session: 0,
+      effectiveness_ratio: {},
+      category_distribution: {},
+      total_sessions: 0,
+    });
+  }
+
+  // Compute avg tokens and avg sources per session
+  let totalTokens = 0;
+  let totalSourcesIncluded = 0;
+
+  for (const log of logs) {
+    for (const entry of log.entries) {
+      if (entry.included) {
+        totalTokens += entry.tokens_used;
+        totalSourcesIncluded++;
+      }
+    }
+  }
+
+  const avgContextTokens = Math.round(totalTokens / logs.length);
+  const avgSourcesPerSession = Math.round((totalSourcesIncluded / logs.length) * 100) / 100;
+
+  // Compute effectiveness ratio per source
+  const sourceStats = new Map<
+    string,
+    { included: number; referenced: number; category: string }
+  >();
+
+  // Load sources to get categories
+  const allSources = await loadSources(slug);
+  const sourceMap = new Map(allSources.map((s) => [s.id, s]));
+
+  for (const log of logs) {
+    for (const entry of log.entries) {
+      let s = sourceStats.get(entry.source_id);
+      if (!s) {
+        const source = sourceMap.get(entry.source_id);
+        s = { included: 0, referenced: 0, category: source?.category ?? "general" };
+        sourceStats.set(entry.source_id, s);
+      }
+      if (entry.included) s.included++;
+      if (entry.referenced_in_response) s.referenced++;
+    }
+  }
+
+  const effectivenessRatio: Record<
+    string,
+    { included: number; referenced: number; ratio: number }
+  > = {};
+  for (const [sourceId, stats] of sourceStats) {
+    effectivenessRatio[sourceId] = {
+      included: stats.included,
+      referenced: stats.referenced,
+      ratio:
+        stats.included > 0
+          ? Math.round((stats.referenced / stats.included) * 1000) / 1000
+          : 0,
+    };
+  }
+
+  // Category distribution with avg tokens
+  const categoryTokens = new Map<
+    string,
+    { totalTokens: number; count: number }
+  >();
+
+  for (const log of logs) {
+    for (const entry of log.entries) {
+      if (!entry.included) continue;
+      const source = sourceMap.get(entry.source_id);
+      const cat = source?.category ?? "general";
+      let c2 = categoryTokens.get(cat);
+      if (!c2) {
+        c2 = { totalTokens: 0, count: 0 };
+        categoryTokens.set(cat, c2);
+      }
+      c2.totalTokens += entry.tokens_used;
+      c2.count++;
+    }
+  }
+
+  const categoryDistribution: Record<
+    string,
+    { avg_tokens: number; total_tokens: number; count: number }
+  > = {};
+  for (const [cat, data] of categoryTokens) {
+    categoryDistribution[cat] = {
+      avg_tokens: Math.round(data.totalTokens / data.count),
+      total_tokens: data.totalTokens,
+      count: data.count,
+    };
+  }
+
+  return c.json({
+    avg_context_tokens: avgContextTokens,
+    avg_sources_per_session: avgSourcesPerSession,
+    effectiveness_ratio: effectivenessRatio,
+    category_distribution: categoryDistribution,
+    total_sessions: logs.length,
+  });
+});
 
 export { context };
