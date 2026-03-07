@@ -28,6 +28,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { DiffViewer } from "@/components/diff-viewer";
 
 type ReviewStatus = ReviewDetail["status"];
 type ItemStatus = "pending" | "approved" | "flagged";
@@ -107,44 +108,6 @@ function ItemStatusBadge({ status }: { status: ItemStatus }) {
     <Badge variant="outline" className={cn("gap-1 text-[10px]", cfg.className)}>
       {cfg.label}
     </Badge>
-  );
-}
-
-function DiffContent({ unified_diff }: { unified_diff: string }) {
-  if (!unified_diff) {
-    return (
-      <div className="flex items-center justify-center p-8 text-muted-foreground">
-        Nenhum diff disponivel
-      </div>
-    );
-  }
-
-  const lines = unified_diff.split("\n");
-
-  return (
-    <div className="overflow-x-auto">
-      <pre className="font-mono text-xs leading-5">
-        {lines.map((line, i) => {
-          let bg = "";
-          let textColor = "text-foreground";
-          if (line.startsWith("+") && !line.startsWith("+++")) {
-            bg = "bg-green-500/10";
-            textColor = "text-green-800 dark:text-green-300";
-          } else if (line.startsWith("-") && !line.startsWith("---")) {
-            bg = "bg-red-500/10";
-            textColor = "text-red-800 dark:text-red-300";
-          } else if (line.startsWith("@@")) {
-            bg = "bg-blue-500/10";
-            textColor = "text-blue-700 dark:text-blue-300";
-          }
-          return (
-            <div key={i} className={cn("px-4 py-0.5", bg, textColor)}>
-              {line || " "}
-            </div>
-          );
-        })}
-      </pre>
-    </div>
   );
 }
 
@@ -256,19 +219,14 @@ function DiffViewerPanel({
     );
   }
 
-  const DiffIcon = DIFF_TYPE_ICON[selectedItem.diff_type];
-
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <DiffIcon className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium truncate">
-          {selectedItem.file_path}
-        </span>
-        <ItemStatusBadge status={selectedItem.status} />
-      </div>
-      <div className="flex-1 overflow-auto">
-        <DiffContent unified_diff={diff?.unified_diff ?? ""} />
+      <div className="flex-1 overflow-auto p-3">
+        <DiffViewer
+          filePath={selectedItem.file_path}
+          diffType={selectedItem.diff_type}
+          unifiedDiff={diff?.unified_diff ?? ""}
+        />
       </div>
     </div>
   );
