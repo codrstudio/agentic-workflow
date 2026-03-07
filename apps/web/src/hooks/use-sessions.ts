@@ -63,7 +63,7 @@ export function useSession(projectSlug: string, sessionId: string) {
 export function useCreateSession(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: { title?: string; source_ids?: string[] }) =>
+    mutationFn: (body: { title?: string; source_ids?: string[]; system_message?: string }) =>
       apiFetch<SessionSummary>(`/hub/projects/${projectSlug}/sessions`, {
         method: "POST",
         body: JSON.stringify(body),

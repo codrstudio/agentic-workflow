@@ -154,16 +154,27 @@ sessions.post("/hub/projects/:slug/sessions", async (c) => {
     );
   }
 
-  const { title, source_ids } = parsed.data;
+  const { title, source_ids, system_message } = parsed.data;
   const id = randomUUID();
   const now = new Date().toISOString();
+
+  const messages: Message[] = [];
+  if (system_message) {
+    messages.push({
+      id: randomUUID(),
+      role: "system",
+      content: system_message,
+      created_at: now,
+      artifacts: [],
+    });
+  }
 
   const session: ChatSession = {
     id,
     project_id: project.id,
     title: title || "Nova conversa",
     source_ids,
-    messages: [],
+    messages,
     created_at: now,
     updated_at: now,
     status: "active",

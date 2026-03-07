@@ -24,7 +24,8 @@ import {
   type SnapshotReview,
 } from "@/hooks/use-snapshots";
 import { useResumeBannerStore } from "@/stores/resume-banner.store";
-import { useSessions } from "@/hooks/use-sessions";
+import { useSessions, useCreateSession } from "@/hooks/use-sessions";
+import { useContextProfiles } from "@/hooks/use-context-profiles";
 
 const INACTIVITY_THRESHOLD_HOURS = 4;
 
@@ -197,11 +198,71 @@ interface ResumeBannerProps {
   projectSlug: string;
 }
 
+function formatSnapshotAsSystemMessage(snapshot: ProjectSnapshot): string {
+  const parts: string[] = [];
+  parts.push(`**Onde voce parou**\n\n${snapshot.summary}`);
+
+  if (snapshot.recent_sessions.length > 0) {
+    parts.push(
+      "\n\n**Sessoes recentes:**\n" +
+        snapshot.recent_sessions
+          .map((s) => {
+            const topics =
+              s.key_topics.length > 0 ? ` (${s.key_topics.slice(0, 3).join(", ")})` : "";
+            return `- ${s.title}${topics}`;
+          })
+          .join("\n"),
+    );
+  }
+
+  if (snapshot.active_sprint) {
+    const sp = snapshot.active_sprint;
+    parts.push(
+      `\n\n**Sprint ${sp.number} — ${sp.current_phase}:** ${sp.features_passing}/${sp.features_total} features passing, ${sp.features_failing} failing, ${sp.features_pending} pending`,
+    );
+  }
+
+  if (snapshot.pending_reviews.length > 0) {
+    parts.push(
+      "\n\n**Reviews pendentes:**\n" +
+        snapshot.pending_reviews.map((r) => `- ${r.title} (${r.status})`).join("\n"),
+    );
+  }
+
+  if (snapshot.open_decisions.length > 0) {
+    parts.push(
+      "\n\n**Decisoes pendentes:**\n" +
+        snapshot.open_decisions.map((d) => `- ${d}`).join("\n"),
+    );
+  }
+
+  return parts.join("");
+}
+
+function getMostUsedSourceIds(
+  sessions: Array<{ source_ids: string[] }> | undefined,
+  limit = 10,
+): string[] {
+  if (!sessions || sessions.length === 0) return [];
+  const counts = new Map<string, number>();
+  for (const s of sessions) {
+    for (const id of s.source_ids) {
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id]) => id);
+}
+
 export function ResumeBanner({ projectSlug }: ResumeBannerProps) {
   const navigate = useNavigate();
   const { data: snapshot, isLoading, isError } = useLatestSnapshot(projectSlug);
   const { data: sessions } = useSessions(projectSlug);
+  const { data: profiles } = useContextProfiles(projectSlug);
   const generateSnapshot = useGenerateSnapshot(projectSlug);
+  const createSession = useCreateSession(projectSlug);
   const { dismiss, isDismissed } = useResumeBannerStore();
 
   // Check if banner was dismissed recently
@@ -227,10 +288,55 @@ export function ResumeBanner({ projectSlug }: ResumeBannerProps) {
   }
 
   const handleResume = () => {
-    navigate({
-      to: "/projects/$projectId/chat",
-      params: { projectId: projectSlug },
-    });
+    if (!snapshot) return;
+
+    // Compute most-used source IDs from recent sessions
+    const mostUsedSourceIds = getMostUsedSourceIds(sessions);
+
+    // Find the last session's profile by matching source_ids overlap
+    let resumeProfileId: string | null = null;
+    if (sessions && sessions.length > 0 && profiles && profiles.length > 0) {
+      const lastSession = sessions[0]; // sorted by updated_at DESC
+      if (lastSession && lastSession.source_ids.length > 0) {
+        const lastSourceSet = new Set(lastSession.source_ids);
+        let bestOverlap = 0;
+        for (const profile of profiles) {
+          const overlap = profile.source_ids.filter((id) => lastSourceSet.has(id)).length;
+          if (overlap > bestOverlap) {
+            bestOverlap = overlap;
+            resumeProfileId = profile.id;
+          }
+        }
+      }
+    }
+
+    // Merge most-used sources with profile sources
+    const profileSourceIds = resumeProfileId
+      ? profiles?.find((p) => p.id === resumeProfileId)?.source_ids ?? []
+      : [];
+    const mergedSourceIds = [...new Set([...mostUsedSourceIds, ...profileSourceIds])];
+
+    // Format snapshot as system message
+    const systemMessage = formatSnapshotAsSystemMessage(snapshot);
+
+    // Store resume profile for ChatSessionPage to pick up
+    useResumeBannerStore.getState().setResumeProfileId(projectSlug, resumeProfileId);
+
+    createSession.mutate(
+      {
+        title: "Sessao retomada",
+        source_ids: mergedSourceIds,
+        system_message: systemMessage,
+      },
+      {
+        onSuccess: (session) => {
+          navigate({
+            to: "/projects/$projectId/chat/$sessionId",
+            params: { projectId: projectSlug, sessionId: session.id },
+          });
+        },
+      },
+    );
   };
 
   const handleDismiss = () => {
@@ -307,8 +413,12 @@ export function ResumeBanner({ projectSlug }: ResumeBannerProps) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 border-t px-4 py-3">
-        <Button size="sm" onClick={handleResume} className="gap-1.5">
-          <MessageSquare className="h-3.5 w-3.5" />
+        <Button size="sm" onClick={handleResume} disabled={createSession.isPending} className="gap-1.5">
+          {createSession.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <MessageSquare className="h-3.5 w-3.5" />
+          )}
           Retomar chat
         </Button>
         <Button

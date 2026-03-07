@@ -30,6 +30,7 @@ export type ChatSession = z.infer<typeof ChatSessionSchema>;
 export const CreateSessionBody = z.object({
   title: z.string().max(200).optional(),
   source_ids: z.array(z.string().uuid()).default([]),
+  system_message: z.string().max(5000).optional(),
 });
 
 export const UpdateSessionBody = z.object({

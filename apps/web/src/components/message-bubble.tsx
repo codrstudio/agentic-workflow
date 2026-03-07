@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { User, Bot } from "lucide-react";
+import { User, Bot, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/hooks/use-sessions";
 
@@ -91,7 +91,28 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, className }: MessageBubbleProps) {
   const isUser = message.role === "user";
+  const isSystem = message.role === "system";
   const html = useMemo(() => renderMarkdown(message.content), [message.content]);
+
+  // System messages rendered as inline cards (not user/assistant bubbles)
+  if (isSystem) {
+    return (
+      <div className={cn("mx-auto w-full max-w-[90%]", className)}>
+        <div className="rounded-lg border bg-muted/50 px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Resumo da sessao
+            </span>
+          </div>
+          <div
+            className="prose prose-sm max-w-none dark:prose-invert text-sm text-muted-foreground [&>p]:my-1 [&>pre]:my-2"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

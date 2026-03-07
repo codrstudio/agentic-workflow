@@ -9,6 +9,7 @@ import { useContextProfiles } from "@/hooks/use-context-profiles";
 import { useReviews, useCreateReview, reviewKeys } from "@/hooks/use-reviews";
 import { useProject } from "@/hooks/use-projects";
 import { artifactKeys } from "@/hooks/use-artifacts";
+import { useResumeBannerStore } from "@/stores/resume-banner.store";
 import { MessageBubble, TypingIndicator } from "@/components/message-bubble";
 import { ChatInput } from "@/components/chat-input";
 import { SourceContextSheet } from "@/components/source-context-sheet";
@@ -133,6 +134,17 @@ export function ChatSessionPage() {
       }
     }
   }, [session?.source_ids, profiles, sources]);
+
+  // Apply resume profile if coming from "Retomar chat"
+  useEffect(() => {
+    const resumeProfileId = useResumeBannerStore.getState().consumeResumeProfileId(projectId);
+    if (resumeProfileId && profiles) {
+      const profile = profiles.find((p) => p.id === resumeProfileId);
+      if (profile) {
+        setSelectedProfileId(profile.id);
+      }
+    }
+  }, [projectId, profiles]);
 
   const allMessages = localMessages;
   const hasMessages = allMessages.length > 0 || isStreaming;
