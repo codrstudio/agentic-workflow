@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate, Link } from "@tanstack/react-router";
-import { ArrowLeft, Eye, MessageSquare, Paperclip } from "lucide-react";
+import { ArrowLeft, Eye, MessageSquare, Paperclip, Minimize2 } from "lucide-react";
 import { ContextSummaryBadges } from "@/components/context-summary-badges";
 import { toast } from "sonner";
 import { useSession, sessionKeys } from "@/hooks/use-sessions";
@@ -63,6 +63,7 @@ export function ChatSessionPage() {
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [streamStartTime, setStreamStartTime] = useState<number | null>(null);
+  const [compressedSourceIds, setCompressedSourceIds] = useState<string[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Session metrics from API
@@ -324,6 +325,16 @@ export function ChatSessionPage() {
               selectedIds={selectedSourceIds}
               onClick={() => setSourceSheetOpen(true)}
             />
+            {compressedSourceIds.length > 0 && (
+              <Badge
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 font-medium border-0 bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 cursor-pointer"
+                onClick={() => setSourceSheetOpen(true)}
+              >
+                <Minimize2 className="h-3 w-3 mr-0.5" />
+                {compressedSourceIds.length} comprimido{compressedSourceIds.length > 1 ? "s" : ""}
+              </Badge>
+            )}
           </div>
         </div>
         {showReviewButton && (
@@ -441,6 +452,8 @@ export function ChatSessionPage() {
         profiles={profiles ?? []}
         selectedProfileId={selectedProfileId}
         onProfileChange={setSelectedProfileId}
+        compressedIds={compressedSourceIds}
+        onCompressedIdsChange={setCompressedSourceIds}
       />
     </div>
   );

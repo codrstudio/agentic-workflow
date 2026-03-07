@@ -130,6 +130,25 @@ export function useRecommendedSources(projectSlug: string, sessionId: string | n
   });
 }
 
+export interface CompressionResult {
+  compressed_content: string;
+  original_tokens: number;
+  compressed_tokens: number;
+}
+
+export function useCompressSource(projectSlug: string) {
+  return useMutation({
+    mutationFn: ({ sourceId, target_tokens }: { sourceId: string; target_tokens?: number }) =>
+      apiFetch<CompressionResult>(
+        `/hub/projects/${projectSlug}/sources/${sourceId}/compress`,
+        {
+          method: "POST",
+          body: JSON.stringify(target_tokens !== undefined ? { target_tokens } : {}),
+        }
+      ),
+  });
+}
+
 export function useDeleteSource(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({

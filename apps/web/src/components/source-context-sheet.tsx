@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react";
-import { FileText, Code, Link, FileType, File, Settings, ChevronDown, ChevronRight, Pin, Sparkles } from "lucide-react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { FileText, Code, Link, FileType, File, Settings, ChevronDown, ChevronRight, Pin, Sparkles, Minimize2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -14,8 +14,14 @@ import { Button } from "@/components/ui/button";
 import { CategoryBadge } from "@/components/category-badge";
 import { ManageProfilesDialog } from "@/components/manage-profiles-dialog";
 import { Separator } from "@/components/ui/separator";
-import { useRecommendedSources } from "@/hooks/use-sources";
-import type { Source, SourceCategory, RecommendedSource } from "@/hooks/use-sources";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useRecommendedSources, useCompressSource } from "@/hooks/use-sources";
+import type { Source, SourceCategory, RecommendedSource, CompressionResult } from "@/hooks/use-sources";
 import type { ContextProfile } from "@/hooks/use-context-profiles";
 
 const typeIcons: Record<Source["type"], React.ComponentType<{ className?: string }>> = {
@@ -46,6 +52,8 @@ interface SourceContextSheetProps {
   profiles: ContextProfile[];
   selectedProfileId: string | null;
   onProfileChange: (profileId: string | null) => void;
+  compressedIds: string[];
+  onCompressedIdsChange: (ids: string[]) => void;
 }
 
 function getRelevanceLevel(relevance: number): { label: string; variant: "default" | "secondary" | "outline" } {
@@ -126,40 +134,113 @@ function TokenEstimator({ tokens }: { tokens: number }) {
   );
 }
 
+function CompressionToggle({
+  source,
+  isCompressed,
+  compressionData,
+  onToggle,
+  isLoading,
+}: {
+  source: Source;
+  isCompressed: boolean;
+  compressionData: CompressionResult | null;
+  onToggle: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 ml-1">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggle();
+              }}
+              disabled={isLoading}
+              className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                isCompressed
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              } ${isLoading ? "opacity-50 cursor-wait" : "cursor-pointer"}`}
+            >
+              <Minimize2 className="h-3 w-3" />
+              {isLoading ? "..." : "Comprimir"}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <p className="text-xs">
+              Compressao remove paragrafos explanatorios, mantendo headings, code blocks, tables e listas.
+              Reduz tokens enviados ao AI sem perder informacao estrutural.
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {isCompressed && compressionData && (
+        <span className="text-[10px] text-blue-600 dark:text-blue-400 whitespace-nowrap">
+          {formatTokenCount(compressionData.original_tokens)} → {formatTokenCount(compressionData.compressed_tokens)}
+          {" "}({Math.round((1 - compressionData.compressed_tokens / compressionData.original_tokens) * 100)}%)
+        </span>
+      )}
+    </div>
+  );
+}
+
 function SourceItem({
   source,
   checked,
   isPinned,
   onToggle,
+  isCompressed,
+  compressionData,
+  onCompressionToggle,
+  isCompressing,
 }: {
   source: Source;
   checked: boolean;
   isPinned: boolean;
   onToggle: () => void;
+  isCompressed: boolean;
+  compressionData: CompressionResult | null;
+  onCompressionToggle: () => void;
+  isCompressing: boolean;
 }) {
   const Icon = typeIcons[source.type] ?? FileText;
 
   return (
-    <Label
-      className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2.5 hover:bg-muted/50"
-    >
-      <Checkbox
-        checked={checked}
-        onCheckedChange={isPinned ? undefined : onToggle}
-        disabled={isPinned}
-        className={isPinned ? "opacity-50 cursor-not-allowed" : ""}
-      />
-      <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-      <span className="min-w-0 flex-1 truncate text-sm">
-        {source.name}
-      </span>
-      {isPinned && (
-        <Pin className="h-3 w-3 shrink-0 text-amber-500" />
+    <div className="rounded-md px-2 py-2.5 hover:bg-muted/50">
+      <Label className="flex cursor-pointer items-center gap-3">
+        <Checkbox
+          checked={checked}
+          onCheckedChange={isPinned ? undefined : onToggle}
+          disabled={isPinned}
+          className={isPinned ? "opacity-50 cursor-not-allowed" : ""}
+        />
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate text-sm">
+          {source.name}
+        </span>
+        {isPinned && (
+          <Pin className="h-3 w-3 shrink-0 text-amber-500" />
+        )}
+        <Badge variant="secondary" className="shrink-0 text-[10px]">
+          {source.type}
+        </Badge>
+      </Label>
+      {checked && (
+        <div className="ml-7 mt-1">
+          <CompressionToggle
+            source={source}
+            isCompressed={isCompressed}
+            compressionData={compressionData}
+            onToggle={onCompressionToggle}
+            isLoading={isCompressing}
+          />
+        </div>
       )}
-      <Badge variant="secondary" className="shrink-0 text-[10px]">
-        {source.type}
-      </Badge>
-    </Label>
+    </div>
   );
 }
 
@@ -168,11 +249,19 @@ function CategorySection({
   sources,
   selectedIds,
   onToggle,
+  compressedIds,
+  compressionData,
+  compressingIds,
+  onCompressionToggle,
 }: {
   category: SourceCategory;
   sources: Source[];
   selectedIds: string[];
   onToggle: (id: string) => void;
+  compressedIds: string[];
+  compressionData: Record<string, CompressionResult>;
+  compressingIds: string[];
+  onCompressionToggle: (id: string) => void;
 }) {
   const [open, setOpen] = useState(true);
   const selectedCount = sources.filter((s) => selectedIds.includes(s.id)).length;
@@ -202,6 +291,10 @@ function CategorySection({
               checked={selectedIds.includes(source.id)}
               isPinned={source.pinned}
               onToggle={() => onToggle(source.id)}
+              isCompressed={compressedIds.includes(source.id)}
+              compressionData={compressionData[source.id] ?? null}
+              onCompressionToggle={() => onCompressionToggle(source.id)}
+              isCompressing={compressingIds.includes(source.id)}
             />
           ))}
         </div>
@@ -221,10 +314,45 @@ export function SourceContextSheet({
   profiles,
   selectedProfileId,
   onProfileChange,
+  compressedIds,
+  onCompressedIdsChange,
 }: SourceContextSheetProps) {
   const [manageOpen, setManageOpen] = useState(false);
   const { data: recommendedSources } = useRecommendedSources(projectSlug, sessionId);
   const [recommendedApplied, setRecommendedApplied] = useState(false);
+  const [compressionData, setCompressionData] = useState<Record<string, CompressionResult>>({});
+  const [compressingIds, setCompressingIds] = useState<string[]>([]);
+  const compressSource = useCompressSource(projectSlug);
+
+  const handleCompressionToggle = useCallback((sourceId: string) => {
+    if (compressedIds.includes(sourceId)) {
+      // Deactivate compression
+      onCompressedIdsChange(compressedIds.filter((id) => id !== sourceId));
+      return;
+    }
+
+    // If we already have compression data, just activate
+    if (compressionData[sourceId]) {
+      onCompressedIdsChange([...compressedIds, sourceId]);
+      return;
+    }
+
+    // Fetch compression estimate
+    setCompressingIds((prev) => [...prev, sourceId]);
+    compressSource.mutate(
+      { sourceId },
+      {
+        onSuccess: (result) => {
+          setCompressionData((prev) => ({ ...prev, [sourceId]: result }));
+          onCompressedIdsChange([...compressedIds, sourceId]);
+          setCompressingIds((prev) => prev.filter((id) => id !== sourceId));
+        },
+        onError: () => {
+          setCompressingIds((prev) => prev.filter((id) => id !== sourceId));
+        },
+      }
+    );
+  }, [compressedIds, compressionData, compressSource, onCompressedIdsChange]);
 
   // Filter to sources with relevance > 0 and matching an existing source
   const recommendations = useMemo(() => {
@@ -371,6 +499,10 @@ export function SourceContextSheet({
                       checked={selectedIds.includes(source.id)}
                       isPinned
                       onToggle={() => {}}
+                      isCompressed={compressedIds.includes(source.id)}
+                      compressionData={compressionData[source.id] ?? null}
+                      onCompressionToggle={() => handleCompressionToggle(source.id)}
+                      isCompressing={compressingIds.includes(source.id)}
                     />
                   ))}
                 </div>
@@ -420,6 +552,10 @@ export function SourceContextSheet({
                 sources={catSources}
                 selectedIds={selectedIds}
                 onToggle={toggleSource}
+                compressedIds={compressedIds}
+                compressionData={compressionData}
+                compressingIds={compressingIds}
+                onCompressionToggle={handleCompressionToggle}
               />
             ))}
           </div>
