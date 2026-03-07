@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/empty-state";
 import { PipelineStepper, computePhaseStatus } from "@/components/pipeline-stepper";
 import { PhaseContentView } from "@/components/phase-content-view";
 import { GateDetailSheet } from "@/components/gate-detail-sheet";
+import { GateSummaryBanner } from "@/components/gate-summary-banner";
+import type { GateSummaryItem } from "@/components/gate-summary-banner";
 
 export function ProjectPipelinePage() {
   const { projectId } = useParams({
@@ -39,6 +41,11 @@ export function ProjectPipelinePage() {
   const pipelineGates: PipelineGate[] = (gatesData ?? []).map((g) => ({
     transition: g.transition,
     status: resolveGateStatus(g),
+  }));
+
+  const summaryGates: GateSummaryItem[] = pipelineGates.map((g) => ({
+    transition: g.transition,
+    status: g.status,
   }));
 
   return (
@@ -102,6 +109,14 @@ export function ProjectPipelinePage() {
             onGateClick={(transition) => setSelectedGate(transition)}
           />
         </div>
+      )}
+
+      {/* Gate summary banner */}
+      {currentSprint && summaryGates.length > 0 && (
+        <GateSummaryBanner
+          gates={summaryGates}
+          onGateClick={(transition) => setSelectedGate(transition)}
+        />
       )}
 
       {/* Sprint overview */}
