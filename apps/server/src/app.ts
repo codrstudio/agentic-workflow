@@ -14,6 +14,7 @@ import { metrics } from "./routes/metrics.js";
 import { contextProfiles } from "./routes/context-profiles.js";
 import { context } from "./routes/context.js";
 import { reviewAgents } from "./routes/review-agents.js";
+import { agentReview } from "./routes/agent-review.js";
 
 const app = new Hono();
 
@@ -37,5 +38,6 @@ app.route("/api/v1", metrics);
 app.route("/api/v1", contextProfiles);
 app.route("/api/v1", context);
 app.route("/api/v1", reviewAgents);
+app.route("/api/v1", agentReview);
 
 export { app };
