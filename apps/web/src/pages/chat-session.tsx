@@ -7,6 +7,7 @@ import { useSession, sessionKeys } from "@/hooks/use-sessions";
 import { useSources } from "@/hooks/use-sources";
 import { useContextProfiles } from "@/hooks/use-context-profiles";
 import { useReviews, useCreateReview, reviewKeys } from "@/hooks/use-reviews";
+import { useProject } from "@/hooks/use-projects";
 import { artifactKeys } from "@/hooks/use-artifacts";
 import { MessageBubble, TypingIndicator } from "@/components/message-bubble";
 import { ChatInput } from "@/components/chat-input";
@@ -46,6 +47,7 @@ export function ChatSessionPage() {
   });
   const { data: session, isLoading, isError, error } = useSession(projectId, sessionId);
   const { data: sources } = useSources(projectId);
+  const { data: project } = useProject(projectId);
   const { data: profiles } = useContextProfiles(projectId);
   const { data: reviews } = useReviews(projectId);
   const createReview = useCreateReview(projectId);
@@ -454,6 +456,7 @@ export function ChatSessionPage() {
         onProfileChange={setSelectedProfileId}
         compressedIds={compressedSourceIds}
         onCompressedIdsChange={setCompressedSourceIds}
+        budget={project?.settings?.context_budget}
       />
     </div>
   );

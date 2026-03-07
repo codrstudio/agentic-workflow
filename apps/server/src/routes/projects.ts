@@ -175,6 +175,9 @@ projects.patch("/hub/projects/:slug", async (c) => {
     if (updates.settings.max_sources !== undefined) {
       existing.settings.max_sources = updates.settings.max_sources;
     }
+    if (updates.settings.context_budget !== undefined) {
+      existing.settings.context_budget = updates.settings.context_budget;
+    }
     if (updates.settings.params !== undefined) {
       existing.settings.params = updates.settings.params;
     }

@@ -656,4 +656,85 @@ context.post(
   }
 );
 
+// --- F-070: Context budget enforcement ---
+
+// POST /hub/projects/:slug/context/enforce-budget
+// Given selected source IDs and a budget, returns the filtered list
+// with lowest-relevance sources removed to fit within budget.
+context.post("/hub/projects/:slug/context/enforce-budget", async (c) => {
+  const slug = c.req.param("slug");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const body = await c.req.json<{
+    source_ids: string[];
+    budget: number;
+    session_id?: string;
+  }>();
+
+  if (!Array.isArray(body.source_ids) || typeof body.budget !== "number") {
+    return c.json({ error: "source_ids[] and budget are required" }, 400);
+  }
+
+  const allSources = await loadSources(slug);
+  const selectedSources = allSources.filter((s) => body.source_ids.includes(s.id));
+
+  // Compute total tokens
+  let totalTokens = 0;
+  const sourceTokens: Array<{ source: Source; tokens: number }> = [];
+  for (const source of selectedSources) {
+    const tokens = Math.ceil(source.size_bytes / 4);
+    sourceTokens.push({ source, tokens });
+    totalTokens += tokens;
+  }
+
+  // If within budget, return all
+  if (totalTokens <= body.budget) {
+    return c.json({
+      source_ids: body.source_ids,
+      total_tokens: totalTokens,
+      budget: body.budget,
+      removed: [],
+    });
+  }
+
+  // Load usage stats for relevance scoring
+  const usageLogs = await loadAllUsageLogs(slug);
+  const usageStatsMap = computeUsageStats(usageLogs);
+
+  // Score each source by relevance
+  const scored = sourceTokens.map(({ source, tokens }) => {
+    const stats = usageStatsMap.get(source.id);
+    const usageScore = computeUsageScore(stats);
+    const categoryScore = 0.1; // small baseline
+    const relevance = usageScore + categoryScore + (source.pinned ? 1 : 0);
+    return { source, tokens, relevance };
+  });
+
+  // Sort by relevance ascending (lowest relevance first = remove first)
+  scored.sort((a, b) => a.relevance - b.relevance);
+
+  const removed: string[] = [];
+  let currentTotal = totalTokens;
+
+  // Remove lowest-relevance sources until within budget
+  for (const item of scored) {
+    if (currentTotal <= body.budget) break;
+    // Never remove pinned sources
+    if (item.source.pinned) continue;
+    removed.push(item.source.id);
+    currentTotal -= item.tokens;
+  }
+
+  const remainingIds = body.source_ids.filter((id) => !removed.includes(id));
+
+  return c.json({
+    source_ids: remainingIds,
+    total_tokens: currentTotal,
+    budget: body.budget,
+    removed,
+  });
+});
+
 export { context };

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { CategoryBadge } from "@/components/category-badge";
+import { ContextBudgetBar } from "@/components/context-budget-bar";
 import { ManageProfilesDialog } from "@/components/manage-profiles-dialog";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -54,6 +55,7 @@ interface SourceContextSheetProps {
   onProfileChange: (profileId: string | null) => void;
   compressedIds: string[];
   onCompressedIdsChange: (ids: string[]) => void;
+  budget?: number;
 }
 
 function getRelevanceLevel(relevance: number): { label: string; variant: "default" | "secondary" | "outline" } {
@@ -93,45 +95,10 @@ function RecommendedSourceItem({
   );
 }
 
-function estimateTokens(sources: Source[], selectedIds: string[]): number {
-  return sources
-    .filter((s) => selectedIds.includes(s.id))
-    .reduce((sum, s) => sum + Math.ceil(s.size_bytes / 4), 0);
-}
-
 function formatTokenCount(tokens: number): string {
   if (tokens >= 1_000_000) return `~${(tokens / 1_000_000).toFixed(1)}M`;
   if (tokens >= 1_000) return `~${(tokens / 1_000).toFixed(1)}k`;
   return `~${tokens}`;
-}
-
-function getTokenBarColor(tokens: number): string {
-  if (tokens > 50_000) return "bg-red-500";
-  if (tokens >= 20_000) return "bg-yellow-500";
-  return "bg-green-500";
-}
-
-function TokenEstimator({ tokens }: { tokens: number }) {
-  const maxTokens = 80_000; // scale reference for the bar
-  const percentage = Math.min((tokens / maxTokens) * 100, 100);
-  const barColor = getTokenBarColor(tokens);
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{formatTokenCount(tokens)} tokens estimados</span>
-        {tokens > 50_000 && (
-          <span className="text-red-500 font-medium">Alto</span>
-        )}
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${barColor}`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-    </div>
-  );
 }
 
 function CompressionToggle({
@@ -316,6 +283,7 @@ export function SourceContextSheet({
   onProfileChange,
   compressedIds,
   onCompressedIdsChange,
+  budget,
 }: SourceContextSheetProps) {
   const [manageOpen, setManageOpen] = useState(false);
   const { data: recommendedSources } = useRecommendedSources(projectSlug, sessionId);
@@ -393,11 +361,6 @@ export function SourceContextSheet({
       .map((cat) => ({ category: cat, sources: groups[cat]! }));
   }, [sources]);
 
-  const estimatedTokens = useMemo(
-    () => estimateTokens(sources, selectedIds),
-    [sources, selectedIds],
-  );
-
   const toggleSource = (id: string) => {
     // Pinned sources cannot be deselected
     const source = sources.find((s) => s.id === id);
@@ -469,9 +432,13 @@ export function SourceContextSheet({
             </Button>
           </div>
 
-          {/* Token Estimator */}
+          {/* Context Budget Bar */}
           <div className="px-4 pb-3">
-            <TokenEstimator tokens={estimatedTokens} />
+            <ContextBudgetBar
+              sources={sources}
+              selectedIds={selectedIds}
+              budget={budget ?? 50000}
+            />
           </div>
 
           {/* Sources list */}

@@ -11,6 +11,7 @@ export interface Project {
   settings: {
     default_agent: string;
     max_sources: number;
+    context_budget?: number;
     params: Record<string, string>;
   };
 }
@@ -25,6 +26,13 @@ export function useProjects() {
   return useQuery({
     queryKey: projectKeys.list(),
     queryFn: () => apiFetch<Project[]>("/hub/projects"),
+  });
+}
+
+export function useProject(slug: string) {
+  return useQuery({
+    queryKey: projectKeys.detail(slug),
+    queryFn: () => apiFetch<Project>(`/hub/projects/${slug}`),
   });
 }
 
@@ -50,7 +58,11 @@ export function useUpdateProject() {
       body,
     }: {
       slug: string;
-      body: { name?: string; description?: string };
+      body: {
+        name?: string;
+        description?: string;
+        settings?: { context_budget?: number };
+      };
     }) =>
       apiFetch<Project>(`/hub/projects/${slug}`, {
         method: "PATCH",

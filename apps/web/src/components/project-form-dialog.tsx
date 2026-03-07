@@ -50,6 +50,7 @@ export function ProjectFormDialog({
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [contextBudget, setContextBudget] = useState("50000");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const createMutation = useCreateProject();
@@ -61,6 +62,7 @@ export function ProjectFormDialog({
     if (open) {
       setName(project?.name ?? "");
       setDescription(project?.description ?? "");
+      setContextBudget(String(project?.settings?.context_budget ?? 50000));
       setErrors({});
       createMutation.reset();
       updateMutation.reset();
@@ -89,10 +91,17 @@ export function ProjectFormDialog({
 
     setErrors({});
     const data: ProjectFormData = result.data;
+    const budgetNum = parseInt(contextBudget, 10);
 
     if (isEdit) {
       updateMutation.mutate(
-        { slug: project.slug, body: data },
+        {
+          slug: project.slug,
+          body: {
+            ...data,
+            settings: budgetNum >= 1000 ? { context_budget: budgetNum } : undefined,
+          },
+        },
         { onSuccess: () => onOpenChange(false) },
       );
     } else {
@@ -134,6 +143,23 @@ export function ProjectFormDialog({
           <p className="text-sm text-destructive">{errors["description"]}</p>
         )}
       </div>
+      {isEdit && (
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="project-budget">Budget de contexto (tokens)</Label>
+          <Input
+            id="project-budget"
+            type="number"
+            min={1000}
+            step={1000}
+            value={contextBudget}
+            onChange={(e) => setContextBudget(e.target.value)}
+            placeholder="50000"
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Limite de tokens para o contexto do chat. Default: 50.000
+          </p>
+        </div>
+      )}
       {(createMutation.isError || updateMutation.isError) && (
         <p className="text-sm text-destructive">
           {createMutation.error?.message ?? updateMutation.error?.message}

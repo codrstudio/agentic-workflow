@@ -10,6 +10,7 @@ export const ProjectSchema = z.object({
   settings: z.object({
     default_agent: z.string().default("general"),
     max_sources: z.number().default(100),
+    context_budget: z.number().int().min(1000).default(50000),
     params: z.record(z.string(), z.string()).default({}),
   }),
 });
@@ -28,6 +29,7 @@ export const UpdateProjectBody = z.object({
     .object({
       default_agent: z.string().optional(),
       max_sources: z.number().optional(),
+      context_budget: z.number().int().min(1000).optional(),
       params: z.record(z.string(), z.string()).optional(),
     })
     .optional(),
