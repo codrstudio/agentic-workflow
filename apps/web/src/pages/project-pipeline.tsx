@@ -8,6 +8,7 @@ import type { GateTransition } from "@/hooks/use-quality-gates";
 import { EmptyState } from "@/components/empty-state";
 import { PipelineStepper, computePhaseStatus } from "@/components/pipeline-stepper";
 import { PhaseContentView } from "@/components/phase-content-view";
+import { GateDetailSheet } from "@/components/gate-detail-sheet";
 
 export function ProjectPipelinePage() {
   const { projectId } = useParams({
@@ -162,6 +163,17 @@ export function ProjectPipelinePage() {
           />
         </div>
       )}
+
+      {/* Gate detail sheet */}
+      <GateDetailSheet
+        projectSlug={projectId}
+        sprintNumber={selectedSprint}
+        transition={selectedGate}
+        open={selectedGate !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedGate(null);
+        }}
+      />
     </div>
   );
 }

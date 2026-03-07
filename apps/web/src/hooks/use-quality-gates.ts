@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 
 export type GateTransition =
@@ -47,5 +47,61 @@ export function useQualityGates(projectSlug: string, sprintNumber: number) {
         `/hub/projects/${projectSlug}/sprints/${sprintNumber}/gates`
       ),
     enabled: sprintNumber > 0,
+  });
+}
+
+export function useQualityGate(
+  projectSlug: string,
+  sprintNumber: number,
+  transition: GateTransition | null,
+) {
+  return useQuery({
+    queryKey: [...qualityGateKeys.list(projectSlug, sprintNumber), transition],
+    queryFn: () =>
+      apiFetch<QualityGate>(
+        `/hub/projects/${projectSlug}/sprints/${sprintNumber}/gates/${transition}`
+      ),
+    enabled: sprintNumber > 0 && transition !== null,
+  });
+}
+
+export function useEvaluateGate(projectSlug: string, sprintNumber: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (transition: GateTransition) =>
+      apiFetch<QualityGate>(
+        `/hub/projects/${projectSlug}/sprints/${sprintNumber}/gates/${transition}/evaluate`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: qualityGateKeys.list(projectSlug, sprintNumber),
+      });
+    },
+  });
+}
+
+export function useOverrideGate(projectSlug: string, sprintNumber: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      transition,
+      reason,
+    }: {
+      transition: GateTransition;
+      reason: string;
+    }) =>
+      apiFetch<QualityGate>(
+        `/hub/projects/${projectSlug}/sprints/${sprintNumber}/gates/${transition}/override`,
+        {
+          method: "POST",
+          body: JSON.stringify({ reason }),
+        },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: qualityGateKeys.list(projectSlug, sprintNumber),
+      });
+    },
   });
 }
