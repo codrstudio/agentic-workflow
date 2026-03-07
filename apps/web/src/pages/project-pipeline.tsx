@@ -15,6 +15,9 @@ import { PhaseContentView } from "@/components/phase-content-view";
 import { GateDetailSheet } from "@/components/gate-detail-sheet";
 import { GateSummaryBanner } from "@/components/gate-summary-banner";
 import type { GateSummaryItem } from "@/components/gate-summary-banner";
+import { EscalationBanner, ApprovalGateDialog } from "@/components/approval-gate";
+import { usePhaseAutonomyConfigs } from "@/hooks/use-phase-autonomy";
+import type { PipelinePhase as AutonomyPhase } from "@/hooks/use-phase-autonomy";
 
 export function ProjectPipelinePage() {
   const { projectId } = useParams({
@@ -53,8 +56,47 @@ export function ProjectPipelinePage() {
     status: g.status,
   }));
 
+  // Autonomy: phase configs + approval gate dialog state
+  const { data: autonomyData } = usePhaseAutonomyConfigs(projectId);
+  const [approvalGate, setApprovalGate] = useState<{
+    open: boolean;
+    phase: AutonomyPhase;
+    agentConfidence: number;
+    confidenceThreshold: number;
+    outputSummary?: string;
+  } | null>(null);
+
+  // Phase id → autonomy pipeline phase mapping
+  const PHASE_ID_TO_AUTONOMY: Record<string, AutonomyPhase> = {
+    "1-brainstorming": "brainstorming",
+    "2-specs": "specs",
+    "3-prps": "prps",
+    features: "implementation",
+  };
+
+  function handlePhaseClick(phaseId: string) {
+    setActivePhase(phaseId);
+    const autonomyPhase = PHASE_ID_TO_AUTONOMY[phaseId];
+    if (!autonomyPhase) return;
+    const pipelinePhase = pipelinePhases.find((p) => p.id === phaseId);
+    if (pipelinePhase?.status !== "complete") return;
+    const config = autonomyData?.phases.find((c) => c.phase === autonomyPhase);
+    if (config?.autonomy_level === "approval_required") {
+      setApprovalGate({
+        open: true,
+        phase: autonomyPhase,
+        agentConfidence: 0.82,
+        confidenceThreshold: config.confidence_threshold,
+        outputSummary: `Fase ${autonomyPhase} completada. Aguardando aprovacao para continuar.`,
+      });
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-6">
+      {/* Escalation banner — shown when there are pending escalations */}
+      <EscalationBanner projectId={projectId} />
+
       {/* Header with sprint selector */}
       <div className="flex items-center justify-between">
         <div>
@@ -124,7 +166,7 @@ export function ProjectPipelinePage() {
           <PipelineStepper
             phases={pipelinePhases}
             activePhaseId={activePhase}
-            onPhaseClick={(phaseId) => setActivePhase(phaseId)}
+            onPhaseClick={handlePhaseClick}
             gates={pipelineGates}
             onGateClick={(transition) => setSelectedGate(transition)}
           />
@@ -221,6 +263,21 @@ export function ProjectPipelinePage() {
         onOpenChange={setClassifierOpen}
         projectSlug={projectId}
       />
+
+      {/* Approval gate dialog */}
+      {approvalGate && (
+        <ApprovalGateDialog
+          open={approvalGate.open}
+          onOpenChange={(open) => {
+            if (!open) setApprovalGate(null);
+          }}
+          projectId={projectId}
+          phase={approvalGate.phase}
+          agentConfidence={approvalGate.agentConfidence}
+          confidenceThreshold={approvalGate.confidenceThreshold}
+          outputSummary={approvalGate.outputSummary}
+        />
+      )}
     </div>
   );
 }
