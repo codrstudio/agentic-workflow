@@ -11,6 +11,7 @@ import {
   CreateACRBody,
   PatchACRBody,
   CreateViolationBody,
+  PatchViolationBody,
   type ArchitecturalConstraintRecord,
   type ACRViolation,
   type ACRIndex,
@@ -244,13 +245,37 @@ acrs.post("/hub/projects/:slug/acrs", async (c) => {
   return c.json(record, 201);
 });
 
-// GET /hub/projects/:slug/acrs/:acrId — get a single ACR
+// GET /hub/projects/:slug/acrs/:acrId — get a single ACR (also handles /acrs/context)
 acrs.get("/hub/projects/:slug/acrs/:acrId", async (c) => {
   const slug = c.req.param("slug");
   const acrId = c.req.param("acrId");
 
   const project = await loadProject(slug);
   if (!project) return c.json({ error: "Project not found" }, 404);
+
+  // Handle /acrs/context — active ACRs + violations summary
+  if (acrId === "context") {
+    const allACRs = await loadAllACRs(slug);
+    const activeACRs = allACRs.filter((r) => r.status === "active");
+
+    const allViolations = await loadAllViolations(slug);
+    const activeAcrIds = new Set(activeACRs.map((a) => a.id));
+    const relevantViolations = allViolations.filter((v) =>
+      activeAcrIds.has(v.acr_id)
+    );
+
+    const open = relevantViolations.filter(
+      (v) => v.resolution === "open"
+    ).length;
+    const accepted = relevantViolations.filter(
+      (v) => v.resolution === "accepted"
+    ).length;
+
+    return c.json({
+      acrs: activeACRs,
+      violations_summary: { open, accepted },
+    });
+  }
 
   const record = await loadACR(slug, acrId);
   if (!record) return c.json({ error: "ACR not found" }, 404);
@@ -398,5 +423,77 @@ acrs.post("/hub/projects/:slug/acrs/:acrId/violations", async (c) => {
 
   return c.json(violation, 201);
 });
+
+// PATCH /hub/projects/:slug/acr-violations/:violationId — resolve a violation
+acrs.patch(
+  "/hub/projects/:slug/acr-violations/:violationId",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const violationId = c.req.param("violationId");
+
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const parsed = PatchViolationBody.safeParse(body);
+    if (!parsed.success) {
+      return c.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        400
+      );
+    }
+
+    // Search across all day files for this violation
+    const dir = violationsDir(slug);
+    let files: string[];
+    try {
+      files = (await readdir(dir)).filter((f) => f.endsWith(".json")).sort().reverse();
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException;
+      if (e.code === "ENOENT") return c.json({ error: "Violation not found" }, 404);
+      throw err;
+    }
+
+    for (const file of files) {
+      const dateKey = file.replace(".json", "");
+      const dayViolations = await loadDayViolations(slug, dateKey);
+      const idx = dayViolations.findIndex((v) => v.id === violationId);
+      if (idx !== -1) {
+        const violation = dayViolations[idx]!;
+
+        if (parsed.data.resolution !== undefined) {
+          violation.resolution = parsed.data.resolution;
+          // Auto-set resolved_at when resolution is not open
+          if (
+            parsed.data.resolution === "fixed" ||
+            parsed.data.resolution === "accepted" ||
+            parsed.data.resolution === "wontfix"
+          ) {
+            violation.resolved_at = new Date().toISOString();
+          } else {
+            // If re-opened, clear resolved_at
+            violation.resolved_at = null;
+          }
+        }
+
+        if (parsed.data.resolution_note !== undefined) {
+          violation.resolution_note = parsed.data.resolution_note;
+        }
+
+        dayViolations[idx] = violation;
+        await saveDayViolations(slug, dateKey, dayViolations);
+        return c.json(violation);
+      }
+    }
+
+    return c.json({ error: "Violation not found" }, 404);
+  }
+);
 
 export { acrs };

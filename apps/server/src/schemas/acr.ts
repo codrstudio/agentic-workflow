@@ -121,3 +121,10 @@ export const CreateViolationBody = z.object({
 });
 
 export type CreateViolationBody = z.infer<typeof CreateViolationBody>;
+
+export const PatchViolationBody = z.object({
+  resolution: ACRViolationResolutionEnum.optional(),
+  resolution_note: z.string().optional(),
+});
+
+export type PatchViolationBody = z.infer<typeof PatchViolationBody>;
