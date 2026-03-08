@@ -78,3 +78,63 @@ export const PatchCheckBodySchema = z.object({
   status: z.enum(["passed", "failed", "skipped"]),
   details: z.string().nullable().optional(),
 });
+
+// ---- Advance Stage ----
+
+export const AdvanceStageBodySchema = z.object({
+  to_stage: MaturityStageEnum,
+});
+
+// ---- Production Readiness Checklist ----
+
+export const ReadinessItemStatusEnum = z.enum([
+  "met",
+  "not_met",
+  "partial",
+  "not_applicable",
+]);
+
+export type ReadinessItemStatus = z.infer<typeof ReadinessItemStatusEnum>;
+
+export const ReadinessItemSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  status: ReadinessItemStatusEnum,
+  evidence: z.string().nullable(),
+});
+
+export type ReadinessItem = z.infer<typeof ReadinessItemSchema>;
+
+export const ReadinessCategorySchema = z.object({
+  name: z.enum([
+    "Security",
+    "Performance",
+    "Observability",
+    "Reliability",
+    "Data",
+  ]),
+  items: z.array(ReadinessItemSchema),
+  completion_rate: z.number().min(0).max(100),
+});
+
+export type ReadinessCategory = z.infer<typeof ReadinessCategorySchema>;
+
+export const ProductionReadinessChecklistSchema = z.object({
+  project_id: z.string().uuid(),
+  categories: z.array(ReadinessCategorySchema),
+  overall_readiness: z.number().min(0).max(100),
+  blockers: z.array(ReadinessItemSchema),
+  computed_at: z.string().datetime(),
+});
+
+export type ProductionReadinessChecklist = z.infer<
+  typeof ProductionReadinessChecklistSchema
+>;
+
+export const ReadinessCacheSchema = z.object({
+  checklist: ProductionReadinessChecklistSchema,
+  cached_at: z.string().datetime(),
+  ttl_minutes: z.number(),
+});
+
+export type ReadinessCache = z.infer<typeof ReadinessCacheSchema>;

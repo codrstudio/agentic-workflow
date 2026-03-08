@@ -1,0 +1,48 @@
+{
+  "id": "bb5f2ee3-9e00-4904-8479-cefef54bffb1",
+  "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "from_stage": "vibe",
+  "to_stage": "structured",
+  "checks": [
+    {
+      "id": "0384e1c7-bab0-4a60-b6a9-74886820f15c",
+      "label": "README exists",
+      "description": "Project has a README.md file",
+      "type": "automatic",
+      "status": "failed",
+      "details": "No README file found",
+      "checked_at": "2026-03-08T18:35:00.510Z"
+    },
+    {
+      "id": "f6296e12-11e0-4215-969f-a1d3b0697ad5",
+      "label": "Source files present",
+      "description": "Project directory contains source code files",
+      "type": "automatic",
+      "status": "passed",
+      "details": "4 items in project dir",
+      "checked_at": "2026-03-08T18:35:00.510Z"
+    },
+    {
+      "id": "38269511-b5cc-44dc-bd92-6101ec12ee61",
+      "label": "Architecture documented",
+      "description": "Team has documented basic architecture decisions (manual review)",
+      "type": "manual",
+      "status": "pending",
+      "details": null,
+      "checked_at": null
+    },
+    {
+      "id": "2c324737-ec83-46d8-984b-ba6dd94ea8b7",
+      "label": "Basic linting configured",
+      "description": "Linter configuration file is present",
+      "type": "automatic",
+      "status": "failed",
+      "details": "No linter config found",
+      "checked_at": "2026-03-08T18:35:00.510Z"
+    }
+  ],
+  "overall_status": "failed",
+  "blocking": true,
+  "created_at": "2026-03-08T18:35:00.510Z",
+  "resolved_at": null
+}

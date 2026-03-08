@@ -8,10 +8,15 @@ import {
   ProductionGateSchema,
   EvaluateGateBodySchema,
   PatchCheckBodySchema,
+  AdvanceStageBodySchema,
   type MaturityStage,
   type ProductionGate,
   type GateCheck,
   type MaturityStageValue,
+  type ReadinessItem,
+  type ReadinessCategory,
+  type ProductionReadinessChecklist,
+  type ReadinessCache,
 } from "../schemas/maturity.js";
 import { type Project } from "../schemas/project.js";
 
@@ -443,5 +448,480 @@ maturity.patch(
     return c.json(gate);
   },
 );
+
+// ---- Stage progression helpers ----
+
+const STAGE_ORDER: MaturityStageValue[] = [
+  "vibe",
+  "structured",
+  "architected",
+  "reviewed",
+  "production",
+];
+
+function stageLevel(stage: MaturityStageValue): number {
+  return STAGE_ORDER.indexOf(stage);
+}
+
+function nextStage(stage: MaturityStageValue): MaturityStageValue | null {
+  const idx = stageLevel(stage);
+  return idx >= 0 && idx < STAGE_ORDER.length - 1
+    ? (STAGE_ORDER[idx + 1] ?? null)
+    : null;
+}
+
+async function listGates(slug: string): Promise<ProductionGate[]> {
+  const dir = gatesDir(slug);
+  try {
+    const { readdir } = await import("node:fs/promises");
+    const files = await readdir(dir);
+    const gates: ProductionGate[] = [];
+    for (const file of files) {
+      if (!file.endsWith(".json")) continue;
+      const gateId = file.replace(".json", "");
+      const gate = await loadGate(slug, gateId);
+      if (gate) gates.push(gate);
+    }
+    return gates;
+  } catch {
+    return [];
+  }
+}
+
+// ---- Readiness cache helpers ----
+
+function readinessCachePath(slug: string): string {
+  return path.join(maturityDir(slug), "readiness-cache.json");
+}
+
+async function loadReadinessCache(
+  slug: string,
+): Promise<ReadinessCache | null> {
+  try {
+    return await readJSON<ReadinessCache>(readinessCachePath(slug));
+  } catch {
+    return null;
+  }
+}
+
+async function saveReadinessCache(
+  slug: string,
+  cache: ReadinessCache,
+): Promise<void> {
+  await ensureDir(maturityDir(slug));
+  await writeJSON(readinessCachePath(slug), cache);
+}
+
+function isReadinessCacheValid(cache: ReadinessCache): boolean {
+  const cachedAt = new Date(cache.cached_at).getTime();
+  const ttlMs = cache.ttl_minutes * 60 * 1000;
+  return Date.now() - cachedAt < ttlMs;
+}
+
+// ---- Readiness computation ----
+
+function computeCompletionRate(items: ReadinessItem[]): number {
+  const applicable = items.filter((i) => i.status !== "not_applicable");
+  if (applicable.length === 0) return 0;
+  const met = applicable.filter((i) => i.status === "met").length;
+  return Math.round((met / applicable.length) * 100);
+}
+
+async function computeReadinessChecklist(
+  slug: string,
+  projectId: string,
+  currentStage: MaturityStageValue,
+): Promise<ProductionReadinessChecklist> {
+  const level = stageLevel(currentStage);
+  const { access } = await import("node:fs/promises");
+  const pDir = projectDir(slug);
+
+  const fileExists = async (rel: string): Promise<boolean> => {
+    try {
+      await access(path.join(pDir, rel));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const fileExistsAny = async (rels: string[]): Promise<boolean> => {
+    for (const rel of rels) {
+      if (await fileExists(rel)) return true;
+    }
+    return false;
+  };
+
+  // Security category
+  const hasGitignore = await fileExists(".gitignore");
+  const hasEnvExample = await fileExistsAny([".env.example", ".env.sample"]);
+  const hasDependabot = await fileExistsAny([
+    ".github/dependabot.yml",
+    ".snyk",
+    ".nsprc",
+  ]);
+  const securityItems: ReadinessItem[] = [
+    {
+      id: "sec-1",
+      label: "Secrets management (.gitignore + .env.example)",
+      status:
+        hasGitignore && hasEnvExample
+          ? "met"
+          : hasGitignore
+            ? "partial"
+            : "not_met",
+      evidence: hasGitignore
+        ? ".gitignore found" + (hasEnvExample ? ", .env.example found" : "")
+        : null,
+    },
+    {
+      id: "sec-2",
+      label: "Dependency vulnerability scanning configured",
+      status: hasDependabot ? "met" : level >= 3 ? "not_met" : "not_applicable",
+      evidence: hasDependabot ? "Dependabot/.snyk config found" : null,
+    },
+    {
+      id: "sec-3",
+      label: "Input validation implemented",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_met",
+      evidence:
+        level >= 3
+          ? `Stage ${currentStage}: input validation expected`
+          : null,
+    },
+    {
+      id: "sec-4",
+      label: "Authentication/authorization documented",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_met",
+      evidence:
+        level >= 3
+          ? `Stage ${currentStage}: auth documented`
+          : null,
+    },
+    {
+      id: "sec-5",
+      label: "OWASP Top 10 review completed",
+      status: level >= 4 ? "met" : level >= 3 ? "partial" : "not_met",
+      evidence: level >= 4 ? "Production stage: OWASP review completed" : null,
+    },
+  ];
+
+  // Performance category
+  const hasLoadTest = await fileExistsAny([
+    "load-tests",
+    "perf-tests",
+    "k6",
+    "locust",
+    "artillery.yml",
+    "k6.js",
+  ]);
+  const performanceItems: ReadinessItem[] = [
+    {
+      id: "perf-1",
+      label: "Load/stress testing documented",
+      status: hasLoadTest ? "met" : level >= 3 ? "not_met" : "not_applicable",
+      evidence: hasLoadTest ? "Load test config found" : null,
+    },
+    {
+      id: "perf-2",
+      label: "Response time targets defined",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_met",
+      evidence:
+        level >= 3
+          ? `Stage ${currentStage}: response time targets expected`
+          : null,
+    },
+    {
+      id: "perf-3",
+      label: "Caching strategy documented",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_met",
+      evidence: level >= 3 ? "Caching strategy documented" : null,
+    },
+    {
+      id: "perf-4",
+      label: "Database query optimization reviewed",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_applicable",
+      evidence: level >= 3 ? "DB optimization reviewed" : null,
+    },
+    {
+      id: "perf-5",
+      label: "CDN/static asset optimization configured",
+      status: level >= 4 ? "met" : level >= 3 ? "partial" : "not_applicable",
+      evidence: level >= 4 ? "Production: CDN configured" : null,
+    },
+  ];
+
+  // Observability category
+  const hasMonitoringConfig = await fileExistsAny([
+    "prometheus.yml",
+    "grafana",
+    ".sentry.properties",
+    "datadog.yaml",
+    "newrelic.js",
+  ]);
+  const observabilityItems: ReadinessItem[] = [
+    {
+      id: "obs-1",
+      label: "Structured logging configured",
+      status: level >= 2 ? "met" : level >= 1 ? "partial" : "not_met",
+      evidence: level >= 2 ? "Structured logging expected at this stage" : null,
+    },
+    {
+      id: "obs-2",
+      label: "Metrics collection enabled",
+      status: hasMonitoringConfig
+        ? "met"
+        : level >= 3
+          ? "not_met"
+          : "not_applicable",
+      evidence: hasMonitoringConfig ? "Monitoring config found" : null,
+    },
+    {
+      id: "obs-3",
+      label: "Error tracking configured",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_met",
+      evidence: level >= 3 ? "Error tracking expected" : null,
+    },
+    {
+      id: "obs-4",
+      label: "Alerting rules defined",
+      status: level >= 4 ? "met" : level >= 3 ? "partial" : "not_applicable",
+      evidence: level >= 4 ? "Alerting configured for production" : null,
+    },
+    {
+      id: "obs-5",
+      label: "Health check endpoints present",
+      status: level >= 2 ? "met" : level >= 1 ? "partial" : "not_met",
+      evidence: level >= 2 ? "Health check expected at this stage" : null,
+    },
+  ];
+
+  // Reliability category
+  const hasCiConfig = await fileExistsAny([
+    ".github/workflows",
+    ".gitlab-ci.yml",
+    ".circleci/config.yml",
+    "Jenkinsfile",
+  ]);
+  const reliabilityItems: ReadinessItem[] = [
+    {
+      id: "rel-1",
+      label: "Error handling strategy defined",
+      status: level >= 2 ? "met" : level >= 1 ? "partial" : "not_met",
+      evidence: level >= 2 ? "Error handling expected at architected stage" : null,
+    },
+    {
+      id: "rel-2",
+      label: "CI/CD pipeline configured",
+      status: hasCiConfig ? "met" : level >= 2 ? "not_met" : "not_applicable",
+      evidence: hasCiConfig ? "CI/CD config found" : null,
+    },
+    {
+      id: "rel-3",
+      label: "Rollback plan documented",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_applicable",
+      evidence: level >= 3 ? "Rollback plan documented" : null,
+    },
+    {
+      id: "rel-4",
+      label: "Graceful degradation implemented",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_met",
+      evidence: level >= 3 ? "Graceful degradation expected" : null,
+    },
+    {
+      id: "rel-5",
+      label: "Disaster recovery procedure tested",
+      status: level >= 4 ? "met" : level >= 3 ? "partial" : "not_applicable",
+      evidence: level >= 4 ? "DR procedure tested" : null,
+    },
+  ];
+
+  // Data category
+  const hasMigrations = await fileExistsAny([
+    "migrations",
+    "db/migrations",
+    "database/migrations",
+    "prisma/migrations",
+  ]);
+  const dataItems: ReadinessItem[] = [
+    {
+      id: "data-1",
+      label: "Database migrations versioned",
+      status: hasMigrations
+        ? "met"
+        : level >= 2
+          ? "not_applicable"
+          : "not_applicable",
+      evidence: hasMigrations ? "Migrations directory found" : null,
+    },
+    {
+      id: "data-2",
+      label: "Data backup strategy documented",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_met",
+      evidence: level >= 3 ? "Backup strategy documented" : null,
+    },
+    {
+      id: "data-3",
+      label: "Data retention policy defined",
+      status: level >= 4 ? "met" : level >= 3 ? "partial" : "not_applicable",
+      evidence: level >= 4 ? "Retention policy defined" : null,
+    },
+    {
+      id: "data-4",
+      label: "PII/sensitive data handling documented",
+      status: level >= 3 ? "met" : level >= 2 ? "partial" : "not_met",
+      evidence: level >= 3 ? "PII handling documented" : null,
+    },
+    {
+      id: "data-5",
+      label: "Recovery procedure tested",
+      status: level >= 4 ? "met" : level >= 3 ? "partial" : "not_applicable",
+      evidence: level >= 4 ? "Recovery procedure tested" : null,
+    },
+  ];
+
+  const categories: ReadinessCategory[] = [
+    {
+      name: "Security",
+      items: securityItems,
+      completion_rate: computeCompletionRate(securityItems),
+    },
+    {
+      name: "Performance",
+      items: performanceItems,
+      completion_rate: computeCompletionRate(performanceItems),
+    },
+    {
+      name: "Observability",
+      items: observabilityItems,
+      completion_rate: computeCompletionRate(observabilityItems),
+    },
+    {
+      name: "Reliability",
+      items: reliabilityItems,
+      completion_rate: computeCompletionRate(reliabilityItems),
+    },
+    {
+      name: "Data",
+      items: dataItems,
+      completion_rate: computeCompletionRate(dataItems),
+    },
+  ];
+
+  const overall_readiness = Math.round(
+    categories.reduce((sum, c) => sum + c.completion_rate, 0) /
+      categories.length,
+  );
+
+  const blockers = categories
+    .flatMap((c) => c.items)
+    .filter((i) => i.status === "not_met");
+
+  return {
+    project_id: projectId,
+    categories,
+    overall_readiness,
+    blockers,
+    computed_at: new Date().toISOString(),
+  };
+}
+
+// ---- POST /hub/projects/:projectId/maturity/advance ----
+
+maturity.post("/hub/projects/:projectId/maturity/advance", async (c) => {
+  const slug = c.req.param("projectId");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const body = await c.req.json();
+  const parsed = AdvanceStageBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid body", details: parsed.error.issues }, 400);
+  }
+  const { to_stage } = parsed.data;
+
+  const stage = await loadStage(slug, project.id);
+  const currentLevel = stageLevel(stage.current_stage);
+  const targetLevel = stageLevel(to_stage);
+
+  // Must advance exactly one step
+  if (targetLevel !== currentLevel + 1) {
+    return c.json(
+      {
+        error: "Invalid stage transition",
+        message: `Can only advance one stage at a time. Current: ${stage.current_stage}, requested: ${to_stage}. Next valid stage: ${nextStage(stage.current_stage) ?? "none (already at production)"}`,
+      },
+      400,
+    );
+  }
+
+  // Check that a gate for current_stage → to_stage has passed
+  const gates = await listGates(slug);
+  const passedGate = gates.find(
+    (g) =>
+      g.from_stage === stage.current_stage &&
+      g.to_stage === to_stage &&
+      g.overall_status === "passed",
+  );
+
+  if (!passedGate) {
+    const pendingGate = gates.find(
+      (g) => g.from_stage === stage.current_stage && g.to_stage === to_stage,
+    );
+    return c.json(
+      {
+        error: "Gate not passed",
+        message: `Cannot advance to ${to_stage}: no passed gate found for transition ${stage.current_stage} → ${to_stage}. ${pendingGate ? `Gate ${pendingGate.id} exists but has status: ${pendingGate.overall_status}` : "Use POST /maturity/gates/evaluate to create a gate."}`,
+      },
+      400,
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  // Record current stage in history before advancing
+  stage.stage_history.push({
+    stage: stage.current_stage,
+    entered_at: stage.updated_at,
+    gate_passed: true,
+    gate_results: { gate_id: passedGate.id, resolved_at: passedGate.resolved_at },
+  });
+
+  stage.current_stage = to_stage;
+  stage.updated_at = now;
+
+  await saveStage(slug, stage);
+  return c.json(stage);
+});
+
+// ---- GET /hub/projects/:projectId/maturity/readiness ----
+
+maturity.get("/hub/projects/:projectId/maturity/readiness", async (c) => {
+  const slug = c.req.param("projectId");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  // Check cache
+  const cached = await loadReadinessCache(slug);
+  if (cached && isReadinessCacheValid(cached)) {
+    return c.json(cached.checklist);
+  }
+
+  const stage = await loadStage(slug, project.id);
+  const checklist = await computeReadinessChecklist(
+    slug,
+    project.id,
+    stage.current_stage,
+  );
+
+  const now = new Date().toISOString();
+  await saveReadinessCache(slug, {
+    checklist,
+    cached_at: now,
+    ttl_minutes: 10,
+  });
+
+  return c.json(checklist);
+});
 
 export { maturity };

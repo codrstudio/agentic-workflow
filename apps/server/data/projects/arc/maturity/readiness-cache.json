@@ -1,0 +1,253 @@
+{
+  "checklist": {
+    "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "categories": [
+      {
+        "name": "Security",
+        "items": [
+          {
+            "id": "sec-1",
+            "label": "Secrets management (.gitignore + .env.example)",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "sec-2",
+            "label": "Dependency vulnerability scanning configured",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "sec-3",
+            "label": "Input validation implemented",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "sec-4",
+            "label": "Authentication/authorization documented",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "sec-5",
+            "label": "OWASP Top 10 review completed",
+            "status": "not_met",
+            "evidence": null
+          }
+        ],
+        "completion_rate": 0
+      },
+      {
+        "name": "Performance",
+        "items": [
+          {
+            "id": "perf-1",
+            "label": "Load/stress testing documented",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "perf-2",
+            "label": "Response time targets defined",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "perf-3",
+            "label": "Caching strategy documented",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "perf-4",
+            "label": "Database query optimization reviewed",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "perf-5",
+            "label": "CDN/static asset optimization configured",
+            "status": "not_applicable",
+            "evidence": null
+          }
+        ],
+        "completion_rate": 0
+      },
+      {
+        "name": "Observability",
+        "items": [
+          {
+            "id": "obs-1",
+            "label": "Structured logging configured",
+            "status": "partial",
+            "evidence": null
+          },
+          {
+            "id": "obs-2",
+            "label": "Metrics collection enabled",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "obs-3",
+            "label": "Error tracking configured",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "obs-4",
+            "label": "Alerting rules defined",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "obs-5",
+            "label": "Health check endpoints present",
+            "status": "partial",
+            "evidence": null
+          }
+        ],
+        "completion_rate": 0
+      },
+      {
+        "name": "Reliability",
+        "items": [
+          {
+            "id": "rel-1",
+            "label": "Error handling strategy defined",
+            "status": "partial",
+            "evidence": null
+          },
+          {
+            "id": "rel-2",
+            "label": "CI/CD pipeline configured",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "rel-3",
+            "label": "Rollback plan documented",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "rel-4",
+            "label": "Graceful degradation implemented",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "rel-5",
+            "label": "Disaster recovery procedure tested",
+            "status": "not_applicable",
+            "evidence": null
+          }
+        ],
+        "completion_rate": 0
+      },
+      {
+        "name": "Data",
+        "items": [
+          {
+            "id": "data-1",
+            "label": "Database migrations versioned",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "data-2",
+            "label": "Data backup strategy documented",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "data-3",
+            "label": "Data retention policy defined",
+            "status": "not_applicable",
+            "evidence": null
+          },
+          {
+            "id": "data-4",
+            "label": "PII/sensitive data handling documented",
+            "status": "not_met",
+            "evidence": null
+          },
+          {
+            "id": "data-5",
+            "label": "Recovery procedure tested",
+            "status": "not_applicable",
+            "evidence": null
+          }
+        ],
+        "completion_rate": 0
+      }
+    ],
+    "overall_readiness": 0,
+    "blockers": [
+      {
+        "id": "sec-1",
+        "label": "Secrets management (.gitignore + .env.example)",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "sec-3",
+        "label": "Input validation implemented",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "sec-4",
+        "label": "Authentication/authorization documented",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "sec-5",
+        "label": "OWASP Top 10 review completed",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "perf-2",
+        "label": "Response time targets defined",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "perf-3",
+        "label": "Caching strategy documented",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "obs-3",
+        "label": "Error tracking configured",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "rel-4",
+        "label": "Graceful degradation implemented",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "data-2",
+        "label": "Data backup strategy documented",
+        "status": "not_met",
+        "evidence": null
+      },
+      {
+        "id": "data-4",
+        "label": "PII/sensitive data handling documented",
+        "status": "not_met",
+        "evidence": null
+      }
+    ],
+    "computed_at": "2026-03-08T18:36:31.259Z"
+  },
+  "cached_at": "2026-03-08T18:36:31.259Z",
+  "ttl_minutes": 10
+}
