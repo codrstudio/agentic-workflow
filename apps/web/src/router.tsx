@@ -41,6 +41,7 @@ import { ROIDashboardPage } from "@/pages/roi-dashboard";
 import { RescueWizardPage } from "@/pages/rescue-wizard";
 import { CognitiveDebtDashboardPage } from "@/pages/cognitive-debt-dashboard";
 import { ContextProfileManagerPage } from "@/pages/context-profile-manager";
+import { PipelineHealthDashboardPage } from "@/pages/pipeline-health-dashboard";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -361,6 +362,14 @@ const cognitiveDebtDashboardRoute = createRoute({
   staticData: { breadcrumb: "Cognitive Debt" },
 });
 
+// /projects/$projectId/pipeline/health (F-235)
+const pipelineHealthRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/pipeline/health",
+  component: PipelineHealthDashboardPage,
+  staticData: { breadcrumb: "Pipeline Health" },
+});
+
 // /projects/$projectId/roi (F-196)
 const projectROIRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -410,6 +419,7 @@ const routeTree = rootRoute.addChildren([
         projectACRsRoute,
         acrDetailRoute,
         projectPipelineRoute,
+        pipelineHealthRoute,
         projectReviewsRoute,
         reviewPanelRoute,
         projectMetricsRoute,
