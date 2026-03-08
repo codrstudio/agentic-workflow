@@ -29,6 +29,7 @@ import { HandoffListPage } from "@/pages/handoff-list";
 import { AgenticBoardPage } from "@/pages/agentic-board";
 import { PipelineModelConfigPage } from "@/pages/pipeline-model-config";
 import { GraphConfigPage } from "@/pages/graph-config";
+import { QualityGatesSettingsPage } from "@/pages/quality-gates-settings";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -254,6 +255,14 @@ const graphConfigRoute = createRoute({
   staticData: { breadcrumb: "Graph Config" },
 });
 
+// /projects/$projectId/settings/quality-gates (F-176)
+const qualityGatesSettingsRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/settings/quality-gates",
+  component: QualityGatesSettingsPage,
+  staticData: { breadcrumb: "Quality Gates" },
+});
+
 // /projects/$projectId/settings/mcp/$serverId (F-083)
 const mcpServerDetailRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -301,6 +310,7 @@ const routeTree = rootRoute.addChildren([
         pipelineModelConfigRoute,
         graphConfigRoute,
         projectSettingsRoute,
+        qualityGatesSettingsRoute,
         mcpServerDetailRoute,
       ]),
     ]),

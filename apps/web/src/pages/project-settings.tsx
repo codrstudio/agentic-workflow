@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate } from "@tanstack/react-router";
+import { useParams, useNavigate, Link } from "@tanstack/react-router";
 import {
   Bot,
   RotateCcw,
@@ -13,6 +13,8 @@ import {
   PowerOff,
   Trash2,
   Loader2,
+  Shield,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -562,6 +564,26 @@ export function ProjectSettingsPage() {
 
         <div className="border-t pt-6">
           <McpServersSection projectSlug={projectId} />
+        </div>
+
+        <div className="border-t pt-6">
+          <Link
+            to="/projects/$projectId/settings/quality-gates"
+            params={{ projectId }}
+            className="flex items-center justify-between rounded-lg border bg-card p-4 hover:bg-accent/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Shield className="size-5 text-muted-foreground" />
+              <div>
+                <h2 className="text-base font-semibold">Quality Gates</h2>
+                <p className="text-sm text-muted-foreground">
+                  Configure gates de cobertura de testes e qualidade de
+                  contribuicoes.
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="size-5 text-muted-foreground" />
+          </Link>
         </div>
       </div>
     </div>
