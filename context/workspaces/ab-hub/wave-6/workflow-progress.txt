@@ -645,3 +645,5 @@
     - sprints/sprint-6: brainstorming, specs (S-035 a S-040), PRPs (PRP-35 a PRP-41), features.json
     - context: skeleton.md, plans (economic/standard/premium), settings.yml, mcp-server.json
   Wave 6 encerrada. Pronta para Wave 7.
+[2026-03-08 14:01:01] Step 8 (merge-worktree): Completed. ok
+[2026-03-08 17:33:28] Step 9 (spawn-vibe-app): Failed (exit 3221225786). step_failed: spawn-vibe-app

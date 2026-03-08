@@ -71,3 +71,7 @@
   - 28/37 features passing
 [2026-03-08 14:41:45] Step 6 (ralph-wiggum-loop): Completed. completed
 [2026-03-08 14:43:00] Step 7 (wave-limit) DECISION: STOP CHAIN - Wave 7 is the 7th iteration. Wave limit (>= 5) exceeded. Analysis of 144 discoveries in sprint-7 ranking: 77 implemented (53%), 23 partial (16%), 44 not implemented (31%). High-value unimplemented discoveries: 50 with score > 5. Historical feature counts: sprint-1=31, sprint-2=32, sprint-3=31, sprint-4=26, sprint-5=30, sprint-6=39 features. Recency trend (sprints 5-6) both well above 3-feature minimum. However, wave limit criterion (current_wave >= 5) is BINDING: 7 >= 5 → STOP. Remaining value (50 score>5 discoveries) acknowledged but insufficient to override wave ceiling. Recommendation: Next workflow iteration should resume from sprint-7 ranking with fresh pain-gain analysis.
+[2026-03-08 14:44:02] Step 7 (wave-limit): Completed. decide:continue
+[2026-03-08] merge-worktree COMPLETED. Fast-forward merge de harness/wave-7 -> develop sem conflitos. 110 arquivos adicionados (18381 inserções). Branch harness/wave-7 deletado. Worktree ja estava desregistrada do git (apenas permissão de remoção de pasta negada pelo OS, mas worktree list confirma limpeza). Wave-7 mergeada com sucesso no develop.
+[2026-03-08 14:45:38] Step 8 (merge-worktree): Completed. ok
+[2026-03-08 18:26:03] Step 6 (ralph-wiggum-loop): Completed. completed

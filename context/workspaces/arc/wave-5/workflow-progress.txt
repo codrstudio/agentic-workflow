@@ -302,3 +302,4 @@
   - Branch harness/wave-5 deletado de arc/repo após merge bem-sucedido
   - Nota: worktree não estava registrada como git worktree (sem .git), apenas branch removido
 [2026-03-07 21:07:42] Step 8 (merge-worktree): Completed. ok
+[2026-03-08 04:21:13] Step 9 (spawn-vibe-app): Failed (exit 3221225786). step_failed: spawn-vibe-app
