@@ -48,6 +48,11 @@ import { McpServerDialog } from "@/components/mcp-server-dialog";
 import { GuardrailsSettings } from "@/components/guardrails-settings";
 import { SpecTemplateEditor } from "@/components/spec-template-editor";
 import { AutonomyConfigPanel } from "@/components/autonomy-config-panel";
+import { Label } from "@/components/ui/label";
+import {
+  useSecurityGateConfig,
+  useUpdateSecurityGateConfig,
+} from "@/hooks/use-security";
 
 function AgentCard({
   agent,
@@ -480,6 +485,125 @@ function McpServersSection({ projectSlug }: { projectSlug: string }) {
   );
 }
 
+const SCAN_MODELS = [
+  "claude-sonnet-4-5-20250514",
+  "claude-opus-4-6",
+  "claude-haiku-4-5-20251001",
+];
+
+function ToggleRow({
+  label,
+  checked,
+  onToggle,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <Label className="text-sm text-muted-foreground">{label}</Label>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={onToggle}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+          checked ? "bg-primary" : "bg-input"
+        }`}
+      >
+        <span
+          className={`pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
+function SecurityGateSettings({ projectSlug }: { projectSlug: string }) {
+  const { data: config, isLoading } = useSecurityGateConfig(projectSlug);
+  const update = useUpdateSecurityGateConfig(projectSlug);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-5 w-48" />
+        <Skeleton className="h-8 w-full" />
+        <Skeleton className="h-8 w-full" />
+      </div>
+    );
+  }
+
+  if (!config) return null;
+
+  const handleToggle = (field: keyof typeof config) => {
+    update.mutate({ [field]: !config[field] });
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-base font-semibold flex items-center gap-2">
+        <Shield className="size-4" />
+        Security Gate
+      </h2>
+
+      <div className="space-y-3">
+        <ToggleRow
+          label="Ativar security gate"
+          checked={config.enabled}
+          onToggle={() => handleToggle("enabled")}
+          disabled={update.isPending}
+        />
+        <ToggleRow
+          label="Bloquear em findings críticos"
+          checked={config.block_on_critical}
+          onToggle={() => handleToggle("block_on_critical")}
+          disabled={update.isPending}
+        />
+        <ToggleRow
+          label="Bloquear em findings high"
+          checked={config.block_on_high}
+          onToggle={() => handleToggle("block_on_high")}
+          disabled={update.isPending}
+        />
+        <ToggleRow
+          label="Bloquear em findings medium"
+          checked={config.block_on_medium}
+          onToggle={() => handleToggle("block_on_medium")}
+          disabled={update.isPending}
+        />
+        <ToggleRow
+          label="Auto-scan no review"
+          checked={config.auto_scan_on_review}
+          onToggle={() => handleToggle("auto_scan_on_review")}
+          disabled={update.isPending}
+        />
+
+        <div className="flex items-center justify-between">
+          <Label className="text-sm text-muted-foreground">Modelo de scan</Label>
+          <select
+            value={config.scan_model}
+            onChange={(e) => update.mutate({ scan_model: e.target.value })}
+            disabled={update.isPending}
+            className="rounded-md border bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+          >
+            {SCAN_MODELS.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ProjectSettingsPage() {
   const { projectId } = useParams({
     from: "/_authenticated/projects/$projectId/settings",
@@ -564,6 +688,10 @@ export function ProjectSettingsPage() {
 
         <div className="border-t pt-6">
           <McpServersSection projectSlug={projectId} />
+        </div>
+
+        <div className="border-t pt-6">
+          <SecurityGateSettings projectSlug={projectId} />
         </div>
 
         <div className="border-t pt-6">

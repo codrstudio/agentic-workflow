@@ -12,6 +12,7 @@ const tabs = [
   { label: "Reviews", to: "/projects/$projectId/reviews" as const, icon: ClipboardCheck },
   { label: "Metrics", to: "/projects/$projectId/metrics" as const, icon: BarChart3 },
   { label: "Containment", to: "/projects/$projectId/containment" as const, icon: Shield },
+  { label: "Security", to: "/projects/$projectId/security" as const, icon: Shield },
   { label: "Settings", to: "/projects/$projectId/settings" as const, icon: Settings },
 ];
 

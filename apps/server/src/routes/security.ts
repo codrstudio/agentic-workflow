@@ -373,6 +373,83 @@ security.patch("/hub/projects/:slug/security/findings/:findingId", async (c) => 
   return c.json(validated.data);
 });
 
+// GET /hub/projects/:slug/security/scorecard
+security.get("/hub/projects/:slug/security/scorecard", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const allFindings = await loadAllFindings(slug);
+  const openFindings = allFindings.filter((f) => f.resolution === "open");
+
+  const counts = {
+    critical: openFindings.filter((f) => f.severity === "critical").length,
+    high: openFindings.filter((f) => f.severity === "high").length,
+    medium: openFindings.filter((f) => f.severity === "medium").length,
+    low: openFindings.filter((f) => f.severity === "low").length,
+    info: openFindings.filter((f) => f.severity === "info").length,
+  };
+
+  const score = Math.max(
+    0,
+    100 - (counts.critical * 25 + counts.high * 10 + counts.medium * 3 + counts.low * 1)
+  );
+
+  const resolvedFindings = allFindings.filter((f) => f.resolved_at != null);
+  let avg_resolution_hours: number | null = null;
+  if (resolvedFindings.length > 0) {
+    const totalMs = resolvedFindings.reduce((sum, f) => {
+      const created = new Date(f.created_at).getTime();
+      const resolved = new Date(f.resolved_at!).getTime();
+      return sum + (resolved - created);
+    }, 0);
+    avg_resolution_hours = Math.round((totalMs / resolvedFindings.length / 3600000) * 10) / 10;
+  }
+
+  // Weekly findings: group open findings by week (last 8 weeks)
+  const now = new Date();
+  const weeks: Array<{
+    week: string;
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+    info: number;
+  }> = [];
+  for (let i = 7; i >= 0; i--) {
+    const weekStart = new Date(now.getTime() - i * 7 * 24 * 3600000);
+    const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 3600000);
+    const label = `W${weekStart.toISOString().slice(5, 7)}/${weekStart.toISOString().slice(8, 10)}`;
+    const weekFindings = allFindings.filter((f) => {
+      const created = new Date(f.created_at).getTime();
+      return created >= weekStart.getTime() && created < weekEnd.getTime();
+    });
+    weeks.push({
+      week: label,
+      critical: weekFindings.filter((f) => f.severity === "critical").length,
+      high: weekFindings.filter((f) => f.severity === "high").length,
+      medium: weekFindings.filter((f) => f.severity === "medium").length,
+      low: weekFindings.filter((f) => f.severity === "low").length,
+      info: weekFindings.filter((f) => f.severity === "info").length,
+    });
+  }
+
+  return c.json({
+    score,
+    open_count: openFindings.length,
+    critical_high_count: counts.critical + counts.high,
+    avg_resolution_hours,
+    counts,
+    weekly_findings: weeks,
+    open_critical_high: openFindings
+      .filter((f) => f.severity === "critical" || f.severity === "high")
+      .sort((a, b) => {
+        const sev = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
+        return sev[a.severity] - sev[b.severity];
+      }),
+  });
+});
+
 // POST /hub/projects/:slug/security/gate-check
 security.post("/hub/projects/:slug/security/gate-check", async (c) => {
   const slug = c.req.param("slug");

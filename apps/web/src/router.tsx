@@ -33,6 +33,7 @@ import { PipelineModelConfigPage } from "@/pages/pipeline-model-config";
 import { GraphConfigPage } from "@/pages/graph-config";
 import { QualityGatesSettingsPage } from "@/pages/quality-gates-settings";
 import { ContainmentPoliciesPage } from "@/pages/containment-policies";
+import { SecurityDashboardPage } from "@/pages/security-dashboard";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -289,6 +290,14 @@ const projectContainmentRoute = createRoute({
   staticData: { breadcrumb: "Containment" },
 });
 
+// /projects/$projectId/security (F-184)
+const projectSecurityRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/security",
+  component: SecurityDashboardPage,
+  staticData: { breadcrumb: "Security" },
+});
+
 // /projects/$projectId/settings/quality-gates (F-176)
 const qualityGatesSettingsRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -346,6 +355,7 @@ const routeTree = rootRoute.addChildren([
         pipelineModelConfigRoute,
         graphConfigRoute,
         projectContainmentRoute,
+        projectSecurityRoute,
         projectSettingsRoute,
         qualityGatesSettingsRoute,
         mcpServerDetailRoute,
