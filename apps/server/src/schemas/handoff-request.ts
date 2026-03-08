@@ -70,7 +70,13 @@ export const PatchHandoffTemplateBody = z.object({
   default_sprint: z.number().int().positive().nullable().optional(),
 });
 
+export const EnqueueBody = z.object({
+  sprint: z.number().int().positive(),
+  priority: z.enum(["high", "medium", "low"]).optional(),
+});
+
 export type HandoffRequest = z.infer<typeof HandoffRequestSchema>;
 export type HandoffTemplate = z.infer<typeof HandoffTemplateSchema>;
 export type CreateHandoffRequestBodyType = z.infer<typeof CreateHandoffRequestBody>;
 export type PatchHandoffRequestBodyType = z.infer<typeof PatchHandoffRequestBody>;
+export type EnqueueBodyType = z.infer<typeof EnqueueBody>;
