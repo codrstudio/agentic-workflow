@@ -26,6 +26,7 @@ import {
 import { useSprints } from "@/hooks/use-sprints";
 import { FeatureCostBadgeInline } from "@/components/feature-cost-badge";
 import { FeatureCostBadge } from "@/components/feature-cost-badge";
+import { ModelAttributionTab } from "@/components/model-attribution-tab";
 
 // --- Priority badge ---
 
@@ -503,6 +504,12 @@ function FeatureDetailPanel({ feature, projectSlug, sprint, allFeatures, onClose
               <p className="text-xs text-muted-foreground mt-0.5">Nenhum spawn registrado</p>
             )}
           </div>
+
+          {/* Model attributions */}
+          <ModelAttributionTab
+            projectSlug={projectSlug}
+            featureId={feature.id}
+          />
 
           {/* Start spawn button */}
           {canStartSpawn && (

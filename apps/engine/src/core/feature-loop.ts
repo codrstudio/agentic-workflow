@@ -242,6 +242,26 @@ For each issue found, include a flag with: type, severity, message, file, line.`
         meta.timed_out = result.timedOut;
         await this.spawner.writeSpawnMeta(attemptDir, meta);
 
+        // Register model attribution (fire-and-forget)
+        if (ctx.hubBaseUrl && ctx.projectSlug) {
+          try {
+            await fetch(`${ctx.hubBaseUrl}/api/v1/hub/projects/${ctx.projectSlug}/model-attributions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                phase: 'ralph-wiggum-loop',
+                step_name: taskSlug,
+                model_used: resolvedModel,
+                spawn_dir: attemptDir,
+                feature_id: feature.id,
+                artifact_id: null,
+              }),
+            });
+          } catch {
+            // non-fatal: hub may not be available
+          }
+        }
+
         // Re-read features (agent may have mutated them)
         const updatedFeatures = await this.state.loadFeatures(featuresPath) as Feature[];
         const updatedFeature = updatedFeatures.find((f) => f.id === feature.id);

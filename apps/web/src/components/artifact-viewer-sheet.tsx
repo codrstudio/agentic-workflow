@@ -35,6 +35,7 @@ import {
   type ArtifactType,
   type ArtifactOrigin,
 } from "@/hooks/use-artifacts";
+import { ArtifactAttributionBadge } from "@/components/artifact-attribution-badge";
 
 const typeIcons: Record<ArtifactType, LucideIcon> = {
   document: FileText,
@@ -193,6 +194,12 @@ export function ArtifactViewerSheet({
                   {originLabels[artifact.origin]}
                 </Badge>
                 <Badge variant="outline">v{artifact.version}</Badge>
+                {artifact.origin === "harness" && (
+                  <ArtifactAttributionBadge
+                    projectSlug={projectSlug}
+                    artifactId={artifact.id}
+                  />
+                )}
               </div>
 
               {/* Editable tags */}

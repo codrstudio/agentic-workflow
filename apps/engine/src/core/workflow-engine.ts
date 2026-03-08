@@ -33,6 +33,7 @@ export interface WorkflowRunnerContext {
   sourceBranch?: string;
   targetBranch?: string;
   autoMerge?: boolean;
+  hubBaseUrl?: string;
 }
 
 export class WorkflowRunner {
@@ -434,6 +435,15 @@ export class WorkflowRunner {
       timed_out: result.timedOut,
     });
 
+    // Register model attribution (fire-and-forget, feature_id=null for spawn-agent)
+    await this.registerAttribution(ctx, {
+      phase: 'spawn-agent',
+      step_name: taskSlug,
+      model_used: resolvedModel,
+      spawn_dir: stepDir,
+      feature_id: null,
+    });
+
     return { exitCode: result.code, reason: result.code === 0 ? 'ok' : 'agent_failed' };
   }
 
@@ -497,6 +507,15 @@ export class WorkflowRunner {
       exit_code: result.code,
       timed_out: result.timedOut,
       response: result.response,
+    });
+
+    // Register model attribution (fire-and-forget, feature_id=null for spawn-agent-call)
+    await this.registerAttribution(ctx, {
+      phase: 'spawn-agent-call',
+      step_name: taskSlug,
+      model_used: resolvedModel,
+      spawn_dir: stepDir,
+      feature_id: null,
     });
 
     if (result.code !== 0) {
@@ -629,6 +648,40 @@ export class WorkflowRunner {
       timestamp: now(),
       data,
     });
+  }
+
+  /**
+   * Register a ModelOutputAttribution via POST to the hub API.
+   * Fire-and-forget: failures are non-fatal.
+   */
+  private async registerAttribution(
+    ctx: WorkflowRunnerContext,
+    opts: {
+      phase: string;
+      step_name: string;
+      model_used: string;
+      spawn_dir?: string;
+      feature_id?: string | null;
+      artifact_id?: string | null;
+    },
+  ): Promise<void> {
+    if (!ctx.hubBaseUrl || !ctx.projectSlug) return;
+    try {
+      await fetch(`${ctx.hubBaseUrl}/api/v1/hub/projects/${ctx.projectSlug}/model-attributions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phase: opts.phase,
+          step_name: opts.step_name,
+          model_used: opts.model_used,
+          spawn_dir: opts.spawn_dir ?? null,
+          feature_id: opts.feature_id ?? null,
+          artifact_id: opts.artifact_id ?? null,
+        }),
+      });
+    } catch {
+      // non-fatal: hub may not be available
+    }
   }
 }
 

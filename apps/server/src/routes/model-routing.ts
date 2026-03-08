@@ -219,6 +219,7 @@ modelRouting.get("/hub/projects/:slug/model-attributions", async (c) => {
 
   const fromFilter = c.req.query("from");
   const phaseFilter = c.req.query("phase");
+  const featureIdFilter = c.req.query("feature_id");
   const limitParam = c.req.query("limit");
   const limit = limitParam ? parseInt(limitParam, 10) : 100;
 
@@ -229,6 +230,9 @@ modelRouting.get("/hub/projects/:slug/model-attributions", async (c) => {
   }
   if (phaseFilter) {
     records = records.filter((r) => r.phase === phaseFilter);
+  }
+  if (featureIdFilter) {
+    records = records.filter((r) => r.feature_id === featureIdFilter);
   }
 
   records.sort(

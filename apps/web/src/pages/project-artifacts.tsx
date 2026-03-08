@@ -186,6 +186,7 @@ export function ProjectArtifactsPage() {
             <ArtifactCard
               key={artifact.id}
               artifact={artifact}
+              projectSlug={projectId}
               onClick={(a) => {
                 setSelectedArtifactId(a.id);
                 setSheetOpen(true);

@@ -10,6 +10,7 @@ import type { Artifact, ArtifactType, ArtifactOrigin } from "@/hooks/use-artifac
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { ArtifactAttributionBadge } from "@/components/artifact-attribution-badge";
 
 const typeIcons: Record<ArtifactType, LucideIcon> = {
   document: FileText,
@@ -43,11 +44,12 @@ function formatDate(iso: string): string {
 
 interface ArtifactCardProps {
   artifact: Artifact;
+  projectSlug?: string;
   className?: string;
   onClick?: (artifact: Artifact) => void;
 }
 
-export function ArtifactCard({ artifact, className, onClick }: ArtifactCardProps) {
+export function ArtifactCard({ artifact, projectSlug, className, onClick }: ArtifactCardProps) {
   const Icon = typeIcons[artifact.type];
   const preview = artifact.content
     ? artifact.content.slice(0, 120).replace(/\n/g, " ")
@@ -82,6 +84,12 @@ export function ArtifactCard({ artifact, className, onClick }: ArtifactCardProps
             <Badge variant="outline" className="text-[10px] px-1.5 py-0">
               v{artifact.version}
             </Badge>
+            {projectSlug && artifact.origin === "harness" && (
+              <ArtifactAttributionBadge
+                projectSlug={projectSlug}
+                artifactId={artifact.id}
+              />
+            )}
           </div>
         </div>
       </div>
