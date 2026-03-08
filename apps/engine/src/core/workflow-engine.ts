@@ -39,6 +39,7 @@ export interface WorkflowRunnerContext {
   sourceBranch?: string;
   targetBranch?: string;
   autoMerge?: boolean;
+  waveLimit?: number;
 }
 
 export class WorkflowRunner {
@@ -427,6 +428,7 @@ export class WorkflowRunner {
       case 'ralph-wiggum-loop': return 'ralph-wiggum-loop';
       case 'chain-workflow': return `chain-${step.workflow}`;
       case 'spawn-workflow': return `spawn-${step.workflow}`;
+      case 'stop-on-wave-limit': return 'stop-on-wave-limit';
     }
   }
 
@@ -540,6 +542,9 @@ export class WorkflowRunner {
 
       case 'spawn-workflow':
         return this.executeSpawnWorkflow(step.workflow, ctx);
+
+      case 'stop-on-wave-limit':
+        return this.executeStopOnWaveLimit(ctx);
 
       default:
         return { exitCode: 1, reason: 'unknown step type' };
@@ -855,6 +860,23 @@ export class WorkflowRunner {
       waveNumber: newWaveNumber,
       sprintNumber: newSprintNumber,
     });
+  }
+
+  private executeStopOnWaveLimit(ctx: WorkflowRunnerContext): { exitCode: number; reason: string } {
+    const limit = ctx.waveLimit;
+    if (!limit) {
+      return { exitCode: 0, reason: 'continue' };
+    }
+
+    if (ctx.waveNumber >= limit) {
+      const msg = `wave limit reached: wave ${ctx.waveNumber} of ${limit}`;
+      console.log(`\n  [stop-on-wave-limit] ${msg}\n`);
+      this.emitEvent('workflow:end', { reason: msg });
+      return { exitCode: 0, reason: 'decide:stop' };
+    }
+
+    console.log(`\n  [stop-on-wave-limit] wave ${ctx.waveNumber} of ${limit}, continuing\n`);
+    return { exitCode: 0, reason: 'continue' };
   }
 
   private emitEvent(type: EngineEventType, data: Record<string, unknown>): void {

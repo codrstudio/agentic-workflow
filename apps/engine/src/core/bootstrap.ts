@@ -310,6 +310,7 @@ function stepTaskName(step: import('../schemas/workflow.js').WorkflowStep): stri
     case 'ralph-wiggum-loop': return step.task;
     case 'chain-workflow': return `chain-${step.workflow}`;
     case 'spawn-workflow': return `spawn-${step.workflow}`;
+    case 'stop-on-wave-limit': return 'stop-on-wave-limit';
   }
 }
 

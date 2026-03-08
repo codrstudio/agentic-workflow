@@ -18,6 +18,7 @@ export const ProjectConfigSchema = z.object({
   target_folder: z.string().optional(),
   params: z.record(z.unknown()).optional(),
   plan: z.string().optional(),
+  wave_limit: z.number().int().positive().optional(),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;

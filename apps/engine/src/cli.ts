@@ -172,6 +172,7 @@ async function main(): Promise<void> {
     sourceBranch: result.resolvedRepoConfig?.source_branch,
     targetBranch: result.resolvedRepoConfig?.target_branch,
     autoMerge: result.resolvedRepoConfig?.auto_merge,
+    waveLimit: result.projectConfig.wave_limit,
   };
 
   // Create runner
