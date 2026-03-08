@@ -50,3 +50,29 @@ export const BottleneckEntrySchema = z.object({
 });
 
 export type BottleneckEntry = z.infer<typeof BottleneckEntrySchema>;
+
+const DelegationDistributionSchema = z.object({
+  full_ai: z.number().int().min(0),
+  majority_ai: z.number().int().min(0),
+  partial_ai: z.number().int().min(0),
+  human_driven: z.number().int().min(0),
+});
+
+const ReworkByDelegationSchema = z.object({
+  full_ai: z.number().min(0).max(1),
+  majority_ai: z.number().min(0).max(1),
+  partial_ai: z.number().min(0).max(1),
+  human_driven: z.number().min(0).max(1),
+});
+
+export const DelegationProfileSchema = z.object({
+  distribution: DelegationDistributionSchema,
+  rework_by_delegation: ReworkByDelegationSchema,
+  sweet_spot: z.string(),
+  sweet_spot_insight: z.string(),
+  total_features: z.number().int().min(0),
+  period_days: z.number().int().positive(),
+  computed_at: z.string().datetime(),
+});
+
+export type DelegationProfile = z.infer<typeof DelegationProfileSchema>;

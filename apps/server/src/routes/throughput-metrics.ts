@@ -7,6 +7,7 @@ import { type FeatureCycleRecord } from "../schemas/feature-cycle.js";
 import {
   type ThroughputMetrics,
   type BottleneckEntry,
+  type DelegationProfile,
 } from "../schemas/throughput-metrics.js";
 import { type Project } from "../schemas/project.js";
 
@@ -217,6 +218,131 @@ function computeBottlenecks(cycles: FeatureCycleRecord[]): BottleneckEntry[] {
   return bottlenecks;
 }
 
+// In-memory delegation cache
+const delegationCache = new Map<
+  string,
+  { profile: DelegationProfile; expiresAt: number }
+>();
+
+function computeDelegationProfile(
+  cycles: FeatureCycleRecord[],
+  periodDays: number
+): DelegationProfile {
+  const now = Date.now();
+  const periodStart = now - periodDays * 24 * 60 * 60 * 1000;
+  const inPeriod = cycles.filter(
+    (c) => new Date(c.started_at).getTime() >= periodStart
+  );
+
+  // Map ai_contribution to DelegationProfile keys
+  const levelMap = {
+    full: "full_ai",
+    majority: "majority_ai",
+    partial: "partial_ai",
+    none: "human_driven",
+  } as const;
+
+  // Count distribution by level
+  const distribution = { full_ai: 0, majority_ai: 0, partial_ai: 0, human_driven: 0 };
+  // Rework count per level (attempts > 1)
+  const reworkCount = { full_ai: 0, majority_ai: 0, partial_ai: 0, human_driven: 0 };
+  // Total cycle time per level (for speed metric)
+  const cycleTimeSum = { full_ai: 0, majority_ai: 0, partial_ai: 0, human_driven: 0 };
+  const cycleTimeCount = { full_ai: 0, majority_ai: 0, partial_ai: 0, human_driven: 0 };
+
+  for (const c of inPeriod) {
+    const key = levelMap[c.ai_contribution];
+    distribution[key]++;
+    if (c.attempts > 1) reworkCount[key]++;
+    if (c.cycle_time_hours !== null) {
+      cycleTimeSum[key] += c.cycle_time_hours;
+      cycleTimeCount[key]++;
+    }
+  }
+
+  // Rework rate per level
+  type LevelKey = keyof typeof distribution;
+  const reworkByDelegation = {} as Record<LevelKey, number>;
+  for (const key of Object.keys(distribution) as LevelKey[]) {
+    reworkByDelegation[key] =
+      distribution[key] > 0
+        ? Math.round((reworkCount[key] / distribution[key]) * 1000) / 1000
+        : 0;
+  }
+
+  // Sweet spot: level with best ratio quality/speed
+  // quality = 1 - rework_rate; speed = 1 / avg_cycle_time (lower time = higher speed)
+  // ratio = quality * speed = (1 - rework_rate) * (1 / avg_cycle_time)
+  // If no cycle time data, use quality only
+  let sweetSpot: string = "partial_ai";
+  let bestScore = -Infinity;
+  const levelLabels: Record<LevelKey, string> = {
+    full_ai: "full_ai",
+    majority_ai: "majority_ai",
+    partial_ai: "partial_ai",
+    human_driven: "human_driven",
+  };
+
+  for (const key of Object.keys(distribution) as LevelKey[]) {
+    if (distribution[key] === 0) continue;
+    const quality = 1 - reworkByDelegation[key];
+    const avgTime =
+      cycleTimeCount[key] > 0 ? cycleTimeSum[key] / cycleTimeCount[key] : null;
+    const speed = avgTime !== null && avgTime > 0 ? 1 / avgTime : 1;
+    const score = quality * speed;
+    if (score > bestScore) {
+      bestScore = score;
+      sweetSpot = levelLabels[key];
+    }
+  }
+
+  // Human-readable label for sweet_spot
+  const sweetSpotLabel: Record<string, string> = {
+    full_ai: "full_ai",
+    majority_ai: "majority_ai",
+    partial_ai: "partial_ai",
+    human_driven: "human_driven",
+  };
+
+  // Generate sweet_spot_insight text with percentages
+  const total = inPeriod.length;
+  const pct = (n: number) =>
+    total > 0 ? Math.round((n / total) * 100) : 0;
+
+  const sweetKey = sweetSpot as LevelKey;
+  const sweetRework = Math.round(reworkByDelegation[sweetKey] * 100);
+  const sweetPct = pct(distribution[sweetKey]);
+  const sweetAvgTime =
+    cycleTimeCount[sweetKey] > 0
+      ? Math.round((cycleTimeSum[sweetKey] / cycleTimeCount[sweetKey]) * 10) / 10
+      : null;
+
+  const readableLabel: Record<string, string> = {
+    full_ai: "Full AI",
+    majority_ai: "Majority AI",
+    partial_ai: "Partial AI",
+    human_driven: "Human-driven",
+  };
+
+  let sweetSpotInsight =
+    `${readableLabel[sweetSpot]} delegation is the sweet spot with ${sweetPct}% of features, ` +
+    `${sweetRework}% rework rate`;
+  if (sweetAvgTime !== null) {
+    sweetSpotInsight += ` and ${sweetAvgTime}h avg cycle time`;
+  }
+  sweetSpotInsight += `. Distribution: full_ai=${pct(distribution.full_ai)}%, majority_ai=${pct(distribution.majority_ai)}%, partial_ai=${pct(distribution.partial_ai)}%, human_driven=${pct(distribution.human_driven)}%.`;
+
+  return {
+    distribution,
+    rework_by_delegation: reworkByDelegation,
+    sweet_spot: sweetSpotLabel[sweetSpot] ?? sweetSpot,
+    sweet_spot_insight: sweetSpotInsight,
+    total_features: total,
+    period_days: periodDays,
+    computed_at: new Date().toISOString(),
+  };
+}
+
 // GET /hub/projects/:projectId/throughput/metrics
 throughputMetrics.get(
   "/hub/projects/:projectId/throughput/metrics",
@@ -261,6 +387,36 @@ throughputMetrics.get(
     const bottlenecks = computeBottlenecks(cycles);
 
     return c.json({ bottlenecks });
+  }
+);
+
+// GET /hub/projects/:projectId/throughput/delegation
+throughputMetrics.get(
+  "/hub/projects/:projectId/throughput/delegation",
+  async (c) => {
+    const { projectId } = c.req.param();
+    const project = await loadProject(projectId);
+    if (!project) {
+      return c.json({ error: "Project not found" }, 404);
+    }
+
+    const periodDays = parseInt(c.req.query("period_days") ?? "30", 10);
+    const cacheKey = `delegation:${projectId}:${periodDays}`;
+
+    const cached = delegationCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return c.json(cached.profile);
+    }
+
+    const cycles = await loadAllCycles(projectId);
+    const profile = computeDelegationProfile(cycles, periodDays);
+
+    delegationCache.set(cacheKey, {
+      profile,
+      expiresAt: Date.now() + CACHE_TTL_MS,
+    });
+
+    return c.json(profile);
   }
 );
 
