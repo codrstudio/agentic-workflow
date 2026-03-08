@@ -7,17 +7,25 @@ import { AgentSpawner, type SpawnMeta } from './agent-spawner.js';
 import { FeatureLoop } from './feature-loop.js';
 import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
+import { OperatorQueue } from './operator-queue.js';
+import { PlanResolver } from './plan-resolver.js';
+import { AcrInjector } from './acr-injector.js';
+import { TokenUsageReporter } from './token-usage-reporter.js';
+import { AgentActionReporter } from './agent-action-reporter.js';
 import { detectNextWave, resolveSprintForWave, setupWave } from './bootstrap.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
+import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { WorkflowState } from '../schemas/workflow-state.js';
+import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
 import { ModelResolver } from './model-resolver.js';
 
 export interface WorkflowRunnerContext {
   workflow: Workflow;
+  plan: Plan;
   projectName: string;
-  projectSlug?: string;
-  workflowSlug?: string;
+  projectSlug: string;
+  workflowSlug: string;
   workspaceDir: string;
   projectDir: string;
   repoDir: string;
@@ -33,6 +41,7 @@ export interface WorkflowRunnerContext {
   sourceBranch?: string;
   targetBranch?: string;
   autoMerge?: boolean;
+  waveLimit?: number;
   hubBaseUrl?: string;
 }
 
@@ -41,7 +50,12 @@ export class WorkflowRunner {
   readonly spawner = new AgentSpawner();
   readonly notifier = new Notifier();
   readonly renderer = new TemplateRenderer();
+  readonly planResolver = new PlanResolver();
   readonly modelResolver = new ModelResolver();
+  readonly acrInjector = new AcrInjector();
+  readonly tokenReporter = new TokenUsageReporter();
+  readonly actionReporter = new AgentActionReporter();
+  readonly operatorQueue = new OperatorQueue(this.state, this.spawner, this.notifier, this.renderer, this.acrInjector);
 
   private stopRequested = false;
 
@@ -54,6 +68,30 @@ export class WorkflowRunner {
 
     // Load existing workflow state (for resume support)
     const workflowState = await this.state.readJson<WorkflowState>(statePath);
+
+    // Sanitize stale fields from steps that didn't finish cleanly
+    if (workflowState?.steps) {
+      let dirty = false;
+      for (const step of workflowState.steps) {
+        if (step.status !== 'completed' && step.status !== 'pending') {
+          // Step was running/failed/interrupted when engine died — clear stale completion data
+          if (step.completed_at !== null || step.exit_code !== null) {
+            step.completed_at = null;
+            step.exit_code = null;
+            dirty = true;
+          }
+          // Also reset status to pending so it's cleanly re-executed
+          if (step.status === 'running') {
+            step.status = 'pending';
+            step.started_at = null;
+            dirty = true;
+          }
+        }
+      }
+      if (dirty) {
+        await this.state.writeJson(statePath, workflowState);
+      }
+    }
 
     this.emitEvent('workflow:start', {
       workflow: workflow.name,
@@ -84,10 +122,12 @@ export class WorkflowRunner {
           continue;
         }
 
-        // Update state → running
+        // Update state → running (reset stale fields from previous execution)
         await this.updateStepState(statePath, i, {
           status: 'running',
           started_at: now(),
+          completed_at: null,
+          exit_code: null,
         });
 
         this.emitEvent('workflow:step:start', {
@@ -96,10 +136,16 @@ export class WorkflowRunner {
           index: stepIndex,
         });
 
+        // Operator queue checkpoint — drain pending messages before each step
+        await this.drainOperatorQueue(ctx);
+
         const result = await this.executeStep(step, stepIndex, ctx);
 
-        // Update state → completed/failed
-        const finalStatus = result.exitCode === 0 ? 'completed' : 'failed';
+        // Update state — only mark completed if the step actually finished its work
+        const finalStatus =
+          result.reason === 'stopped' ? 'interrupted'
+          : result.exitCode === 0 ? 'completed'
+          : 'failed';
         await this.updateStepState(statePath, i, {
           status: finalStatus,
           completed_at: now(),
@@ -160,12 +206,41 @@ export class WorkflowRunner {
   }
 
   /**
+   * Enqueue an operator message for processing at the next checkpoint.
+   */
+  async enqueue(ctx: WorkflowRunnerContext, message: string, source?: string): Promise<void> {
+    const queuePath = join(ctx.workspaceDir, 'operator-queue.jsonl');
+    await this.operatorQueue.enqueue(queuePath, message, source);
+  }
+
+  /**
+   * Drain pending operator messages if any exist.
+   */
+  private async drainOperatorQueue(ctx: WorkflowRunnerContext): Promise<void> {
+    const queuePath = join(ctx.workspaceDir, 'operator-queue.jsonl');
+    if (!(await this.operatorQueue.hasPending(queuePath))) return;
+    await this.operatorQueue.drainAll(queuePath, {
+      worktreeDir: ctx.worktreeDir,
+      sprintDir: ctx.sprintDir,
+      waveDir: ctx.waveDir,
+      agentsDir: ctx.agentsDir,
+      tasksDir: ctx.tasksDir,
+      waveNumber: ctx.waveNumber,
+      sprintNumber: ctx.sprintNumber,
+      templateContext: this.buildTemplateContext(ctx),
+      project: ctx.projectName,
+      projectSlug: ctx.projectSlug,
+    });
+  }
+
+  /**
    * Spawn merge agent in background for a wave.
    * Fire-and-forget: does not block the caller.
    */
   async spawnMergeBackground(ctx: WorkflowRunnerContext): Promise<void> {
     const mergeDir = join(ctx.waveDir, 'merge');
-    const { prompt, agentName, frontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const resolved = this.resolveSpawnModelEffort('merge-worktree', taskFrontmatter, frontmatter, ctx.plan);
 
     const resolvedModel = await this.modelResolver.resolve({
       profileModel: frontmatter.model as string | undefined,
@@ -190,6 +265,16 @@ export class WorkflowRunner {
 
     await this.spawner.writeSpawnMeta(mergeDir, meta);
 
+    // Register AgentAction with hub
+    const mergeStartedAt = meta.started_at;
+    const mergeActionId = await this.actionReporter.reportStart({
+      projectSlug: ctx.projectSlug,
+      actionType: 'merge_spawn',
+      agentProfile: agentName,
+      taskName: 'merge-worktree',
+      spawnDir: mergeDir,
+    });
+
     // Fire and forget
     this.spawner.spawnAgent({
       prompt,
@@ -198,9 +283,14 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: resolvedModel,
+        model: resolved.model,
+        effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      onSpawn: (pid) => {
+        meta.pid = pid;
+        this.spawner.writeSpawnMeta(mergeDir, meta);
+      },
     }).then(async (result) => {
       meta.pid = result.pid;
       meta.finished_at = now();
@@ -212,6 +302,26 @@ export class WorkflowRunner {
         exit_code: result.code,
         timed_out: result.timedOut,
       });
+
+      // Report token usage
+      await this.tokenReporter.report({
+        projectSlug: ctx.projectSlug,
+        outputDir: mergeDir,
+        context: 'merge_agent',
+        phase: 'merge-worktree',
+        resolvedModel: resolved.model,
+      });
+
+      // Complete AgentAction
+      if (mergeActionId) {
+        await this.actionReporter.reportComplete({
+          projectSlug: ctx.projectSlug,
+          actionId: mergeActionId,
+          exitCode: result.code,
+          startedAt: mergeStartedAt,
+          outputDir: mergeDir,
+        });
+      }
 
       // After successful merge, update repo working directory to reflect latest state
       if (result.code === 0) {
@@ -233,7 +343,8 @@ export class WorkflowRunner {
    */
   async spawnMerge(ctx: WorkflowRunnerContext): Promise<{ exitCode: number }> {
     const mergeDir = join(ctx.waveDir, 'merge');
-    const { prompt, agentName, frontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const resolved = this.resolveSpawnModelEffort('merge-worktree', taskFrontmatter, frontmatter, ctx.plan);
 
     const resolvedModel = await this.modelResolver.resolve({
       profileModel: frontmatter.model as string | undefined,
@@ -258,6 +369,16 @@ export class WorkflowRunner {
 
     await this.spawner.writeSpawnMeta(mergeDir, meta);
 
+    // Register AgentAction with hub
+    const syncMergeStartedAt = meta.started_at;
+    const syncMergeActionId = await this.actionReporter.reportStart({
+      projectSlug: ctx.projectSlug,
+      actionType: 'merge_spawn',
+      agentProfile: agentName,
+      taskName: 'merge-worktree',
+      spawnDir: mergeDir,
+    });
+
     const result = await this.spawner.spawnAgent({
       prompt,
       cwd: ctx.worktreeDir,
@@ -265,9 +386,14 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: resolvedModel,
+        model: resolved.model,
+        effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      onSpawn: (pid) => {
+        meta.pid = pid;
+        this.spawner.writeSpawnMeta(mergeDir, meta);
+      },
     });
 
     meta.pid = result.pid;
@@ -281,6 +407,26 @@ export class WorkflowRunner {
       exit_code: result.code,
       timed_out: result.timedOut,
     });
+
+    // Report token usage
+    await this.tokenReporter.report({
+      projectSlug: ctx.projectSlug,
+      outputDir: mergeDir,
+      context: 'merge_agent',
+      phase: 'merge-worktree',
+      resolvedModel: resolved.model,
+    });
+
+    // Complete AgentAction
+    if (syncMergeActionId) {
+      await this.actionReporter.reportComplete({
+        projectSlug: ctx.projectSlug,
+        actionId: syncMergeActionId,
+        exitCode: result.code,
+        startedAt: syncMergeStartedAt,
+        outputDir: mergeDir,
+      });
+    }
 
     // After successful merge, update repo to target branch
     if (result.code === 0) {
@@ -302,12 +448,56 @@ export class WorkflowRunner {
       case 'ralph-wiggum-loop': return 'ralph-wiggum-loop';
       case 'chain-workflow': return `chain-${step.workflow}`;
       case 'spawn-workflow': return `spawn-${step.workflow}`;
+      case 'stop-on-wave-limit': return 'stop-on-wave-limit';
     }
   }
 
   private stepDirName(stepIndex: number, step: WorkflowStep): string {
     const nn = String(stepIndex).padStart(2, '0');
     return `step-${nn}-${this.stepSlug(step)}`;
+  }
+
+  /**
+   * Resolve model/effort for a task spawn.
+   * Priority: task frontmatter model/effort > plan tier > task tier > agent tier > env > fallback.
+   */
+  private resolveSpawnModelEffort(
+    taskSlug: string,
+    taskFrontmatter: import('../schemas/task.js').TaskFrontmatter,
+    agentFrontmatter: Record<string, unknown>,
+    plan: Plan,
+    attempt: number = 1,
+  ): { model?: string; effort?: string } {
+    // 1. Task frontmatter model/effort (explicit escape hatch)
+    if (taskFrontmatter.model || taskFrontmatter.effort) {
+      return {
+        model: taskFrontmatter.model,
+        effort: taskFrontmatter.effort,
+      };
+    }
+
+    // 2. Plan tier for this task (with escalation for attempt > 1)
+    if (plan.tiers[taskSlug]) {
+      return this.planResolver.resolveModelEffort(plan, taskSlug, attempt);
+    }
+
+    // 3. Task frontmatter tier
+    if (taskFrontmatter.tier) {
+      return TIER_MAP[taskFrontmatter.tier];
+    }
+
+    // 4. Agent frontmatter tier
+    if (agentFrontmatter.tier && typeof agentFrontmatter.tier === 'string') {
+      return TIER_MAP[agentFrontmatter.tier as TierSlug] ?? {};
+    }
+
+    // 5. Agent frontmatter model (legacy)
+    if (agentFrontmatter.model) {
+      return { model: agentFrontmatter.model as string };
+    }
+
+    // 6. Fallback — let spawner use env vars or its own defaults
+    return {};
   }
 
   private buildTemplateContext(ctx: WorkflowRunnerContext): Record<string, string> {
@@ -338,7 +528,7 @@ export class WorkflowRunner {
   private async composePrompt(
     taskSlug: string,
     ctx: WorkflowRunnerContext,
-  ): Promise<{ prompt: string; agentName: string; frontmatter: Record<string, unknown> }> {
+  ): Promise<{ prompt: string; agentName: string; frontmatter: Record<string, unknown>; taskFrontmatter: import('../schemas/task.js').TaskFrontmatter }> {
     const task = await this.spawner.resolveTask(taskSlug, ctx.tasksDir);
     const agentName = task.frontmatter.agent;
     const { frontmatter, body: agentBody } = await this.spawner.resolveAgentProfile(agentName, ctx.agentsDir);
@@ -346,9 +536,10 @@ export class WorkflowRunner {
     const templateContext = this.buildTemplateContext(ctx);
     const agentPrompt = this.renderer.render(agentBody, templateContext);
     const taskPrompt = this.renderer.render(task.body, templateContext);
-    const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}`;
+    const acrSection = await this.acrInjector.buildSection(ctx.projectSlug);
+    const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${acrSection}`;
 
-    return { prompt, agentName, frontmatter };
+    return { prompt, agentName, frontmatter, taskFrontmatter: task.frontmatter };
   }
 
   private async executeStep(
@@ -358,6 +549,9 @@ export class WorkflowRunner {
   ): Promise<{ exitCode: number; reason: string }> {
     switch (step.type) {
       case 'spawn-agent':
+        if (step.task === 'merge-worktree') {
+          return this.executeMergeWorktreeHybrid(stepIndex, ctx);
+        }
         return this.executeSpawnAgent(step.task, step.model, stepIndex, ctx);
 
       case 'spawn-agent-call':
@@ -372,6 +566,9 @@ export class WorkflowRunner {
       case 'spawn-workflow':
         return this.executeSpawnWorkflow(step.workflow, ctx);
 
+      case 'stop-on-wave-limit':
+        return this.executeStopOnWaveLimit(ctx);
+
       default:
         return { exitCode: 1, reason: 'unknown step type' };
     }
@@ -384,7 +581,8 @@ export class WorkflowRunner {
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: taskSlug }));
-    const { prompt, agentName, frontmatter } = await this.composePrompt(taskSlug, ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt(taskSlug, ctx);
+    const resolved = this.resolveSpawnModelEffort(taskSlug, taskFrontmatter, frontmatter, ctx.plan);
 
     const stepName = taskSlug;
     const resolvedModel = await this.modelResolver.resolve({
@@ -411,6 +609,16 @@ export class WorkflowRunner {
 
     await this.spawner.writeSpawnMeta(stepDir, meta);
 
+    // Register AgentAction with hub
+    const spawnStartedAt = meta.started_at;
+    const actionId = await this.actionReporter.reportStart({
+      projectSlug: ctx.projectSlug,
+      actionType: 'pipeline_phase',
+      agentProfile: agentName,
+      taskName: taskSlug,
+      spawnDir: stepDir,
+    });
+
     const result = await this.spawner.spawnAgent({
       prompt,
       cwd: ctx.worktreeDir,
@@ -418,9 +626,14 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: resolvedModel,
+        model: resolved.model,
+        effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      onSpawn: (pid) => {
+        meta.pid = pid;
+        this.spawner.writeSpawnMeta(stepDir, meta);
+      },
     });
 
     meta.pid = result.pid;
@@ -435,16 +648,184 @@ export class WorkflowRunner {
       timed_out: result.timedOut,
     });
 
-    // Register model attribution (fire-and-forget, feature_id=null for spawn-agent)
-    await this.registerAttribution(ctx, {
-      phase: 'spawn-agent',
-      step_name: taskSlug,
-      model_used: resolvedModel,
-      spawn_dir: stepDir,
-      feature_id: null,
+    // Report token usage
+    await this.tokenReporter.report({
+      projectSlug: ctx.projectSlug,
+      outputDir: stepDir,
+      context: 'pipeline_phase',
+      phase: taskSlug,
+      resolvedModel: resolved.model,
     });
 
+    // Complete AgentAction
+    if (actionId) {
+      await this.actionReporter.reportComplete({
+        projectSlug: ctx.projectSlug,
+        actionId,
+        exitCode: result.code,
+        startedAt: spawnStartedAt,
+        outputDir: stepDir,
+      });
+    }
+
     return { exitCode: result.code, reason: result.code === 0 ? 'ok' : 'agent_failed' };
+  }
+
+  /**
+   * Hybrid merge: attempts deterministic git merge, falls back to agent with JSON schema,
+   * then verifies the SHA is in target branch log.
+   */
+  private async executeMergeWorktreeHybrid(
+    stepIndex: number,
+    ctx: WorkflowRunnerContext,
+  ): Promise<{ exitCode: number; reason: string }> {
+    const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: 'merge-worktree' }));
+    const branchName = `harness/wave-${ctx.waveNumber}`;
+    const targetBranch = ctx.targetBranch ?? 'main';
+    const progressPath = join(ctx.waveDir, 'workflow-progress.txt');
+
+    // LAYER 1: Deterministic merge attempt
+    let mergedSha: string | null = null;
+    let via: 'deterministic' | 'agent' = 'deterministic';
+
+    try {
+      execSync(`git -C "${ctx.repoDir}" checkout "${targetBranch}"`, { stdio: 'pipe' });
+      execSync(`git -C "${ctx.repoDir}" merge "${branchName}" --no-ff --no-edit`, { stdio: 'pipe' });
+      mergedSha = execSync(`git -C "${ctx.repoDir}" rev-parse HEAD`, { stdio: 'pipe' }).toString().trim();
+
+      // Write spawn.json for deterministic layer
+      const meta: SpawnMeta = {
+        task: 'merge-worktree',
+        agent: 'deterministic',
+        wave: ctx.waveNumber,
+        step: stepIndex,
+        parent_pid: process.pid,
+        pid: process.pid,
+        started_at: now(),
+        finished_at: now(),
+        exit_code: 0,
+        timed_out: false,
+      };
+      await this.spawner.writeSpawnMeta(stepDir, meta);
+    } catch (err) {
+      // Abort any in-progress merge
+      try {
+        execSync(`git -C "${ctx.repoDir}" merge --abort`, { stdio: 'pipe' });
+      } catch {
+        // Ignore abort errors
+      }
+
+      // LAYER 2: Fallback to agent with JSON schema
+      via = 'agent';
+      const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('merge-worktree', ctx);
+      const resolved = this.resolveSpawnModelEffort('merge-worktree', taskFrontmatter, frontmatter, ctx.plan);
+
+      this.emitEvent('agent:spawn', { task: 'merge-worktree', agent: agentName, mode: 'hybrid' });
+
+      const meta: SpawnMeta = {
+        task: 'merge-worktree',
+        agent: agentName,
+        wave: ctx.waveNumber,
+        step: stepIndex,
+        parent_pid: process.pid,
+        pid: 0,
+        started_at: now(),
+        timed_out: false,
+      };
+
+      await this.spawner.writeSpawnMeta(stepDir, meta);
+
+      const jsonSchema = {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          merged_sha: { type: 'string' },
+          error: { type: 'string' },
+        },
+        required: ['success'],
+      };
+
+      const result = await this.spawner.spawnAgent({
+        prompt,
+        cwd: ctx.worktreeDir,
+        outputDir: stepDir,
+        agentConfig: {
+          allowedTools: frontmatter.allowedTools as string | undefined,
+          max_turns: frontmatter.max_turns as number | undefined,
+          model: resolved.model,
+          effort: resolved.effort,
+        },
+        timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+        jsonSchema,
+        onSpawn: (pid) => {
+          meta.pid = pid;
+          this.spawner.writeSpawnMeta(stepDir, meta).catch(() => {});
+        },
+      });
+
+      meta.pid = result.pid;
+      meta.finished_at = now();
+      meta.exit_code = result.code;
+      meta.timed_out = result.timedOut;
+      await this.spawner.writeSpawnMeta(stepDir, meta);
+
+      this.emitEvent('agent:exit', {
+        task: 'merge-worktree',
+        exit_code: result.code,
+        timed_out: result.timedOut,
+      });
+
+      // Fail hard if agent failed
+      if (result.code !== 0) {
+        await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: agent_failed (exit ${result.code})`);
+        return { exitCode: 1, reason: 'merge_agent_failed' };
+      }
+
+      const response = result.response as { success?: boolean; merged_sha?: string; error?: string } | undefined;
+
+      if (!response?.success) {
+        await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: agent reported failure: ${response?.error || 'unknown'}`);
+        return { exitCode: 1, reason: `merge_failed: ${response?.error || 'agent reported failure'}` };
+      }
+
+      mergedSha = response.merged_sha ?? null;
+    }
+
+    // LAYER 3: Verification - ensure SHA is in target branch log
+    if (!mergedSha) {
+      await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: no SHA to verify`);
+      return { exitCode: 1, reason: 'merge_no_sha' };
+    }
+
+    try {
+      const log = execSync(`git -C "${ctx.repoDir}" log "${targetBranch}" --oneline -50`, { stdio: 'pipe' }).toString();
+      const shortSha = mergedSha.substring(0, 7);
+      if (!log.includes(shortSha)) {
+        await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: SHA ${mergedSha} not verified in ${targetBranch}`);
+        return { exitCode: 1, reason: `merge_not_verified: SHA ${mergedSha} not in ${targetBranch}` };
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: verify error: ${msg}`);
+      return { exitCode: 1, reason: 'merge_verify_failed' };
+    }
+
+    // CLEANUP: Remove worktree and branch
+    try {
+      execSync(`git -C "${ctx.repoDir}" worktree remove "${ctx.worktreeDir}" --force`, { stdio: 'pipe' });
+    } catch {
+      // Best effort
+    }
+
+    try {
+      execSync(`git -C "${ctx.repoDir}" branch -D "${branchName}"`, { stdio: 'pipe' });
+    } catch {
+      // Best effort
+    }
+
+    await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree via=${via} sha=${mergedSha}`);
+
+    return { exitCode: 0, reason: 'ok' };
   }
 
   private async executeSpawnAgentCall(
@@ -456,7 +837,8 @@ export class WorkflowRunner {
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent-call', task: taskSlug, schema, stop_on: stopOn }));
-    const { prompt, agentName, frontmatter } = await this.composePrompt(taskSlug, ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt(taskSlug, ctx);
+    const resolved = this.resolveSpawnModelEffort(taskSlug, taskFrontmatter, frontmatter, ctx.plan);
 
     const stepName = taskSlug;
     const resolvedModel = await this.modelResolver.resolve({
@@ -483,6 +865,16 @@ export class WorkflowRunner {
 
     await this.spawner.writeSpawnMeta(stepDir, meta);
 
+    // Register AgentAction with hub
+    const callStartedAt = meta.started_at;
+    const callActionId = await this.actionReporter.reportStart({
+      projectSlug: ctx.projectSlug,
+      actionType: 'pipeline_phase',
+      agentProfile: agentName,
+      taskName: taskSlug,
+      spawnDir: stepDir,
+    });
+
     const result = await this.spawner.spawnAgent({
       prompt,
       cwd: ctx.worktreeDir,
@@ -490,10 +882,15 @@ export class WorkflowRunner {
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
-        model: resolvedModel,
+        model: resolved.model,
+        effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
       jsonSchema: schema,
+      onSpawn: (pid) => {
+        meta.pid = pid;
+        this.spawner.writeSpawnMeta(stepDir, meta);
+      },
     });
 
     meta.pid = result.pid;
@@ -509,14 +906,25 @@ export class WorkflowRunner {
       response: result.response,
     });
 
-    // Register model attribution (fire-and-forget, feature_id=null for spawn-agent-call)
-    await this.registerAttribution(ctx, {
-      phase: 'spawn-agent-call',
-      step_name: taskSlug,
-      model_used: resolvedModel,
-      spawn_dir: stepDir,
-      feature_id: null,
+    // Report token usage
+    await this.tokenReporter.report({
+      projectSlug: ctx.projectSlug,
+      outputDir: stepDir,
+      context: 'pipeline_phase',
+      phase: taskSlug,
+      resolvedModel: resolved.model,
     });
+
+    // Complete AgentAction
+    if (callActionId) {
+      await this.actionReporter.reportComplete({
+        projectSlug: ctx.projectSlug,
+        actionId: callActionId,
+        exitCode: result.code,
+        startedAt: callStartedAt,
+        outputDir: stepDir,
+      });
+    }
 
     if (result.code !== 0) {
       return { exitCode: result.code, reason: 'agent_failed' };
@@ -545,21 +953,36 @@ export class WorkflowRunner {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'ralph-wiggum-loop', task: taskSlug }));
     await mkdir(stepDir, { recursive: true });
 
-    const loop = new FeatureLoop(this.notifier);
+    // Reset stale in_progress features (from crash/restart)
+    const featuresPath = join(ctx.sprintDir, 'features.json');
+    const features = await this.state.readJson<Feature[]>(featuresPath);
+    if (features && Array.isArray(features)) {
+      let dirty = false;
+      for (const f of features) {
+        if (f.status === 'in_progress') {
+          (f as Record<string, unknown>).status = 'failing';
+          dirty = true;
+        }
+      }
+      if (dirty) {
+        await this.state.writeJson(featuresPath, features);
+      }
+    }
+
+    const loop = new FeatureLoop(this.notifier, this.acrInjector, this.tokenReporter, this.actionReporter);
     return loop.execute(taskSlug, {
       worktreeDir: ctx.worktreeDir,
       sprintDir: ctx.sprintDir,
       stepDir,
       agentsDir: ctx.agentsDir,
       tasksDir: ctx.tasksDir,
+      plan: ctx.plan,
       waveNumber: ctx.waveNumber,
       sprintNumber: ctx.sprintNumber,
       templateContext: this.buildTemplateContext(ctx),
       project: ctx.projectName,
-      stepModel,
       projectSlug: ctx.projectSlug,
-      workflowSlug: ctx.workflowSlug,
-      modelResolver: this.modelResolver,
+      onCheckpoint: () => this.drainOperatorQueue(ctx),
     });
   }
 
@@ -640,6 +1063,23 @@ export class WorkflowRunner {
       waveNumber: newWaveNumber,
       sprintNumber: newSprintNumber,
     });
+  }
+
+  private executeStopOnWaveLimit(ctx: WorkflowRunnerContext): { exitCode: number; reason: string } {
+    const limit = ctx.waveLimit;
+    if (!limit) {
+      return { exitCode: 0, reason: 'continue' };
+    }
+
+    if (ctx.waveNumber >= limit) {
+      const msg = `wave limit reached: wave ${ctx.waveNumber} of ${limit}`;
+      console.log(`\n  [stop-on-wave-limit] ${msg}\n`);
+      this.emitEvent('workflow:end', { reason: msg });
+      return { exitCode: 0, reason: 'decide:stop' };
+    }
+
+    console.log(`\n  [stop-on-wave-limit] wave ${ctx.waveNumber} of ${limit}, continuing\n`);
+    return { exitCode: 0, reason: 'continue' };
   }
 
   private emitEvent(type: EngineEventType, data: Record<string, unknown>): void {

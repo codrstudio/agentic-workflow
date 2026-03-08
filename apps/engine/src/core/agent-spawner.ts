@@ -19,9 +19,11 @@ export interface SpawnAgentParams {
     allowedTools?: string;
     max_turns?: number | string;
     model?: string;
+    effort?: string;
   };
   timeoutMs?: number;
   jsonSchema?: Record<string, unknown>;
+  onSpawn?: (pid: number) => void;
 }
 
 export interface SpawnAgentResult {
@@ -59,6 +61,9 @@ export class AgentSpawner {
       frontmatter: {
         agent: (frontmatter.agent as 'coder' | 'researcher' | 'general') ?? 'coder',
         description: (frontmatter.description as string) ?? '',
+        model: frontmatter.model as TaskFrontmatter['model'],
+        effort: frontmatter.effort as TaskFrontmatter['effort'],
+        tier: frontmatter.tier as TaskFrontmatter['tier'],
       },
       body,
     };
@@ -107,8 +112,13 @@ export class AgentSpawner {
       args.push('--max-turns', String(maxTurns));
     }
 
-    const model_used = process.env.MODEL ?? agentConfig.model ?? 'claude-sonnet-4-6';
+    const model_used = agentConfig.model ?? process.env.MODEL ?? 'sonnet';
     args.push('--model', model_used);
+
+    const effort = agentConfig.effort ?? process.env.EFFORT;
+    if (effort) {
+      args.push('--effort', effort);
+    }
 
     const logPath = join(outputDir, 'spawn.jsonl');
     const logStream = createWriteStream(logPath, { flags: 'a' });
@@ -121,6 +131,7 @@ export class AgentSpawner {
       });
 
       const pid = proc.pid ?? 0;
+      if (pid > 0 && params.onSpawn) params.onSpawn(pid);
       const stdoutChunks: Buffer[] = [];
 
       proc.stdout?.on('data', (chunk: Buffer) => {
@@ -152,8 +163,12 @@ export class AgentSpawner {
       proc.stdin?.write(prompt);
       proc.stdin?.end();
 
-      proc.on('close', (code) => {
+      proc.on('exit', (code) => {
         if (inactivityTimer) clearTimeout(inactivityTimer);
+        // Destroy streams so orphan child processes holding inherited
+        // file descriptors don't keep the pipe open forever.
+        proc.stdout?.destroy();
+        proc.stderr?.destroy();
         logStream.end();
 
         let response: unknown;

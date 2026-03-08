@@ -9,9 +9,9 @@
     "typecheck": "npm -w @aw/engine run typecheck",
     "dev:all": "concurrently \"npm -w @aw/engine run dev\" \"npm -w @arc/web run dev\" \"npm -w @arc/server run dev\"",
     "aw:run": "node apps/engine/dist/cli.js",
-    "aw:status": "node apps/engine/dist/status.js"
-  },
-  "devDependencies": {
-    "concurrently": "^9.2.1"
+    "aw:status": "node apps/engine/dist/status.js",
+    "aw:message": "node apps/engine/dist/message.js",
+    "aw:watch": "node apps/engine/dist/watch-queue.js",
+    "aw:console": "node apps/engine/dist/console.js"
   }
 }

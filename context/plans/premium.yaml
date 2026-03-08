@@ -1,0 +1,19 @@
+slug: premium
+name: Premium
+description: Maximizar qualidade — opus agressivo
+
+tiers:
+  pain-gain-analysis: thorough
+  go-no-go: balanced
+  derive-specs: max
+  derive-prps: max
+  plan-features: max
+  vibe-code: strong
+  test-fix: strong
+  wave-limit: balanced
+  merge-worktree: balanced
+  operator-message: balanced
+
+escalation:
+  vibe-code: max
+  test-fix: max

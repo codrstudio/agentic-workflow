@@ -1,0 +1,19 @@
+slug: standard
+name: Padrao
+description: Equilibrio entre custo e qualidade
+
+tiers:
+  pain-gain-analysis: thorough
+  go-no-go: cheap
+  derive-specs: strong
+  derive-prps: strong
+  plan-features: max
+  vibe-code: balanced
+  test-fix: balanced
+  wave-limit: cheap
+  merge-worktree: light
+  operator-message: balanced
+
+escalation:
+  vibe-code: max
+  test-fix: max

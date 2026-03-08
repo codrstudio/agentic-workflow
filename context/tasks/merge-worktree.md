@@ -24,3 +24,19 @@ Faca merge do trabalho da wave de volta para o repo.
    - Valide com typecheck/build apos resolver
 5. Remova a worktree com `git worktree remove`
 6. Se o merge foi bem-sucedido, delete o branch local da wave
+
+## Output
+
+Retorne exclusivamente um JSON com:
+
+```json
+{
+  "success": true,
+  "merged_sha": "abc1234def5678",
+  "error": null
+}
+```
+
+- `success`: true se o merge foi concluído com sucesso, false caso contrário
+- `merged_sha`: SHA completo do commit de merge (resultado de `git rev-parse HEAD` no repo após merge bem-sucedido)
+- `error`: null se sucesso, ou mensagem de erro descritiva se falhou

@@ -6,6 +6,11 @@ import { FeatureSelector } from './feature-selector.js';
 import { GutterDetector, type RollbackMode } from './gutter-detector.js';
 import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
+import { PlanResolver } from './plan-resolver.js';
+import type { AcrInjector } from './acr-injector.js';
+import type { TokenUsageReporter } from './token-usage-reporter.js';
+import type { AgentActionReporter } from './agent-action-reporter.js';
+import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
@@ -19,17 +24,19 @@ export interface FeatureLoopContext {
   stepDir: string;
   agentsDir: string;
   tasksDir: string;
+  plan: Plan;
   waveNumber: number;
   sprintNumber: number;
   templateContext: Record<string, string>;
   project?: string;
-  stepModel?: string;
   projectSlug?: string;
   workflowSlug?: string;
+  stepModel?: string;
   modelResolver?: ModelResolver;
   coverageGateConfig?: CoverageGateConfig;
   qualityGateConfig?: ContributionQualityGateConfig;
   hubBaseUrl?: string;
+  onCheckpoint?: () => Promise<void>;
 }
 
 export interface FeatureLoopOptions {
@@ -47,13 +54,19 @@ export class FeatureLoop {
   readonly selector = new FeatureSelector();
   readonly gutter = new GutterDetector();
   readonly renderer = new TemplateRenderer();
+  readonly planResolver = new PlanResolver();
 
   private stopRequested = false;
   private iteration = 0;
   private featuresDone = 0;
   private startedAt = now();
 
-  constructor(readonly notifier: Notifier) {}
+  constructor(
+    readonly notifier: Notifier,
+    private readonly acrInjector?: AcrInjector,
+    private readonly tokenReporter?: TokenUsageReporter,
+    private readonly actionReporter?: AgentActionReporter,
+  ) {}
 
   async execute(
     taskSlug: string,
@@ -104,7 +117,9 @@ export class FeatureLoop {
     };
 
     await writeLoopState({ status: 'starting' });
-    await this.emitEvent('loop:start', ctx, { task: taskSlug });
+
+    const initialFeatures = await this.state.loadFeatures(featuresPath) as Feature[];
+    await this.emitEvent('loop:start', ctx, { task: taskSlug, total: initialFeatures.length });
 
     const checkStop = async (): Promise<boolean> => {
       if (this.stopRequested) return true;
@@ -130,7 +145,7 @@ export class FeatureLoop {
         if (await checkStop()) {
           await writeLoopState({ status: 'exited', exit_reason: 'stopped' });
           await this.emitEvent('loop:end', ctx, { reason: 'stopped' });
-          return { exitCode: 0, reason: 'stopped' };
+          return { exitCode: 1, reason: 'stopped' };
         }
 
         const features = await this.state.loadFeatures(featuresPath) as Feature[];
@@ -172,41 +187,17 @@ export class FeatureLoop {
           feature_id: feature.id,
         });
 
-        // Compose prompt: agent body + task body with feature context
+        // Compose prompt: agent body + task body with feature context + ACR section
         const agentPrompt = this.renderer.render(agentBody, ctx.templateContext);
         const taskPrompt = this.renderer.render(task.body, ctx.templateContext);
         const featureContext = `\n\n## Feature: ${feature.id} — ${feature.name}\n\n${feature.description}\n\nTests:\n${(feature.tests ?? []).map((t) => `- ${t}`).join('\n')}`;
-        const coverageCtx = (feature as Record<string, unknown>).coverage_failure_context;
-        const coverageSuffix = typeof coverageCtx === 'string' ? `\n\n## Coverage Gate Feedback\n\n${coverageCtx}` : '';
-        const qualityCtx = (feature as Record<string, unknown>).quality_failure_context;
-        const qualitySuffix = typeof qualityCtx === 'string' ? `\n\n## Quality Gate Feedback\n\n${qualityCtx}` : '';
+        const acrSection = ctx.projectSlug && this.acrInjector
+          ? await this.acrInjector.buildSection(ctx.projectSlug)
+          : '';
+        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${acrSection}`;
 
-        // Add quality gate scoring instruction when enabled
-        let qualityGateInstruction = '';
-        if (ctx.qualityGateConfig?.enabled) {
-          qualityGateInstruction = `\n\n## Quality Gate Evaluation
-
-Beyond functional review, evaluate the contribution quality in these dimensions (0-100 each):
-
-1. **originality** (20%): absence of AI-generated boilerplate patterns
-2. **test_coverage** (30%): coverage of modified files with meaningful tests
-3. **code_duplication** (15%): absence of duplicated code (DRY violations)
-4. **security** (25%): absence of vulnerable patterns (injection, XSS, hardcoded credentials, eval, etc.)
-5. **architectural_conformance** (10%): conformance with active ACRs of the project
-
-For each issue found, include a flag with: type, severity, message, file, line.`;
-        }
-
-        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${coverageSuffix}${qualitySuffix}${qualityGateInstruction}`;
-
-        const resolver = ctx.modelResolver ?? new ModelResolver();
-        const resolvedModel = await resolver.resolve({
-          stepModel: ctx.stepModel,
-          profileModel: agentFrontmatter.model as string | undefined,
-          stepName: taskSlug,
-          projectSlug: ctx.projectSlug,
-          workflowSlug: ctx.workflowSlug,
-        });
+        // Resolve model/effort from plan with escalation support
+        const resolved = this.resolveSpawnModelEffort(taskSlug, task.frontmatter, agentFrontmatter, ctx.plan, attempt);
 
         const meta: SpawnMeta = {
           task: taskSlug,
@@ -219,10 +210,24 @@ For each issue found, include a flag with: type, severity, message, file, line.`
           pid: 0,
           started_at: now(),
           timed_out: false,
-          model_used: resolvedModel,
+          model_used: resolved.model,
         };
 
         await this.spawner.writeSpawnMeta(attemptDir, meta);
+
+        // Register AgentAction with hub
+        let featureActionId: string | null = null;
+        const featureStartedAt = meta.started_at;
+        if (this.actionReporter && ctx.projectSlug) {
+          featureActionId = await this.actionReporter.reportStart({
+            projectSlug: ctx.projectSlug,
+            actionType: 'feature_spawn',
+            agentProfile: agentName,
+            taskName: taskSlug,
+            featureId: feature.id,
+            spawnDir: attemptDir,
+          });
+        }
 
         const result = await this.spawner.spawnAgent({
           prompt,
@@ -231,9 +236,14 @@ For each issue found, include a flag with: type, severity, message, file, line.`
           agentConfig: {
             allowedTools: agentFrontmatter.allowedTools as string | undefined,
             max_turns: agentFrontmatter.max_turns as number | undefined,
-            model: resolvedModel,
+            model: resolved.model,
+            effort: resolved.effort,
           },
           timeoutMs: timeoutMs > 0 ? timeoutMs : undefined,
+          onSpawn: (pid) => {
+            meta.pid = pid;
+            this.spawner.writeSpawnMeta(attemptDir, meta);
+          },
         });
 
         meta.pid = result.pid;
@@ -242,24 +252,27 @@ For each issue found, include a flag with: type, severity, message, file, line.`
         meta.timed_out = result.timedOut;
         await this.spawner.writeSpawnMeta(attemptDir, meta);
 
-        // Register model attribution (fire-and-forget)
-        if (ctx.hubBaseUrl && ctx.projectSlug) {
-          try {
-            await fetch(`${ctx.hubBaseUrl}/api/v1/hub/projects/${ctx.projectSlug}/model-attributions`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                phase: 'ralph-wiggum-loop',
-                step_name: taskSlug,
-                model_used: resolvedModel,
-                spawn_dir: attemptDir,
-                feature_id: feature.id,
-                artifact_id: null,
-              }),
-            });
-          } catch {
-            // non-fatal: hub may not be available
-          }
+        // Report token usage
+        if (this.tokenReporter && ctx.projectSlug) {
+          await this.tokenReporter.report({
+            projectSlug: ctx.projectSlug,
+            outputDir: attemptDir,
+            context: 'feature_spawn',
+            phase: taskSlug,
+            featureId: feature.id,
+            resolvedModel: resolved.model,
+          });
+        }
+
+        // Complete AgentAction
+        if (featureActionId && ctx.projectSlug) {
+          await this.actionReporter!.reportComplete({
+            projectSlug: ctx.projectSlug,
+            actionId: featureActionId,
+            exitCode: result.code,
+            startedAt: featureStartedAt,
+            outputDir: attemptDir,
+          });
         }
 
         // Re-read features (agent may have mutated them)
@@ -395,10 +408,13 @@ For each issue found, include a flag with: type, severity, message, file, line.`
           await this.state.saveFeatures(featuresPath, updatedFeatures);
         }
 
+        // Operator queue checkpoint — drain pending messages between features
+        await ctx.onCheckpoint?.();
+
         if (await checkStop()) {
           await writeLoopState({ status: 'exited', exit_reason: 'stopped' });
           await this.emitEvent('loop:end', ctx, { reason: 'stopped' });
-          return { exitCode: 0, reason: 'stopped' };
+          return { exitCode: 1, reason: 'stopped' };
         }
 
         if (sleepBetween > 0) {
@@ -406,7 +422,7 @@ For each issue found, include a flag with: type, severity, message, file, line.`
             if (await checkStop()) {
               await writeLoopState({ status: 'exited', exit_reason: 'stopped' });
               await this.emitEvent('loop:end', ctx, { reason: 'stopped' });
-              return { exitCode: 0, reason: 'stopped' };
+              return { exitCode: 1, reason: 'stopped' };
             }
             await this.sleep(1000);
           }
@@ -424,10 +440,31 @@ For each issue found, include a flag with: type, severity, message, file, line.`
     this.stopRequested = true;
   }
 
-  /**
-   * Evaluate quality gate for a passing feature.
-   * Returns true if quality gate failed (feature set to failing).
-   */
+  private resolveSpawnModelEffort(
+    taskSlug: string,
+    taskFrontmatter: import('../schemas/task.js').TaskFrontmatter,
+    agentFrontmatter: Record<string, unknown>,
+    plan: Plan,
+    attempt: number = 1,
+  ): { model?: string; effort?: string } {
+    if (taskFrontmatter.model || taskFrontmatter.effort) {
+      return { model: taskFrontmatter.model, effort: taskFrontmatter.effort };
+    }
+    if (plan.tiers[taskSlug]) {
+      return this.planResolver.resolveModelEffort(plan, taskSlug, attempt);
+    }
+    if (taskFrontmatter.tier) {
+      return TIER_MAP[taskFrontmatter.tier];
+    }
+    if (agentFrontmatter.tier && typeof agentFrontmatter.tier === 'string') {
+      return TIER_MAP[agentFrontmatter.tier as TierSlug] ?? {};
+    }
+    if (agentFrontmatter.model) {
+      return { model: agentFrontmatter.model as string };
+    }
+    return {};
+  }
+
   private async evaluateQualityGate(
     feature: Feature,
     agentName: string,

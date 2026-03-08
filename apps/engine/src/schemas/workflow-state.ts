@@ -5,6 +5,7 @@ export const WorkflowStepStatusSchema = z.enum([
   'running',
   'completed',
   'failed',
+  'interrupted',
 ]);
 
 export const WorkflowStepStateSchema = z.object({

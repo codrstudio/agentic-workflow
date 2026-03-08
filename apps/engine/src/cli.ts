@@ -4,9 +4,14 @@ import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 import { bootstrap } from './core/bootstrap.js';
 import { WorkflowRunner, type WorkflowRunnerContext } from './core/workflow-engine.js';
+import { installCrashHandlers, setLogPath, logEvent as writeLogEvent, logInfo, logError } from './core/engine-logger.js';
 import type { EngineEvent } from './schemas/event.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Install crash handlers as early as possible — before any async work.
+// Captures uncaughtException + unhandledRejection with sync file write.
+installCrashHandlers();
 
 function usage(): void {
   console.error('Usage: aw:run <project-slug> <workflow-slug>');
@@ -46,7 +51,7 @@ function logEvent(event: EngineEvent): void {
       break;
     }
     case 'loop:start':
-      console.log(`${ts} ${chalk.magenta('loop:start')}           ${d.features ?? '?'} features`);
+      console.log(`${ts} ${chalk.magenta('loop:start')}           ${d.total ?? '?'} features`);
       break;
     case 'loop:iteration':
       console.log(`${ts} ${chalk.magenta('loop:iteration')}       round ${d.iteration}`);
@@ -55,25 +60,25 @@ function logEvent(event: EngineEvent): void {
       console.log(`${ts} ${chalk.magenta('loop:end')}             ${d.reason}`);
       break;
     case 'feature:start':
-      console.log(`${ts} ${chalk.blue('feature:start')}        ${d.feature}`);
+      console.log(`${ts} ${chalk.blue('feature:start')}        ${d.feature_id} ${d.feature_name}`);
       break;
     case 'feature:pass':
-      console.log(`${ts} ${chalk.green('feature:pass')}         ${d.feature}`);
+      console.log(`${ts} ${chalk.green('feature:pass')}         ${d.feature_id} ${d.feature_name}`);
       break;
     case 'feature:fail':
-      console.log(`${ts} ${chalk.red('feature:fail')}         ${d.feature} (attempt ${d.attempt})`);
+      console.log(`${ts} ${chalk.red('feature:fail')}         ${d.feature_id} ${d.feature_name} (retry ${d.retries})`);
       break;
     case 'feature:skip':
-      console.log(`${ts} ${chalk.yellow('feature:skip')}         ${d.feature}`);
+      console.log(`${ts} ${chalk.yellow('feature:skip')}         ${d.feature_id} ${d.feature_name}`);
       break;
     case 'gutter:retry':
-      console.log(`${ts} ${chalk.yellow('gutter:retry')}         ${d.feature} attempt ${d.attempt}`);
+      console.log(`${ts} ${chalk.yellow('gutter:retry')}         ${d.feature_id} retry ${d.retries}`);
       break;
     case 'gutter:rollback':
-      console.log(`${ts} ${chalk.red('gutter:rollback')}      ${d.feature}`);
+      console.log(`${ts} ${chalk.red('gutter:rollback')}      ${d.feature_id}`);
       break;
     case 'gutter:skip':
-      console.log(`${ts} ${chalk.red('gutter:skip')}          ${d.feature}`);
+      console.log(`${ts} ${chalk.red('gutter:skip')}          ${d.feature_id}`);
       break;
     case 'workflow:chain':
       console.log(`${ts} ${chalk.cyan('workflow:chain')}       ${d.from} -> ${d.to}`);
@@ -83,6 +88,15 @@ function logEvent(event: EngineEvent): void {
       break;
     case 'workflow:resume':
       console.log(`${ts} ${chalk.green('workflow:resume')}     step ${d.index} (${d.step}) skipped (already completed)`);
+      break;
+    case 'queue:received':
+      console.log(`${ts} ${chalk.cyan('queue:received')}      "${String(d.message).slice(0, 80)}${String(d.message).length > 80 ? '...' : ''}"`);
+      break;
+    case 'queue:processing':
+      console.log(`${ts} ${chalk.cyan('queue:processing')}    draining ${d.count} message(s)`);
+      break;
+    case 'queue:done':
+      console.log(`${ts} ${chalk.cyan('queue:done')}          agent exit=${d.exit_code}${d.timed_out ? chalk.red(' TIMEOUT') : ''}`);
       break;
     default:
       console.log(`${ts} ${chalk.gray(event.type)}  ${JSON.stringify(d)}`);
@@ -95,7 +109,18 @@ async function main(): Promise<void> {
     usage();
   }
 
-  const [projectSlug, workflowSlug] = args as [string, string];
+  // Parse --plan flag
+  let planSlug: string | undefined;
+  const positionalArgs: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--plan' && i + 1 < args.length) {
+      planSlug = args[++i];
+    } else {
+      positionalArgs.push(args[i]!);
+    }
+  }
+
+  const [projectSlug, workflowSlug] = positionalArgs as [string, string];
   const contextDir = resolve(__dirname, '..', '..', '..', 'context');
 
   console.log(chalk.cyan(`\n  agentic-workflow\n`));
@@ -104,19 +129,34 @@ async function main(): Promise<void> {
   console.log(`  context:  ${contextDir}\n`);
 
   // Bootstrap
-  const result = await bootstrap(contextDir, projectSlug, workflowSlug);
+  const result = await bootstrap(contextDir, projectSlug, workflowSlug, planSlug);
+
+  // Activate engine log file now that we know the wave dir
+  const engineLogPath = join(result.waveDir, 'engine.log');
+  setLogPath(engineLogPath);
+  logInfo('engine started', {
+    project: projectSlug,
+    workflow: workflowSlug,
+    wave: result.waveNumber,
+    sprint: result.sprintNumber,
+    plan: result.plan.slug,
+    pid: process.pid,
+    resumed: result.resumed,
+  });
 
   console.log(`  workspace: ${result.workspaceDir}`);
   console.log(`  repo:      ${result.repoDir}`);
   console.log(`  worktree:  ${result.worktreeInfo.path}`);
   console.log(`  wave:      ${result.waveNumber}${result.resumed ? chalk.yellow(' (resuming)') : ''}`);
-  console.log(`  sprint:    ${result.sprintNumber}\n`);
+  console.log(`  sprint:    ${result.sprintNumber}`);
+  console.log(`  plan:      ${result.plan.slug} (${result.plan.name})\n`);
 
   // Build context
   const ctx: WorkflowRunnerContext = {
     workflow: result.workflow,
+    plan: result.plan,
     projectName: result.projectConfig.name,
-    projectSlug,
+    projectSlug: result.projectConfig.slug,
     workflowSlug,
     workspaceDir: result.workspaceDir,
     projectDir: result.projectDir,
@@ -133,14 +173,16 @@ async function main(): Promise<void> {
     sourceBranch: result.resolvedRepoConfig?.source_branch,
     targetBranch: result.resolvedRepoConfig?.target_branch,
     autoMerge: result.resolvedRepoConfig?.auto_merge,
+    waveLimit: result.projectConfig.wave_limit,
   };
 
   // Create runner
   const runner = new WorkflowRunner();
 
-  // Attach event logger
+  // Attach event logger (console + file)
   runner.notifier.on('engine:event', (event: EngineEvent) => {
     logEvent(event);
+    writeLogEvent(event);
   });
 
   // Signal handling
@@ -154,8 +196,8 @@ async function main(): Promise<void> {
   // Execute workflow
   const execResult = await runner.execute(ctx);
 
-  // Merge worktree into target branch
-  if (execResult.exitCode === 0) {
+  // Merge worktree into target branch (skip if stopped by signal)
+  if (execResult.exitCode === 0 && execResult.reason !== 'stopped') {
     const mergeResult = await runner.spawnMerge(ctx);
 
     if (mergeResult.exitCode === 0 && result.resolvedRepoConfig) {
@@ -179,6 +221,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
+  logError('main() fatal', err);
   console.error(chalk.red(`\n  Fatal: ${err instanceof Error ? err.message : String(err)}\n`));
   process.exit(1);
 });
