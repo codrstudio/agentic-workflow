@@ -12,10 +12,11 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { Kanban, Settings, Wand2, ChevronDown, Loader2, Bot, User, HelpCircle, X, Plus, Play, ExternalLink } from "lucide-react";
+import { Kanban, Settings, Wand2, ChevronDown, Loader2, Bot, User, HelpCircle, X, Plus, Play, ExternalLink, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useBoardView,
+  useBoardConfig,
   useMoveFeature,
   useAutoRoute,
   usePatchBoardMeta,
@@ -27,6 +28,7 @@ import { useSprints } from "@/hooks/use-sprints";
 import { FeatureCostBadgeInline } from "@/components/feature-cost-badge";
 import { FeatureCostBadge } from "@/components/feature-cost-badge";
 import { ModelAttributionTab } from "@/components/model-attribution-tab";
+import { FeatureQualityPanel } from "@/components/feature-quality-panel";
 
 // --- Priority badge ---
 
@@ -143,6 +145,16 @@ function FeatureCard({ feature, isDragging, onClick }: FeatureCardProps) {
           <span className="ml-auto inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400">
             <Loader2 className="size-3 animate-spin" />
             Executando...
+          </span>
+        ) : feature.status === "passing" ? (
+          <span className="ml-auto inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+            <CheckCircle2 className="size-3.5" />
+            Passing
+          </span>
+        ) : feature.status === "failing" ? (
+          <span className="ml-auto inline-flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
+            <XCircle className="size-3.5" />
+            Failing
           </span>
         ) : (
           <span className={cn("ml-auto text-[11px] font-medium", statusCfg.className)}>
@@ -505,6 +517,13 @@ function FeatureDetailPanel({ feature, projectSlug, sprint, allFeatures, onClose
             )}
           </div>
 
+          {/* Quality panel */}
+          <FeatureQualityPanel
+            projectSlug={projectSlug}
+            sprint={sprint}
+            featureId={feature.id}
+          />
+
           {/* Model attributions */}
           <ModelAttributionTab
             projectSlug={projectSlug}
@@ -534,6 +553,54 @@ function FeatureDetailPanel({ feature, projectSlug, sprint, allFeatures, onClose
   );
 }
 
+// --- Routing rule simulator (client-side preview) ---
+
+function simulateRouting(
+  features: FeatureWithMeta[],
+  rules: { condition: string; assignee: string }[],
+  allFeatures: Map<string, FeatureWithMeta>,
+): { feature_id: string; feature_name: string; assignee: string; matched_rule: string }[] {
+  const pending = features.filter((f) => f.board_meta.assignee === "pending");
+  const result: { feature_id: string; feature_name: string; assignee: string; matched_rule: string }[] = [];
+
+  for (const feature of pending) {
+    const meta = feature.board_meta;
+    for (const rule of rules) {
+      const cond = rule.condition.trim();
+      let matches = false;
+
+      if (cond === "default") {
+        matches = true;
+      } else if (cond.startsWith("has_label:")) {
+        const label = cond.slice("has_label:".length).trim();
+        matches = (meta.labels ?? []).includes(label);
+      } else if (cond.startsWith("priority=")) {
+        matches = meta.priority === cond.slice("priority=".length).trim();
+      } else if (/^complexity\s*>\s*\d+$/.test(cond)) {
+        const threshold = parseInt(cond.replace(/\D/g, ""), 10);
+        matches = feature.priority > threshold;
+      } else if (cond === "has_dep") {
+        matches = feature.dependencies.some((depId) => {
+          const dep = allFeatures.get(depId);
+          return dep != null && dep.status !== "passing" && dep.status !== "skipped";
+        });
+      }
+
+      if (matches) {
+        result.push({
+          feature_id: feature.id,
+          feature_name: feature.name,
+          assignee: rule.assignee,
+          matched_rule: rule.condition,
+        });
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
 // --- Auto-Routing Dialog ---
 
 function AutoRoutingDialog({
@@ -545,8 +612,29 @@ function AutoRoutingDialog({
   sprint: number;
   onClose: () => void;
 }) {
+  const { data: boardView } = useBoardView(projectSlug, sprint);
+  const { data: boardConfig } = useBoardConfig(projectSlug, sprint);
   const autoRoute = useAutoRoute(projectSlug);
   const [result, setResult] = useState<{ feature_id: string; assignee: string }[] | null>(null);
+
+  // Build feature map + preview
+  const allFeatures = useMemo(() => {
+    const map = new Map<string, FeatureWithMeta>();
+    boardView?.columns.forEach((col) =>
+      col.features.forEach((f) => map.set(f.id, f)),
+    );
+    return map;
+  }, [boardView]);
+
+  const allFeaturesList = useMemo(
+    () => Array.from(allFeatures.values()),
+    [allFeatures],
+  );
+
+  const preview = useMemo(() => {
+    if (!boardConfig?.routing_rules || allFeaturesList.length === 0) return [];
+    return simulateRouting(allFeaturesList, boardConfig.routing_rules, allFeatures);
+  }, [allFeaturesList, boardConfig, allFeatures]);
 
   const handleApply = () => {
     autoRoute.mutate(
@@ -559,25 +647,43 @@ function AutoRoutingDialog({
     );
   };
 
+  const isLoading = !boardView || !boardConfig;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative bg-background rounded-lg border shadow-xl w-[420px] max-h-[70vh] overflow-y-auto p-5">
-        <h3 className="text-base font-semibold mb-3">Auto-Routing</h3>
+      <div className="relative bg-background rounded-lg border shadow-xl w-[480px] max-h-[70vh] overflow-y-auto p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold">Auto-Routing</h3>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
 
         {result ? (
           <div>
-            <p className="text-sm text-muted-foreground mb-2">
-              {result.length} feature(s) roteadas.
+            <p className="text-sm font-medium mb-2">
+              {result.length} feature(s) roteadas com sucesso.
             </p>
-            <ul className="space-y-1 mb-4">
-              {result.map((r) => (
-                <li key={r.feature_id} className="text-sm">
-                  <span className="font-mono font-bold">{r.feature_id}</span>{" "}
-                  → <span className="capitalize">{r.assignee}</span>
-                </li>
-              ))}
-            </ul>
+            {result.length > 0 ? (
+              <ul className="space-y-1.5 mb-4">
+                {result.map((r) => (
+                  <li key={r.feature_id} className="flex items-center gap-2 text-sm rounded border px-2.5 py-1.5">
+                    <span className="font-mono font-bold text-xs">{r.feature_id}</span>
+                    <span className="text-muted-foreground">→</span>
+                    <AssigneeBadge assignee={r.assignee} />
+                    <span className="capitalize text-xs">{r.assignee}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground mb-4">
+                Nenhuma feature pendente encontrada para rotear.
+              </p>
+            )}
             <button
               onClick={onClose}
               className="w-full rounded-md bg-primary text-primary-foreground py-2 text-sm font-medium"
@@ -587,24 +693,80 @@ function AutoRoutingDialog({
           </div>
         ) : (
           <div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Aplicar regras de routing automático para features com assignee pendente.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={onClose}
-                className="rounded-md border px-4 py-2 text-sm"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleApply}
-                disabled={autoRoute.isPending}
-                className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium disabled:opacity-50"
-              >
-                {autoRoute.isPending ? "Aplicando..." : "Aplicar Routing"}
-              </button>
-            </div>
+            {isLoading ? (
+              <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+                <Loader2 className="size-4 animate-spin" />
+                Carregando preview...
+              </div>
+            ) : preview.length === 0 ? (
+              <div className="py-4">
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma feature com assignee pendente encontrada, ou nenhuma regra casaria.
+                </p>
+                <div className="flex gap-2 justify-end mt-4">
+                  <button
+                    onClick={onClose}
+                    className="rounded-md border px-4 py-2 text-sm"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Preview: {preview.length} feature(s) serão roteadas pelas regras configuradas.
+                </p>
+
+                {/* Preview list */}
+                <div className="space-y-1.5 mb-4 max-h-[40vh] overflow-y-auto">
+                  {preview.map((p) => (
+                    <div
+                      key={p.feature_id}
+                      className="flex items-center gap-2 rounded border px-2.5 py-2 text-sm"
+                    >
+                      <span className="font-mono font-bold text-xs shrink-0">{p.feature_id}</span>
+                      <span className="truncate text-muted-foreground flex-1" title={p.feature_name}>
+                        {p.feature_name}
+                      </span>
+                      <span className="shrink-0 flex items-center gap-1">
+                        <AssigneeBadge assignee={p.assignee} />
+                        <span className="capitalize text-xs">{p.assignee}</span>
+                      </span>
+                      <span
+                        className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono"
+                        title={p.matched_rule}
+                      >
+                        {p.matched_rule}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={onClose}
+                    className="rounded-md border px-4 py-2 text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleApply}
+                    disabled={autoRoute.isPending}
+                    className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium disabled:opacity-50"
+                  >
+                    {autoRoute.isPending ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Aplicando...
+                      </span>
+                    ) : (
+                      `Aplicar Routing (${preview.length})`
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

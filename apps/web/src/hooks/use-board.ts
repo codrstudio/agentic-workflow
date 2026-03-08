@@ -75,6 +75,7 @@ export function useBoardView(projectSlug: string, sprint: number) {
       ),
     enabled: sprint > 0,
     staleTime: 15_000,
+    refetchInterval: 15_000,
   });
 }
 
