@@ -26,6 +26,7 @@ import { ACRListPage } from "@/pages/acr-list";
 import { ACRDetailPage } from "@/pages/acr-detail";
 import { CostDashboardPage } from "@/pages/cost-dashboard";
 import { HandoffListPage } from "@/pages/handoff-list";
+import { AgenticBoardPage } from "@/pages/agentic-board";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -216,6 +217,17 @@ const projectCostRoute = createRoute({
   staticData: { breadcrumb: "Cost" },
 });
 
+// /projects/$projectId/harness/board (F-161)
+const projectBoardRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/harness/board",
+  component: AgenticBoardPage,
+  staticData: { breadcrumb: "Board" },
+  validateSearch: (search: Record<string, unknown>) => ({
+    sprint: (search.sprint as string) || undefined,
+  }),
+});
+
 // /projects/$projectId/settings
 const projectSettingsRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -267,6 +279,7 @@ const routeTree = rootRoute.addChildren([
         reviewPanelRoute,
         projectMetricsRoute,
         projectCostRoute,
+        projectBoardRoute,
         projectSettingsRoute,
         mcpServerDetailRoute,
       ]),
