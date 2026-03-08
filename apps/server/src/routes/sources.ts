@@ -18,6 +18,11 @@ import {
   PatchCodebaseGraphConfigBody,
   type CodebaseGraphConfig,
 } from "../schemas/codebase-graph-config.js";
+import {
+  CreateContextBody,
+  type GraphContextSnapshot,
+} from "../schemas/graph-context-snapshot.js";
+import { readdir } from "node:fs/promises";
 
 const sources = new Hono();
 
@@ -802,6 +807,297 @@ sources.post("/hub/projects/:slug/sources/:id/index/merge-hook", async (c) => {
   runIndexing(slug, id, graphCfg, jobId);
 
   return c.json({ triggered: true, job_id: jobId }, 202);
+});
+
+// --- Context extraction: snapshot persistence ---
+
+function snapshotsDir(slug: string): string {
+  return path.join(projectDir(slug), "graph-context-snapshots");
+}
+
+function snapshotDatePath(slug: string, date: string): string {
+  return path.join(snapshotsDir(slug), `${date}.json`);
+}
+
+function todayDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+async function loadDaySnapshots(
+  slug: string,
+  date: string
+): Promise<GraphContextSnapshot[]> {
+  try {
+    return await readJSON<GraphContextSnapshot[]>(snapshotDatePath(slug, date));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found")) return [];
+    throw err;
+  }
+}
+
+async function saveDaySnapshots(
+  slug: string,
+  date: string,
+  snapshots: GraphContextSnapshot[]
+): Promise<void> {
+  await ensureDir(snapshotsDir(slug));
+  await writeJSON(snapshotDatePath(slug, date), snapshots);
+}
+
+// --- Feature lookup for auto endpoint ---
+
+interface FeatureEntry {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+
+async function findFeatureName(
+  slug: string,
+  featureId: string
+): Promise<string | null> {
+  const sprintsRoot = path.join(projectDir(slug), "sprints");
+  try {
+    const dirs = await readdir(sprintsRoot);
+    const sprintDirs = dirs
+      .filter((d) => d.startsWith("sprint-"))
+      .sort((a, b) => {
+        const numA = parseInt(a.replace("sprint-", ""), 10);
+        const numB = parseInt(b.replace("sprint-", ""), 10);
+        return numB - numA;
+      });
+
+    for (const dir of sprintDirs) {
+      try {
+        const features = await readJSON<FeatureEntry[]>(
+          path.join(sprintsRoot, dir, "features.json")
+        );
+        const feature = features.find((f) => f.id === featureId);
+        if (feature) return feature.name;
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    // no sprints dir
+  }
+  return null;
+}
+
+// --- MCP context search ---
+
+async function callMcpSearch(
+  graphCfg: CodebaseGraphConfig,
+  query: string
+): Promise<{ context_markdown: string; nodes_retrieved: number }> {
+  const client = new McpClient({
+    transport: "sse",
+    args: [],
+    env: {},
+    url: graphCfg.mcp_server_url,
+  });
+
+  try {
+    await client.connect();
+
+    // Use second tool if available (first is typically "index"), else "search"
+    const toolName =
+      graphCfg.mcp_tools.length > 1
+        ? graphCfg.mcp_tools[1]!
+        : graphCfg.mcp_tools.length > 0
+          ? graphCfg.mcp_tools[0]!
+          : "search";
+
+    const result = (await client.callTool(toolName, { query })) as {
+      content?: Array<{ text?: string }>;
+      context_markdown?: string;
+      nodes_retrieved?: number;
+    };
+
+    let contextMarkdown = result.context_markdown ?? "";
+    let nodesRetrieved = result.nodes_retrieved ?? 0;
+
+    // Some MCP servers return results inside content[].text as JSON
+    if (!contextMarkdown && result.content?.length) {
+      try {
+        const parsed = JSON.parse(result.content[0]?.text ?? "{}") as {
+          context_markdown?: string;
+          nodes_retrieved?: number;
+        };
+        contextMarkdown = parsed.context_markdown ?? result.content[0]?.text ?? "";
+        nodesRetrieved = parsed.nodes_retrieved ?? nodesRetrieved;
+      } catch {
+        // If not JSON, use raw text as markdown
+        contextMarkdown = result.content[0]?.text ?? "";
+      }
+    }
+
+    return { context_markdown: contextMarkdown, nodes_retrieved: nodesRetrieved };
+  } finally {
+    try {
+      await client.disconnect();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// POST /hub/projects/:slug/sources/:id/context — extract context via MCP
+sources.post("/hub/projects/:slug/sources/:id/context", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const all = await loadSources(slug);
+  const source = all.find((s) => s.id === id);
+  if (!source) return c.json({ error: "Source not found" }, 404);
+  if (source.type !== "codebase_graph") {
+    return c.json({ error: "Source is not of type codebase_graph" }, 400);
+  }
+
+  const graphCfg = await loadGraphConfig(slug, id);
+  if (!graphCfg) return c.json({ error: "Graph config not found" }, 404);
+
+  // Validate index_status=ready
+  if (graphCfg.index_status !== "ready") {
+    return c.json(
+      {
+        error: "Index is not ready",
+        detail: `Current index_status is '${graphCfg.index_status}'. Index must be in 'ready' state to extract context.`,
+      },
+      422
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = CreateContextBody.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      { error: "Validation failed", details: parsed.error.flatten() },
+      400
+    );
+  }
+
+  const { query, feature_id } = parsed.data;
+
+  // Call MCP search
+  const { context_markdown, nodes_retrieved } = await callMcpSearch(
+    graphCfg,
+    query
+  );
+
+  const now = new Date().toISOString();
+  const snapshot: GraphContextSnapshot = {
+    id: randomUUID(),
+    project_id: project.id,
+    source_id: id,
+    feature_id: feature_id ?? null,
+    query,
+    context_markdown,
+    nodes_retrieved,
+    generated_at: now,
+    ttl_seconds: 3600,
+  };
+
+  // Persist snapshot
+  const date = todayDate();
+  const daySnapshots = await loadDaySnapshots(slug, date);
+  daySnapshots.push(snapshot);
+  await saveDaySnapshots(slug, date, daySnapshots);
+
+  return c.json(snapshot, 201);
+});
+
+// GET /hub/projects/:slug/sources/:id/context/auto — auto context with TTL cache
+sources.get("/hub/projects/:slug/sources/:id/context/auto", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+  const featureId = c.req.query("feature_id");
+  const phase = c.req.query("phase") ?? "implementation";
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const all = await loadSources(slug);
+  const source = all.find((s) => s.id === id);
+  if (!source) return c.json({ error: "Source not found" }, 404);
+  if (source.type !== "codebase_graph") {
+    return c.json({ error: "Source is not of type codebase_graph" }, 400);
+  }
+
+  const graphCfg = await loadGraphConfig(slug, id);
+  if (!graphCfg) return c.json({ error: "Graph config not found" }, 404);
+
+  if (graphCfg.index_status !== "ready") {
+    return c.json(
+      {
+        error: "Index is not ready",
+        detail: `Current index_status is '${graphCfg.index_status}'. Index must be in 'ready' state.`,
+      },
+      422
+    );
+  }
+
+  // Search for cached snapshot within TTL
+  if (featureId) {
+    const now = Date.now();
+    const date = todayDate();
+    const daySnapshots = await loadDaySnapshots(slug, date);
+
+    const cached = daySnapshots.find((s) => {
+      if (s.source_id !== id || s.feature_id !== featureId) return false;
+      const generatedAt = new Date(s.generated_at).getTime();
+      const expiresAt = generatedAt + s.ttl_seconds * 1000;
+      return expiresAt > now;
+    });
+
+    if (cached) {
+      return c.json({ ...cached, cached: true });
+    }
+  }
+
+  // Build auto query from feature name + phase
+  let featureTitle = featureId ?? "general";
+  if (featureId) {
+    const name = await findFeatureName(slug, featureId);
+    if (name) featureTitle = name;
+  }
+  const autoQuery = `${featureTitle} ${phase}`;
+
+  // Call MCP search
+  const { context_markdown, nodes_retrieved } = await callMcpSearch(
+    graphCfg,
+    autoQuery
+  );
+
+  const now = new Date().toISOString();
+  const snapshot: GraphContextSnapshot = {
+    id: randomUUID(),
+    project_id: project.id,
+    source_id: id,
+    feature_id: featureId ?? null,
+    query: autoQuery,
+    context_markdown,
+    nodes_retrieved,
+    generated_at: now,
+    ttl_seconds: 3600,
+  };
+
+  // Persist snapshot
+  const date = todayDate();
+  const daySnapshots = await loadDaySnapshots(slug, date);
+  daySnapshots.push(snapshot);
+  await saveDaySnapshots(slug, date, daySnapshots);
+
+  return c.json({ ...snapshot, cached: false }, 201);
 });
 
 export { sources };
