@@ -27,6 +27,7 @@ import { ACRDetailPage } from "@/pages/acr-detail";
 import { CostDashboardPage } from "@/pages/cost-dashboard";
 import { HandoffListPage } from "@/pages/handoff-list";
 import { AgenticBoardPage } from "@/pages/agentic-board";
+import { PipelineModelConfigPage } from "@/pages/pipeline-model-config";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -217,6 +218,14 @@ const projectCostRoute = createRoute({
   staticData: { breadcrumb: "Cost" },
 });
 
+// /projects/$projectId/harness/pipeline/model-config (F-166)
+const pipelineModelConfigRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/harness/pipeline/model-config",
+  component: PipelineModelConfigPage,
+  staticData: { breadcrumb: "Model Config" },
+});
+
 // /projects/$projectId/harness/board (F-161)
 const projectBoardRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -280,6 +289,7 @@ const routeTree = rootRoute.addChildren([
         projectMetricsRoute,
         projectCostRoute,
         projectBoardRoute,
+        pipelineModelConfigRoute,
         projectSettingsRoute,
         mcpServerDetailRoute,
       ]),
