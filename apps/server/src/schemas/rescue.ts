@@ -1,0 +1,76 @@
+import { z } from "zod";
+
+export const RescuePhaseEnum = z.enum([
+  "audit",
+  "reverse_spec",
+  "gap_analysis",
+  "remediation",
+  "execution",
+  "validation",
+]);
+
+export const RescueProjectSchema = z.object({
+  id: z.string().uuid(),
+  project_id: z.string().uuid(),
+  name: z.string(),
+  source_path: z.string(),
+  phase: RescuePhaseEnum.default("audit"),
+  phases_completed: z.array(z.string()).default([]),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const CreateRescueProjectBody = z.object({
+  name: z.string(),
+  source_path: z.string(),
+});
+
+export const PatchRescueProjectBody = z.object({
+  name: z.string().optional(),
+  source_path: z.string().optional(),
+  phase: RescuePhaseEnum.optional(),
+});
+
+export type RescueProject = z.infer<typeof RescueProjectSchema>;
+
+// CodebaseAudit
+
+export const AuditIssueSeverityEnum = z.enum(["critical", "high", "medium", "low"]);
+
+export const AuditIssueSchema = z.object({
+  category: z.string(),
+  severity: AuditIssueSeverityEnum,
+  description: z.string(),
+  file_path: z.string().nullable(),
+});
+
+export const AuditMetricsSchema = z.object({
+  files: z.number(),
+  lines: z.number(),
+  languages: z.array(z.string()),
+});
+
+export const AuditHealthSchema = z.object({
+  has_tests: z.boolean(),
+  test_coverage_estimate: z.enum(["low", "medium", "high"]).nullable(),
+  has_ci_cd: z.boolean(),
+  has_documentation: z.boolean(),
+  has_type_safety: z.boolean(),
+  dependency_health: z.enum(["healthy", "outdated", "vulnerable"]),
+});
+
+export const RescueDifficultyEnum = z.enum(["low", "medium", "high", "extreme"]);
+
+export const CodebaseAuditSchema = z.object({
+  id: z.string().uuid(),
+  rescue_id: z.string().uuid(),
+  metrics: AuditMetricsSchema,
+  health: AuditHealthSchema,
+  issues: z.array(AuditIssueSchema),
+  ai_summary: z.string(),
+  rescue_difficulty: RescueDifficultyEnum,
+  estimated_effort_hours: z.number(),
+  created_at: z.string(),
+});
+
+export type CodebaseAudit = z.infer<typeof CodebaseAuditSchema>;
