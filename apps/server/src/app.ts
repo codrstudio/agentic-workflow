@@ -46,6 +46,7 @@ import { mentoringProfiles } from "./routes/mentoring-profiles.js";
 import { driftEvents } from "./routes/drift-events.js";
 import { throughputMetrics } from "./routes/throughput-metrics.js";
 import { roi } from "./routes/roi.js";
+import { learningCheckpoints } from "./routes/learning-checkpoints.js";
 
 const app = new Hono();
 
@@ -101,5 +102,6 @@ app.route("/api/v1", mentoringProfiles);
 app.route("/api/v1", driftEvents);
 app.route("/api/v1", throughputMetrics);
 app.route("/api/v1", roi);
+app.route("/api/v1", learningCheckpoints);
 
 export { app };
