@@ -7,11 +7,15 @@
   "scripts": {
     "build": "npm -w @aw/engine run build",
     "typecheck": "npm -w @aw/engine run typecheck",
-    "dev:all": "concurrently \"npm -w @aw/engine run dev\" \"npm -w @arc/web run dev\" \"npm -w @arc/server run dev\"",
-    "aw:run": "node apps/engine/dist/cli.js",
-    "aw:status": "node apps/engine/dist/status.js",
-    "aw:message": "node apps/engine/dist/message.js",
-    "aw:watch": "node apps/engine/dist/watch-queue.js",
-    "aw:console": "node apps/engine/dist/console.js"
+    "dev:all": "dotenv -e .env -- concurrently \"npm -w @aw/engine run dev\" \"npm -w @arc/web run dev\" \"npm -w @arc/server run dev\"",
+    "aw:run": "dotenv -e .env -- node apps/engine/dist/cli.js",
+    "aw:status": "dotenv -e .env -- node apps/engine/dist/status.js",
+    "aw:message": "dotenv -e .env -- node apps/engine/dist/message.js",
+    "aw:watch": "dotenv -e .env -- node apps/engine/dist/watch-queue.js",
+    "aw:console": "dotenv -e .env -- node apps/engine/dist/console.js",
+    "env:show": "dotenv -e .env -p SERVER_PORT && dotenv -e .env -p WEB_PORT && dotenv -e .env -p PREFIX"
+  },
+  "devDependencies": {
+    "dotenv-cli": "^7.4.2"
   }
 }
