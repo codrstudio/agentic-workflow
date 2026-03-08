@@ -1,13 +1,17 @@
 {
   "name": "agentic-workflow",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "build": "npm -w @aw/engine run build",
     "typecheck": "npm -w @aw/engine run typecheck",
-    "dev": "npm -w @aw/engine run dev",
-    "dev:all": "npm -w @arc/server run dev & npm -w @arc/web run dev",
+    "dev:all": "concurrently \"npm -w @aw/engine run dev\" \"npm -w @arc/web run dev\" \"npm -w @arc/server run dev\"",
     "aw:run": "node apps/engine/dist/cli.js",
     "aw:status": "node apps/engine/dist/status.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
