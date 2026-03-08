@@ -5,11 +5,22 @@ export interface ContextProfile {
   id: string;
   project_id: string;
   name: string;
-  description?: string;
-  source_ids: string[];
+  description: string | null;
   is_default: boolean;
+  included_sources: string[];
+  included_categories: string[];
+  excluded_sources: string[];
+  token_budget: number;
+  current_token_count: number;
+  density_score: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface ApplyProfileResult {
+  applied: boolean;
+  token_count: number;
+  sources_included: string[];
 }
 
 export const profileKeys = {
@@ -20,7 +31,7 @@ export const profileKeys = {
 export function useContextProfiles(projectSlug: string) {
   return useQuery({
     queryKey: profileKeys.list(projectSlug),
-    queryFn: () => apiFetch<ContextProfile[]>(`/hub/projects/${projectSlug}/context-profiles`),
+    queryFn: () => apiFetch<ContextProfile[]>(`/hub/projects/${projectSlug}/context/profiles`),
   });
 }
 
@@ -30,10 +41,13 @@ export function useCreateProfile(projectSlug: string) {
     mutationFn: (body: {
       name: string;
       description?: string;
-      source_ids: string[];
       is_default?: boolean;
+      included_sources?: string[];
+      included_categories?: string[];
+      excluded_sources?: string[];
+      token_budget?: number;
     }) =>
-      apiFetch<ContextProfile>(`/hub/projects/${projectSlug}/context-profiles`, {
+      apiFetch<ContextProfile>(`/hub/projects/${projectSlug}/context/profiles`, {
         method: "POST",
         body: JSON.stringify(body),
       }),
@@ -50,11 +64,14 @@ export function useUpdateProfile(projectSlug: string) {
       id: string;
       name?: string;
       description?: string;
-      source_ids?: string[];
       is_default?: boolean;
+      included_sources?: string[];
+      included_categories?: string[];
+      excluded_sources?: string[];
+      token_budget?: number;
     }) =>
-      apiFetch<ContextProfile>(`/hub/projects/${projectSlug}/context-profiles/${id}`, {
-        method: "PATCH",
+      apiFetch<ContextProfile>(`/hub/projects/${projectSlug}/context/profiles/${id}`, {
+        method: "PUT",
         body: JSON.stringify(body),
       }),
     onSuccess: () => {
@@ -67,9 +84,23 @@ export function useDeleteProfile(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      apiFetch<void>(`/hub/projects/${projectSlug}/context-profiles/${id}`, {
+      apiFetch<void>(`/hub/projects/${projectSlug}/context/profiles/${id}`, {
         method: "DELETE",
       }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileKeys.all(projectSlug) });
+    },
+  });
+}
+
+export function useApplyProfile(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (profileId: string) =>
+      apiFetch<ApplyProfileResult>(
+        `/hub/projects/${projectSlug}/context/profiles/${profileId}/apply`,
+        { method: "POST", body: JSON.stringify({}) }
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: profileKeys.all(projectSlug) });
     },

@@ -3,6 +3,8 @@ import type { Source } from "@/hooks/use-sources";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryBadge } from "@/components/category-badge";
+import { SourceDensityBadge } from "@/components/source-density-badge";
+import type { SourceDensityMetrics } from "@/hooks/use-context-density";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
@@ -37,9 +39,10 @@ interface SourceCardProps {
   className?: string;
   onClick?: (source: Source) => void;
   onConfigureContext?: (source: Source) => void;
+  densityMetrics?: SourceDensityMetrics;
 }
 
-export function SourceCard({ source, className, onClick, onConfigureContext }: SourceCardProps) {
+export function SourceCard({ source, className, onClick, onConfigureContext, densityMetrics }: SourceCardProps) {
   const Icon = typeIcons[source.type];
   const preview = source.content
     ? source.content.slice(0, 120).replace(/\n/g, " ")
@@ -88,6 +91,9 @@ export function SourceCard({ source, className, onClick, onConfigureContext }: S
               </h3>
               {source.pinned && (
                 <Pin className="h-3.5 w-3.5 shrink-0 text-amber-500" aria-label="Pinned" />
+              )}
+              {densityMetrics && (
+                <SourceDensityBadge metrics={densityMetrics} />
               )}
             </div>
             <div className="flex items-center gap-1.5 mt-0.5">

@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useParams } from "@tanstack/react-router";
 import { FileText, Plus, Search } from "lucide-react";
 import { useSources, useUpdateSource, type Source, type SourceCategory } from "@/hooks/use-sources";
+import { useSourceDensity } from "@/hooks/use-context-density";
 import { SourceCard, SourceGridSkeleton } from "@/components/source-card";
 import { CodebaseGraphSourceCard } from "@/components/codebase-graph-source-card";
 import { SourceViewerSheet } from "@/components/source-viewer-sheet";
@@ -22,21 +23,38 @@ const SOURCE_TYPES: { value: Source["type"] | "all"; label: string }[] = [
   { value: "codebase_graph", label: "Codebase Graph" },
 ];
 
+type SortKey = "default" | "density" | "tokens" | "usage" | "relevance";
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: "default", label: "Default" },
+  { value: "density", label: "Density" },
+  { value: "tokens", label: "Tokens" },
+  { value: "usage", label: "Usage" },
+  { value: "relevance", label: "Relevance" },
+];
+
 export function ProjectSourcesPage() {
   const { projectId } = useParams({
     from: "/_authenticated/projects/$projectId/sources",
   });
   const { data: sources, isLoading, isError, error } = useSources(projectId);
+  const { data: densityMetrics } = useSourceDensity(projectId);
   const updateSource = useUpdateSource(projectId);
   const isMobile = useIsMobile();
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<Source["type"] | "all">("all");
+  const [sortBy, setSortBy] = useState<SortKey>("default");
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(null);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [settingsSource, setSettingsSource] = useState<Source | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const densityMap = useMemo(() => {
+    if (!densityMetrics) return new Map<string, (typeof densityMetrics)[0]>();
+    return new Map(densityMetrics.map((d) => [d.source_id, d]));
+  }, [densityMetrics]);
 
   const handleSourceClick = (source: Source) => {
     setSelectedSourceId(source.id);
@@ -72,8 +90,28 @@ export function ProjectSourcesPage() {
       result = result.filter((s) => s.type === typeFilter);
     }
 
+    if (sortBy !== "default" && densityMetrics) {
+      result = [...result].sort((a, b) => {
+        const ma = densityMap.get(a.id);
+        const mb = densityMap.get(b.id);
+        if (sortBy === "density") {
+          return (mb?.information_density ?? 0) - (ma?.information_density ?? 0);
+        }
+        if (sortBy === "tokens") {
+          return (mb?.token_count ?? 0) - (ma?.token_count ?? 0);
+        }
+        if (sortBy === "usage") {
+          return (mb?.usage_count ?? 0) - (ma?.usage_count ?? 0);
+        }
+        if (sortBy === "relevance") {
+          return (mb?.relevance_score ?? 0) - (ma?.relevance_score ?? 0);
+        }
+        return 0;
+      });
+    }
+
     return result;
-  }, [sources, search, typeFilter]);
+  }, [sources, search, typeFilter, sortBy, densityMetrics, densityMap]);
 
   const hasNoSources = !isLoading && !isError && sources && sources.length === 0;
   const hasNoResults = !isLoading && !isError && sources && sources.length > 0 && filtered.length === 0;
@@ -120,6 +158,17 @@ export function ProjectSourcesPage() {
               </option>
             ))}
           </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortKey)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                Sort: {o.label}
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
@@ -162,7 +211,13 @@ export function ProjectSourcesPage() {
             source.type === "codebase_graph" ? (
               <CodebaseGraphSourceCard key={source.id} source={source} />
             ) : (
-              <SourceCard key={source.id} source={source} onClick={handleSourceClick} onConfigureContext={handleConfigureContext} />
+              <SourceCard
+                key={source.id}
+                source={source}
+                onClick={handleSourceClick}
+                onConfigureContext={handleConfigureContext}
+                densityMetrics={densityMap.get(source.id)}
+              />
             )
           )}
         </div>

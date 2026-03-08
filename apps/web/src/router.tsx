@@ -40,6 +40,7 @@ import { ThroughputDashboardPage } from "@/pages/throughput-dashboard";
 import { ROIDashboardPage } from "@/pages/roi-dashboard";
 import { RescueWizardPage } from "@/pages/rescue-wizard";
 import { CognitiveDebtDashboardPage } from "@/pages/cognitive-debt-dashboard";
+import { ContextProfileManagerPage } from "@/pages/context-profile-manager";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -344,6 +345,14 @@ const projectThroughputRoute = createRoute({
   staticData: { breadcrumb: "Throughput" },
 });
 
+// /projects/$projectId/sources/profiles (F-226)
+const contextProfileManagerRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/sources/profiles",
+  component: ContextProfileManagerPage,
+  staticData: { breadcrumb: "Context Profiles" },
+});
+
 // /projects/$projectId/metrics/cognitive-debt (F-218)
 const cognitiveDebtDashboardRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -392,6 +401,7 @@ const routeTree = rootRoute.addChildren([
       projectRoute.addChildren([
         projectIndexRoute,
         projectSourcesRoute,
+        contextProfileManagerRoute,
         projectChatRoute,
         chatSessionRoute,
         projectArtifactsRoute,
