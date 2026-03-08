@@ -63,3 +63,83 @@ export const CreateSecurityScanBody = z.object({
 });
 
 export type CreateSecurityScanBody = z.infer<typeof CreateSecurityScanBody>;
+
+// SecurityFinding
+export const SeverityEnum = z.enum(["critical", "high", "medium", "low", "info"]);
+export type Severity = z.infer<typeof SeverityEnum>;
+
+export const CategoryEnum = z.enum([
+  "injection",
+  "auth",
+  "data_exposure",
+  "xss",
+  "insecure_config",
+  "hardcoded_secrets",
+  "path_traversal",
+  "other",
+]);
+export type Category = z.infer<typeof CategoryEnum>;
+
+export const ResolutionEnum = z.enum(["open", "fixed", "accepted_risk", "false_positive"]);
+export type Resolution = z.infer<typeof ResolutionEnum>;
+
+export const SecurityFindingSchema = z.object({
+  id: z.string().uuid(),
+  project_id: z.string().uuid(),
+  scan_id: z.string().uuid(),
+  feature_id: z.string().nullable().default(null),
+  severity: SeverityEnum,
+  category: CategoryEnum,
+  title: z.string(),
+  description: z.string(),
+  file_path: z.string().nullable().default(null),
+  line_number: z.number().int().nullable().default(null),
+  suggested_fix: z.string().nullable().default(null),
+  resolution: ResolutionEnum.default("open"),
+  resolution_note: z.string().nullable().default(null),
+  resolved_at: z.string().datetime().nullable().default(null),
+  created_at: z.string().datetime(),
+});
+
+export type SecurityFinding = z.infer<typeof SecurityFindingSchema>;
+
+export const CreateSecurityFindingBody = z.object({
+  scan_id: z.string().uuid(),
+  feature_id: z.string().nullable().optional(),
+  severity: SeverityEnum,
+  category: CategoryEnum,
+  title: z.string(),
+  description: z.string(),
+  file_path: z.string().nullable().optional(),
+  line_number: z.number().int().nullable().optional(),
+  suggested_fix: z.string().nullable().optional(),
+});
+
+export type CreateSecurityFindingBody = z.infer<typeof CreateSecurityFindingBody>;
+
+export const PatchSecurityFindingBody = z.object({
+  resolution: ResolutionEnum.optional(),
+  resolution_note: z.string().nullable().optional(),
+}).refine(
+  (data) => {
+    if (data.resolution === "accepted_risk" && !data.resolution_note) return false;
+    return true;
+  },
+  { message: "resolution_note is required when resolution is accepted_risk" }
+);
+
+export type PatchSecurityFindingBody = z.infer<typeof PatchSecurityFindingBody>;
+
+export const GateCheckBody = z.object({
+  feature_id: z.string(),
+});
+
+export type GateCheckBody = z.infer<typeof GateCheckBody>;
+
+export const GateCheckResponse = z.object({
+  passed: z.boolean(),
+  blockers: z.array(SecurityFindingSchema),
+  summary: z.string(),
+});
+
+export type GateCheckResponse = z.infer<typeof GateCheckResponse>;
