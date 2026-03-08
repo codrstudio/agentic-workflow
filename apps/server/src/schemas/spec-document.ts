@@ -136,3 +136,21 @@ export const TriggerReviewBody = z.object({
 });
 
 export type TriggerReviewBody = z.infer<typeof TriggerReviewBody>;
+
+// SpecCoverageReport
+
+export const SpecCoverageReportSchema = z.object({
+  total_specs: z.number().int().nonnegative(),
+  specs_by_status: z.record(z.string(), z.number()),
+  total_discoveries: z.number().int().nonnegative(),
+  discoveries_covered: z.number().int().nonnegative(),
+  discoveries_uncovered: z.array(z.string()),
+  coverage_ratio: z.number(),
+  specs_without_features: z.array(z.string()),
+  features_without_spec: z.array(z.string()),
+  avg_review_score: z.number(),
+  specs_not_reviewed: z.array(z.string()),
+  computed_at: z.string().datetime(),
+});
+
+export type SpecCoverageReport = z.infer<typeof SpecCoverageReportSchema>;

@@ -15,10 +15,15 @@ import {
   type SpecDocument,
   type SpecIndex,
   type SpecReviewResult,
+  type SpecCoverageReport,
 } from "../schemas/spec-document.js";
 import { type Project } from "../schemas/project.js";
 
 const specs = new Hono();
+
+// In-memory coverage cache: projectSlug -> { report, expiresAt }
+const coverageCache = new Map<string, { report: SpecCoverageReport; expiresAt: number }>();
+const COVERAGE_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 function projectDir(slug: string): string {
   return path.join(config.projectsDir, slug);
@@ -219,6 +224,102 @@ specs.post("/hub/projects/:slug/specs", async (c) => {
   await writeJSON(specIndexPath(slug), updatedIndex);
 
   return c.json(doc, 201);
+});
+
+// GET /hub/projects/:slug/specs/coverage — must be before /:specId to avoid param capture
+specs.get("/hub/projects/:slug/specs/coverage", async (c) => {
+  const slug = c.req.param("slug");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const cached = coverageCache.get(slug);
+  if (cached && cached.expiresAt > Date.now()) {
+    return c.json(cached.report);
+  }
+
+  const [allSpecs, allReviews, allDiscoveryIds, allFeatureIds] = await Promise.all([
+    loadAllSpecs(slug),
+    loadAllSpecReviews(slug),
+    loadRankingDiscoveries(slug),
+    loadProjectFeatureIds(slug),
+  ]);
+
+  // specs_by_status
+  const specsByStatus: Record<string, number> = {};
+  for (const spec of allSpecs) {
+    specsByStatus[spec.status] = (specsByStatus[spec.status] ?? 0) + 1;
+  }
+
+  // discoveries coverage
+  const coveredDiscoveryIds = new Set<string>();
+  for (const spec of allSpecs) {
+    for (const dId of spec.discoveries) {
+      if (/^D-\d+$/.test(dId)) coveredDiscoveryIds.add(dId);
+    }
+  }
+
+  const allDiscoverySet = new Set(allDiscoveryIds);
+  for (const id of coveredDiscoveryIds) {
+    allDiscoverySet.add(id);
+  }
+
+  const totalDiscoveries = allDiscoverySet.size;
+  const discoveriesCovered = coveredDiscoveryIds.size;
+  const discoveriesUncovered = [...allDiscoverySet].filter((id) => !coveredDiscoveryIds.has(id)).sort();
+  const coverageRatio = totalDiscoveries > 0 ? discoveriesCovered / totalDiscoveries : 0;
+
+  // specs_without_features: slugs of specs with empty derived_features
+  const specsWithoutFeatures = allSpecs
+    .filter((s) => s.derived_features.length === 0)
+    .map((s) => s.slug)
+    .sort();
+
+  // features_without_spec: F-XXX IDs not referenced in any spec's derived_features
+  const specLinkedFeatures = new Set<string>();
+  for (const spec of allSpecs) {
+    for (const fId of spec.derived_features) {
+      specLinkedFeatures.add(fId);
+    }
+  }
+  const allFeatureSet = new Set(allFeatureIds);
+  for (const fId of specLinkedFeatures) {
+    allFeatureSet.add(fId);
+  }
+  const featuresWithoutSpec = [...allFeatureSet]
+    .filter((id) => !specLinkedFeatures.has(id))
+    .sort();
+
+  // avg_review_score: avg of review_score for specs that have a non-null score
+  const specsWithScore = allSpecs.filter((s) => s.review_score !== null);
+  const avgReviewScore =
+    specsWithScore.length > 0
+      ? specsWithScore.reduce((sum, s) => sum + (s.review_score ?? 0), 0) / specsWithScore.length
+      : 0;
+
+  // specs_not_reviewed: slugs of specs with no review files
+  const reviewedSpecIds = new Set(allReviews.map((r) => r.spec_id));
+  const specsNotReviewed = allSpecs
+    .filter((s) => !reviewedSpecIds.has(s.id))
+    .map((s) => s.slug)
+    .sort();
+
+  const report: SpecCoverageReport = {
+    total_specs: allSpecs.length,
+    specs_by_status: specsByStatus,
+    total_discoveries: totalDiscoveries,
+    discoveries_covered: discoveriesCovered,
+    discoveries_uncovered: discoveriesUncovered,
+    coverage_ratio: coverageRatio,
+    specs_without_features: specsWithoutFeatures,
+    features_without_spec: featuresWithoutSpec,
+    avg_review_score: avgReviewScore,
+    specs_not_reviewed: specsNotReviewed,
+    computed_at: new Date().toISOString(),
+  };
+
+  coverageCache.set(slug, { report, expiresAt: Date.now() + COVERAGE_CACHE_TTL_MS });
+
+  return c.json(report);
 });
 
 // GET /hub/projects/:slug/specs/:specId
@@ -445,5 +546,50 @@ specs.get("/hub/projects/:slug/specs/:specId/context", async (c) => {
 
   return c.json({ spec, reviews, related_acrs: relatedAcrs });
 });
+
+async function loadAllSpecReviews(slug: string): Promise<SpecReviewResult[]> {
+  const dir = specReviewsDirPath(slug);
+  let files: string[];
+  try {
+    const entries = await readdir(dir);
+    files = entries.filter((f) => f.endsWith(".json")).sort();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("ENOENT") || msg.includes("not found")) return [];
+    throw err;
+  }
+  const result: SpecReviewResult[] = [];
+  for (const file of files) {
+    try {
+      const r = await readJSON<SpecReviewResult>(path.join(dir, file));
+      result.push(r);
+    } catch {
+      // skip malformed
+    }
+  }
+  return result;
+}
+
+async function loadRankingDiscoveries(slug: string): Promise<string[]> {
+  const rankingPath = path.join(projectDir(slug), "ranking.json");
+  try {
+    const data = await readJSON<{ discoveries?: Array<{ id: string }> }>(rankingPath);
+    if (!data.discoveries) return [];
+    return data.discoveries.map((d) => d.id).filter((id) => /^D-\d+$/.test(id));
+  } catch {
+    return [];
+  }
+}
+
+async function loadProjectFeatureIds(slug: string): Promise<string[]> {
+  const featuresPath = path.join(projectDir(slug), "features.json");
+  try {
+    const data = await readJSON<Array<{ id: string }>>(featuresPath);
+    if (!Array.isArray(data)) return [];
+    return data.map((f) => f.id).filter((id) => /^F-\d+$/.test(id));
+  } catch {
+    return [];
+  }
+}
 
 export { specs };
