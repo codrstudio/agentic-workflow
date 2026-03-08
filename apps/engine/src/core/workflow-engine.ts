@@ -10,6 +10,7 @@ import { TemplateRenderer } from './template-renderer.js';
 import { OperatorQueue } from './operator-queue.js';
 import { PlanResolver } from './plan-resolver.js';
 import { AcrInjector } from './acr-injector.js';
+import { TokenUsageReporter } from './token-usage-reporter.js';
 import { detectNextWave, resolveSprintForWave, setupWave } from './bootstrap.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
@@ -46,6 +47,7 @@ export class WorkflowRunner {
   readonly renderer = new TemplateRenderer();
   readonly planResolver = new PlanResolver();
   readonly acrInjector = new AcrInjector();
+  readonly tokenReporter = new TokenUsageReporter();
   readonly operatorQueue = new OperatorQueue(this.state, this.spawner, this.notifier, this.renderer, this.acrInjector);
 
   private stopRequested = false;
@@ -276,6 +278,15 @@ export class WorkflowRunner {
         timed_out: result.timedOut,
       });
 
+      // Report token usage
+      await this.tokenReporter.report({
+        projectSlug: ctx.projectSlug,
+        outputDir: mergeDir,
+        context: 'merge_agent',
+        phase: 'merge-worktree',
+        resolvedModel: resolved.model,
+      });
+
       // After successful merge, update repo working directory to reflect latest state
       if (result.code === 0) {
         try {
@@ -341,6 +352,15 @@ export class WorkflowRunner {
       task: 'merge-worktree',
       exit_code: result.code,
       timed_out: result.timedOut,
+    });
+
+    // Report token usage
+    await this.tokenReporter.report({
+      projectSlug: ctx.projectSlug,
+      outputDir: mergeDir,
+      context: 'merge_agent',
+      phase: 'merge-worktree',
+      resolvedModel: resolved.model,
     });
 
     // After successful merge, update repo to target branch
@@ -535,6 +555,15 @@ export class WorkflowRunner {
       timed_out: result.timedOut,
     });
 
+    // Report token usage
+    await this.tokenReporter.report({
+      projectSlug: ctx.projectSlug,
+      outputDir: stepDir,
+      context: 'pipeline_phase',
+      phase: taskSlug,
+      resolvedModel: resolved.model,
+    });
+
     return { exitCode: result.code, reason: result.code === 0 ? 'ok' : 'agent_failed' };
   }
 
@@ -595,6 +624,15 @@ export class WorkflowRunner {
       response: result.response,
     });
 
+    // Report token usage
+    await this.tokenReporter.report({
+      projectSlug: ctx.projectSlug,
+      outputDir: stepDir,
+      context: 'pipeline_phase',
+      phase: taskSlug,
+      resolvedModel: resolved.model,
+    });
+
     if (result.code !== 0) {
       return { exitCode: result.code, reason: 'agent_failed' };
     }
@@ -637,7 +675,7 @@ export class WorkflowRunner {
       }
     }
 
-    const loop = new FeatureLoop(this.notifier, this.acrInjector);
+    const loop = new FeatureLoop(this.notifier, this.acrInjector, this.tokenReporter);
     return loop.execute(taskSlug, {
       worktreeDir: ctx.worktreeDir,
       sprintDir: ctx.sprintDir,

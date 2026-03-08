@@ -8,6 +8,7 @@ import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
 import { PlanResolver } from './plan-resolver.js';
 import type { AcrInjector } from './acr-injector.js';
+import type { TokenUsageReporter } from './token-usage-reporter.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
@@ -50,7 +51,7 @@ export class FeatureLoop {
   private featuresDone = 0;
   private startedAt = now();
 
-  constructor(readonly notifier: Notifier, private readonly acrInjector?: AcrInjector) {}
+  constructor(readonly notifier: Notifier, private readonly acrInjector?: AcrInjector, private readonly tokenReporter?: TokenUsageReporter) {}
 
   async execute(
     taskSlug: string,
@@ -220,6 +221,18 @@ export class FeatureLoop {
         meta.exit_code = result.code;
         meta.timed_out = result.timedOut;
         await this.spawner.writeSpawnMeta(attemptDir, meta);
+
+        // Report token usage
+        if (this.tokenReporter && ctx.projectSlug) {
+          await this.tokenReporter.report({
+            projectSlug: ctx.projectSlug,
+            outputDir: attemptDir,
+            context: 'feature_spawn',
+            phase: taskSlug,
+            featureId: feature.id,
+            resolvedModel: resolved.model,
+          });
+        }
 
         // Re-read features (agent may have mutated them)
         const updatedFeatures = await this.state.loadFeatures(featuresPath) as Feature[];
