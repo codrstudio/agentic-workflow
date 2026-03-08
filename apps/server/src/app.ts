@@ -39,6 +39,7 @@ import { testCoverageResults } from "./routes/test-coverage-results.js";
 import { contributionQualityResults } from "./routes/contribution-quality-results.js";
 import { learningMode } from "./routes/learning-mode.js";
 import { containmentPolicies } from "./routes/containment-policies.js";
+import { specs } from "./routes/specs.js";
 
 const app = new Hono();
 
@@ -87,5 +88,6 @@ app.route("/api/v1", testCoverageResults);
 app.route("/api/v1", contributionQualityResults);
 app.route("/api/v1", learningMode);
 app.route("/api/v1", containmentPolicies);
+app.route("/api/v1", specs);
 
 export { app };
