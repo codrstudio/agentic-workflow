@@ -50,3 +50,17 @@ Produza `{sprint}/1-brainstorming/ranking.json` acumulando todas as discoveries:
 - ACUMULAR todas as discoveries de todos os sprints (anteriores + atual)
 - Reclassificar discoveries existentes (atualizar `last_reclassified_at`)
 - Preservar `implemented_at` para discoveries ja implementadas
+
+## Output
+
+Retorne exclusivamente um JSON com:
+
+```json
+{
+  "stop": false,
+  "reason": "Justificativa de uma linha"
+}
+```
+
+- `stop: true` apenas quando os critérios indicam STOP (maioria de discoveries baixas, sem altas implementadas)
+- `reason` deve ser descritivo (ex: "Todas as discoveries abaixo de 3, nenhuma acima de 7 implementada" ou "Discoveries de alto valor pendentes de implementação")
