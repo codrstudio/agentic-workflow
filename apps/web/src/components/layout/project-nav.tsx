@@ -1,6 +1,7 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { ArrowRightLeft, BarChart3, ClipboardCheck, FileText, GitBranch, Kanban, MessageSquare, Package, ScrollText, Settings, Shield } from "lucide-react";
+import { ArrowRightLeft, BarChart3, ClipboardCheck, FileText, GitBranch, Kanban, Layers, MessageSquare, Package, ScrollText, Settings, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ProjectThroughputBadge } from "@/components/project-throughput-badge";
 
 const tabs = [
   { label: "Sources", to: "/projects/$projectId/sources" as const, icon: FileText },
@@ -12,6 +13,7 @@ const tabs = [
   { label: "Pipeline", to: "/projects/$projectId/pipeline" as const, icon: GitBranch },
   { label: "Reviews", to: "/projects/$projectId/reviews" as const, icon: ClipboardCheck },
   { label: "Metrics", to: "/projects/$projectId/metrics" as const, icon: BarChart3 },
+  { label: "Throughput", to: "/projects/$projectId/throughput" as const, icon: Layers },
   { label: "Containment", to: "/projects/$projectId/containment" as const, icon: Shield },
   { label: "Security", to: "/projects/$projectId/security" as const, icon: Shield },
   { label: "Settings", to: "/projects/$projectId/settings" as const, icon: Settings },
@@ -40,6 +42,9 @@ export function ProjectNav() {
           {tab.label}
         </Link>
       ))}
+      <div className="ml-auto pl-2 shrink-0">
+        <ProjectThroughputBadge projectId={projectId} />
+      </div>
     </nav>
   );
 }

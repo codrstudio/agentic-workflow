@@ -36,6 +36,7 @@ import { ContainmentPoliciesPage } from "@/pages/containment-policies";
 import { SecurityDashboardPage } from "@/pages/security-dashboard";
 import { SpecListPage } from "@/pages/spec-list";
 import { SpecDetailPage } from "@/pages/spec-detail";
+import { ThroughputDashboardPage } from "@/pages/throughput-dashboard";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -332,6 +333,14 @@ const specDetailRoute = createRoute({
   staticData: { breadcrumb: "Spec Detail" },
 });
 
+// /projects/$projectId/throughput (F-193)
+const projectThroughputRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/throughput",
+  component: ThroughputDashboardPage,
+  staticData: { breadcrumb: "Throughput" },
+});
+
 // /harness
 const harnessRoute = createRoute({
   getParentRoute: () => authenticatedLayout,
@@ -379,6 +388,7 @@ const routeTree = rootRoute.addChildren([
         mcpServerDetailRoute,
         projectSpecsRoute,
         specDetailRoute,
+        projectThroughputRoute,
       ]),
     ]),
     harnessRoute.addChildren([harnessDetailRoute]),
