@@ -10,10 +10,17 @@ import {
   ReviewPipelineSchema,
   CreateReviewPipelineBodySchema,
   TriggerReviewBodySchema,
+  ReviewConfigSchema,
+  UpdateReviewConfigBodySchema,
+  ReviewQueueMetricsSchema,
+  MetricsCacheSchema,
   type ReviewPipeline,
   type AgentConfig,
   type AgentResult,
   type Finding,
+  type ReviewConfig,
+  type ReviewQueueMetrics,
+  type MetricsCache,
 } from "../schemas/review-pipeline.js";
 import { type Project } from "../schemas/project.js";
 
@@ -75,7 +82,8 @@ async function listAllReviewPipelines(slug: string): Promise<ReviewPipeline[]> {
   let files: string[];
   try {
     const entries = await readdir(dir);
-    files = entries.filter((f) => f.endsWith(".json"));
+    const EXCLUDED = new Set(["config.json", "queue-metrics-cache.json"]);
+    files = entries.filter((f) => f.endsWith(".json") && !EXCLUDED.has(f));
   } catch {
     return [];
   }
@@ -373,7 +381,235 @@ reviewPipelines.post(
   },
 );
 
+// ---- Config helpers ----
+
+function reviewConfigPath(slug: string): string {
+  return path.join(projectDir(slug), "review-pipelines", "config.json");
+}
+
+function metricsCachePath(slug: string): string {
+  return path.join(projectDir(slug), "review-pipelines", "queue-metrics-cache.json");
+}
+
+const DEFAULT_REVIEW_CONFIG: ReviewConfig = {
+  agents_config: DEFAULT_AGENTS_CONFIG,
+  auto_trigger: false,
+  updated_at: null,
+};
+
+async function loadReviewConfig(slug: string): Promise<ReviewConfig> {
+  try {
+    return await readJSON<ReviewConfig>(reviewConfigPath(slug));
+  } catch {
+    return DEFAULT_REVIEW_CONFIG;
+  }
+}
+
+async function saveReviewConfig(slug: string, config: ReviewConfig): Promise<void> {
+  await ensureDir(path.join(projectDir(slug), "review-pipelines"));
+  await writeJSON(reviewConfigPath(slug), config);
+}
+
+// ---- Metrics computation ----
+
+const METRICS_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function computeMetrics(reviews: ReviewPipeline[]): ReviewQueueMetrics {
+  const queuedOrRunning = reviews.filter(
+    (r) => r.status === "queued" || r.status === "running",
+  );
+
+  const completed = reviews.filter((r) => r.status === "completed");
+
+  // avg_wait_time_minutes: avg (started_at - created_at) for reviews that started
+  const started = reviews.filter((r) => r.started_at !== null);
+  const avgWait =
+    started.length > 0
+      ? started.reduce((acc, r) => {
+          const wait =
+            (new Date(r.started_at!).getTime() -
+              new Date(r.created_at).getTime()) /
+            60000;
+          return acc + wait;
+        }, 0) / started.length
+      : 0;
+
+  // avg_review_duration_minutes: avg (completed_at - started_at)
+  const completedWithBoth = completed.filter(
+    (r) => r.started_at !== null && r.completed_at !== null,
+  );
+  const avgDuration =
+    completedWithBoth.length > 0
+      ? completedWithBoth.reduce((acc, r) => {
+          const dur =
+            (new Date(r.completed_at!).getTime() -
+              new Date(r.started_at!).getTime()) /
+            60000;
+          return acc + dur;
+        }, 0) / completedWithBoth.length
+      : 0;
+
+  // pass_rate and escalation_rate
+  const passRate =
+    completed.length > 0
+      ? (completed.filter((r) => r.overall_verdict === "pass").length /
+          completed.length) *
+        100
+      : 0;
+
+  const escalationRate =
+    completed.length > 0
+      ? (completed.filter((r) => r.human_review_required).length /
+          completed.length) *
+        100
+      : 0;
+
+  // findings_by_severity
+  const bySeverity = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+  for (const review of reviews) {
+    for (const result of review.results) {
+      for (const finding of result.findings) {
+        const sev = finding.severity as keyof typeof bySeverity;
+        if (sev in bySeverity) bySeverity[sev]++;
+      }
+    }
+  }
+
+  // findings_by_agent
+  const agentTypes = ["security", "quality", "spec_compliance", "architecture"] as const;
+  const byAgent = agentTypes.map((agentType) => {
+    const agentResults = reviews.flatMap((r) =>
+      r.results.filter((res) => res.agent_type === agentType),
+    );
+    const reviewsWithAgent = agentResults.length;
+    const totalFindings = agentResults.reduce(
+      (acc, res) => acc + res.findings_count,
+      0,
+    );
+    const criticalFindings = agentResults.reduce(
+      (acc, res) => acc + res.critical_findings,
+      0,
+    );
+    return {
+      agent_type: agentType,
+      total_findings: totalFindings,
+      critical_findings: criticalFindings,
+      avg_findings_per_review:
+        reviewsWithAgent > 0 ? totalFindings / reviewsWithAgent : 0,
+    };
+  });
+
+  return ReviewQueueMetricsSchema.parse({
+    queue_size: queuedOrRunning.length,
+    avg_wait_time_minutes: Math.round(avgWait * 100) / 100,
+    avg_review_duration_minutes: Math.round(avgDuration * 100) / 100,
+    pass_rate: Math.round(passRate * 100) / 100,
+    escalation_rate: Math.round(escalationRate * 100) / 100,
+    false_positive_rate: 0,
+    findings_by_severity: bySeverity,
+    findings_by_agent: byAgent,
+    computed_at: new Date().toISOString(),
+  });
+}
+
+async function loadCachedMetrics(slug: string): Promise<ReviewQueueMetrics | null> {
+  try {
+    const cache = await readJSON<MetricsCache>(metricsCachePath(slug));
+    const age = Date.now() - new Date(cache.cached_at).getTime();
+    if (age < METRICS_TTL_MS) return cache.metrics;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveCachedMetrics(slug: string, metrics: ReviewQueueMetrics): Promise<void> {
+  const cache: MetricsCache = MetricsCacheSchema.parse({
+    metrics,
+    cached_at: new Date().toISOString(),
+  });
+  await ensureDir(path.join(projectDir(slug), "review-pipelines"));
+  await writeJSON(metricsCachePath(slug), cache);
+}
+
+// ---- Config routes ----
+
+// GET /hub/projects/:projectId/review-pipelines/config
+reviewPipelines.get(
+  "/hub/projects/:projectId/review-pipelines/config",
+  async (c) => {
+    const slug = c.req.param("projectId");
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    const reviewConfig = await loadReviewConfig(slug);
+    return c.json(reviewConfig);
+  },
+);
+
+// PUT /hub/projects/:projectId/review-pipelines/config
+reviewPipelines.put(
+  "/hub/projects/:projectId/review-pipelines/config",
+  async (c) => {
+    const slug = c.req.param("projectId");
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const parsed = UpdateReviewConfigBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json(
+        { error: "Validation failed", details: parsed.error.flatten() },
+        400,
+      );
+    }
+
+    const existing = await loadReviewConfig(slug);
+    const updated: ReviewConfig = ReviewConfigSchema.parse({
+      agents_config: parsed.data.agents_config ?? existing.agents_config,
+      auto_trigger:
+        parsed.data.auto_trigger !== undefined
+          ? parsed.data.auto_trigger
+          : existing.auto_trigger,
+      updated_at: new Date().toISOString(),
+    });
+
+    await saveReviewConfig(slug, updated);
+    return c.json(updated);
+  },
+);
+
+// ---- Metrics route ----
+
+// GET /hub/projects/:projectId/review-pipelines/metrics
+reviewPipelines.get(
+  "/hub/projects/:projectId/review-pipelines/metrics",
+  async (c) => {
+    const slug = c.req.param("projectId");
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    // Try cache first
+    const cached = await loadCachedMetrics(slug);
+    if (cached) return c.json(cached);
+
+    // Compute fresh metrics
+    const allReviews = await listAllReviewPipelines(slug);
+    const metrics = computeMetrics(allReviews);
+
+    await saveCachedMetrics(slug, metrics);
+    return c.json(metrics);
+  },
+);
+
 // GET /hub/projects/:projectId/review-pipelines/:reviewId — get single review
+// NOTE: must be registered AFTER /config and /metrics to avoid wildcard collision
 reviewPipelines.get(
   "/hub/projects/:projectId/review-pipelines/:reviewId",
   async (c) => {

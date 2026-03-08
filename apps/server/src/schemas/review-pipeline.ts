@@ -90,3 +90,56 @@ export const TriggerReviewBodySchema = z.object({
   diff_ref: z.string().optional(),
 });
 export type TriggerReviewBody = z.infer<typeof TriggerReviewBodySchema>;
+
+// ---- Review Config ----
+
+export const ReviewConfigSchema = z.object({
+  agents_config: z.array(AgentConfigSchema),
+  auto_trigger: z.boolean().default(false),
+  updated_at: z.string().datetime().nullable().default(null),
+});
+export type ReviewConfig = z.infer<typeof ReviewConfigSchema>;
+
+export const UpdateReviewConfigBodySchema = z.object({
+  agents_config: z.array(AgentConfigSchema).optional(),
+  auto_trigger: z.boolean().optional(),
+});
+export type UpdateReviewConfigBody = z.infer<typeof UpdateReviewConfigBodySchema>;
+
+// ---- Review Queue Metrics ----
+
+export const FindingsBySeveritySchema = z.object({
+  critical: z.number().int().default(0),
+  high: z.number().int().default(0),
+  medium: z.number().int().default(0),
+  low: z.number().int().default(0),
+  info: z.number().int().default(0),
+});
+export type FindingsBySeverity = z.infer<typeof FindingsBySeveritySchema>;
+
+export const FindingsByAgentSchema = z.object({
+  agent_type: AgentTypeEnum,
+  total_findings: z.number().int().default(0),
+  critical_findings: z.number().int().default(0),
+  avg_findings_per_review: z.number().default(0),
+});
+export type FindingsByAgent = z.infer<typeof FindingsByAgentSchema>;
+
+export const ReviewQueueMetricsSchema = z.object({
+  queue_size: z.number().int().default(0),
+  avg_wait_time_minutes: z.number().default(0),
+  avg_review_duration_minutes: z.number().default(0),
+  pass_rate: z.number().default(0),
+  escalation_rate: z.number().default(0),
+  false_positive_rate: z.number().default(0),
+  findings_by_severity: FindingsBySeveritySchema,
+  findings_by_agent: z.array(FindingsByAgentSchema),
+  computed_at: z.string().datetime(),
+});
+export type ReviewQueueMetrics = z.infer<typeof ReviewQueueMetricsSchema>;
+
+export const MetricsCacheSchema = z.object({
+  metrics: ReviewQueueMetricsSchema,
+  cached_at: z.string().datetime(),
+});
+export type MetricsCache = z.infer<typeof MetricsCacheSchema>;

@@ -1,0 +1,1 @@
+{"agents_config":[{"type":"security","enabled":true,"priority":1},{"type":"quality","enabled":true,"priority":2},{"type":"spec_compliance","enabled":true,"priority":3},{"type":"architecture","enabled":true,"priority":4}],"auto_trigger":false,"updated_at":null}
