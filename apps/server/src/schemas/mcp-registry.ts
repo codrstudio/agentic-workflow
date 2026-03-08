@@ -54,3 +54,85 @@ export const UpdateMCPServerRegistrySchema = z.object({
 
 export type MCPServerRegistry = z.infer<typeof MCPServerRegistrySchema>;
 export type McpTool = z.infer<typeof McpToolSchema>;
+
+// --- MCP Audit Log ---
+
+export const MCPAuditLogStatusEnum = z.enum(["success", "error", "denied", "timeout"]);
+
+export const MCPAuditLogSchema = z.object({
+  id: z.string().uuid(),
+  project_id: z.string().uuid(),
+  server_id: z.string().uuid(),
+  server_name: z.string(),
+  tool_name: z.string(),
+  agent_type: z.string(),
+  session_id: z.string().nullable().default(null),
+  feature_id: z.string().nullable().default(null),
+  status: MCPAuditLogStatusEnum,
+  latency_ms: z.number().int(),
+  cost_usd: z.number().nullable().default(null),
+  input_summary: z.string().nullable().default(null),
+  output_summary: z.string().nullable().default(null),
+  error_message: z.string().nullable().default(null),
+  timestamp: z.string(),
+});
+
+export const CreateMCPAuditLogSchema = z.object({
+  server_id: z.string().uuid(),
+  server_name: z.string(),
+  tool_name: z.string(),
+  agent_type: z.string(),
+  session_id: z.string().nullable().optional(),
+  feature_id: z.string().nullable().optional(),
+  status: MCPAuditLogStatusEnum,
+  latency_ms: z.number().int(),
+  cost_usd: z.number().nullable().optional(),
+  input_summary: z.string().nullable().optional(),
+  output_summary: z.string().nullable().optional(),
+  error_message: z.string().nullable().optional(),
+});
+
+export type MCPAuditLog = z.infer<typeof MCPAuditLogSchema>;
+
+// --- MCP Governance Metrics ---
+
+export const MCPServerMetricsSchema = z.object({
+  server_id: z.string().uuid(),
+  server_name: z.string(),
+  calls: z.number().int(),
+  cost_usd: z.number(),
+  error_rate: z.number(),
+  avg_latency_ms: z.number(),
+});
+
+export const MCPAgentMetricsSchema = z.object({
+  agent_type: z.string(),
+  calls: z.number().int(),
+  cost_usd: z.number(),
+  servers_used: z.array(z.string()),
+});
+
+export const MCPTopToolSchema = z.object({
+  tool_name: z.string(),
+  server_name: z.string(),
+  calls: z.number().int(),
+  cost_usd: z.number(),
+});
+
+export const MCPGovernanceMetricsSchema = z.object({
+  total_calls: z.number().int(),
+  total_cost_usd: z.number(),
+  error_rate: z.number(),
+  denied_calls: z.number().int(),
+  by_server: z.array(MCPServerMetricsSchema),
+  by_agent: z.array(MCPAgentMetricsSchema),
+  top_tools: z.array(MCPTopToolSchema),
+});
+
+export const MCPMetricsCacheSchema = z.object({
+  metrics: MCPGovernanceMetricsSchema,
+  cached_at: z.string(),
+});
+
+export type MCPGovernanceMetrics = z.infer<typeof MCPGovernanceMetricsSchema>;
+export type MCPMetricsCache = z.infer<typeof MCPMetricsCacheSchema>;
