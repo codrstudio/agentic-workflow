@@ -30,6 +30,18 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
   { key: "cancelled", label: "Cancelados", icon: XCircle },
 ];
 
+function stepFromStatus(status: HandoffStatus): number {
+  switch (status) {
+    case "draft": return 1;
+    case "generating_spec":
+    case "spec_ready": return 2;
+    case "generating_prp":
+    case "prp_ready": return 3;
+    case "enqueued": return 4;
+    default: return 1;
+  }
+}
+
 function filterByTab(requests: HandoffRequest[], tab: Tab): HandoffRequest[] {
   switch (tab) {
     case "in_progress":
@@ -80,6 +92,7 @@ export function HandoffListPage() {
             navigate({
               to: "/projects/$projectId/handoff/new",
               params: { projectId },
+              search: { step: "1", requestId: undefined },
             })
           }
         >
@@ -151,6 +164,7 @@ export function HandoffListPage() {
                   navigate({
                     to: "/projects/$projectId/handoff/new",
                     params: { projectId },
+                    search: { step: "1", requestId: undefined },
                   })
               : undefined
           }
@@ -167,7 +181,19 @@ export function HandoffListPage() {
               request={req}
               projectId={projectId}
               onCancel={() => cancelMutation.mutate(req.id)}
-              onNavigate={(path) => navigate({ to: path, params: { projectId } })}
+              onContinue={() =>
+                navigate({
+                  to: "/projects/$projectId/handoff/new",
+                  params: { projectId },
+                  search: { step: String(stepFromStatus(req.status)), requestId: req.id },
+                })
+              }
+              onViewDetail={() =>
+                navigate({
+                  to: "/projects/$projectId/handoff",
+                  params: { projectId },
+                })
+              }
             />
           ))}
         </div>
@@ -180,12 +206,14 @@ function HandoffCard({
   request,
   projectId,
   onCancel,
-  onNavigate,
+  onContinue,
+  onViewDetail,
 }: {
   request: HandoffRequest;
   projectId: string;
   onCancel: () => void;
-  onNavigate: (path: string) => void;
+  onContinue: () => void;
+  onViewDetail: () => void;
 }) {
   const isInProgress = IN_PROGRESS_STATUSES.includes(request.status);
   const isWizardable = request.status === "draft" || request.status === "spec_ready" || request.status === "prp_ready";
@@ -214,9 +242,7 @@ function HandoffCard({
           <Button
             variant="outline"
             size="sm"
-            onClick={() =>
-              onNavigate(`/projects/${projectId}/handoff/new?requestId=${request.id}`)
-            }
+            onClick={onContinue}
           >
             Continuar
           </Button>
@@ -225,7 +251,7 @@ function HandoffCard({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onNavigate(`/projects/${projectId}/handoff/${request.id}`)}
+            onClick={onViewDetail}
           >
             Ver detalhe
           </Button>

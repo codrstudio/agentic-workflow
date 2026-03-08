@@ -26,6 +26,7 @@ import { ACRListPage } from "@/pages/acr-list";
 import { ACRDetailPage } from "@/pages/acr-detail";
 import { CostDashboardPage } from "@/pages/cost-dashboard";
 import { HandoffListPage } from "@/pages/handoff-list";
+import { HandoffWizardPage } from "@/pages/handoff-wizard";
 import { AgenticBoardPage } from "@/pages/agentic-board";
 import { PipelineModelConfigPage } from "@/pages/pipeline-model-config";
 import { GraphConfigPage } from "@/pages/graph-config";
@@ -177,6 +178,18 @@ const projectHandoffRoute = createRoute({
   staticData: { breadcrumb: "Handoff" },
 });
 
+// /projects/$projectId/handoff/new (F-157)
+const projectHandoffNewRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/handoff/new",
+  component: HandoffWizardPage,
+  staticData: { breadcrumb: "Novo Handoff" },
+  validateSearch: (search: Record<string, unknown>) => ({
+    step: (search.step as string) || "1",
+    requestId: (search.requestId as string) || undefined,
+  }),
+});
+
 // /projects/$projectId/pipeline
 const projectPipelineRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -298,6 +311,7 @@ const routeTree = rootRoute.addChildren([
         projectChatRoute,
         chatSessionRoute,
         projectArtifactsRoute,
+        projectHandoffNewRoute,
         projectHandoffRoute,
         projectACRsRoute,
         acrDetailRoute,

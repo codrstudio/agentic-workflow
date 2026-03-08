@@ -74,13 +74,89 @@ export function useHandoffRequest(projectSlug: string, requestId: string | null)
 export function usePatchHandoffRequest(projectSlug: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { id: string; status?: string }) => {
+    mutationFn: (params: {
+      id: string;
+      title?: string;
+      description?: string;
+      pm_notes?: string | null;
+      spec_approved?: boolean;
+      prp_approved?: boolean;
+    }) => {
       const { id, ...body } = params;
       return apiFetch<HandoffRequest>(
         `/hub/projects/${projectSlug}/handoff-requests/${id}`,
         { method: "PATCH", body: JSON.stringify(body) },
       );
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: handoffKeys.all(projectSlug) });
+    },
+  });
+}
+
+export function useCreateHandoffRequest(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      title: string;
+      source_type: HandoffSourceType;
+      source_ref?: string | null;
+      description: string;
+      pm_notes?: string | null;
+    }) =>
+      apiFetch<HandoffRequest>(
+        `/hub/projects/${projectSlug}/handoff-requests`,
+        { method: "POST", body: JSON.stringify(body) },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: handoffKeys.all(projectSlug) });
+    },
+  });
+}
+
+export function useGenerateSpec(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (requestId: string) =>
+      apiFetch<{ job_id: string; request_id: string; status: string }>(
+        `/hub/projects/${projectSlug}/handoff-requests/${requestId}/generate-spec`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: handoffKeys.all(projectSlug) });
+    },
+  });
+}
+
+export function useGeneratePrp(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (requestId: string) =>
+      apiFetch<{ job_id: string; request_id: string; status: string }>(
+        `/hub/projects/${projectSlug}/handoff-requests/${requestId}/generate-prp`,
+        { method: "POST" },
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: handoffKeys.all(projectSlug) });
+    },
+  });
+}
+
+export function useEnqueueFeature(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: {
+      requestId: string;
+      sprint: number;
+      priority?: "high" | "medium" | "low";
+    }) =>
+      apiFetch<{ feature_id: string; handoff_request: HandoffRequest }>(
+        `/hub/projects/${projectSlug}/handoff-requests/${params.requestId}/enqueue`,
+        {
+          method: "POST",
+          body: JSON.stringify({ sprint: params.sprint, priority: params.priority }),
+        },
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: handoffKeys.all(projectSlug) });
     },
