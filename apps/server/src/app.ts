@@ -43,6 +43,7 @@ import { specs } from "./routes/specs.js";
 import { security } from "./routes/security.js";
 import { featureCycles } from "./routes/feature-cycles.js";
 import { mentoringProfiles } from "./routes/mentoring-profiles.js";
+import { driftEvents } from "./routes/drift-events.js";
 
 const app = new Hono();
 
@@ -95,5 +96,6 @@ app.route("/api/v1", specs);
 app.route("/api/v1", security);
 app.route("/api/v1", featureCycles);
 app.route("/api/v1", mentoringProfiles);
+app.route("/api/v1", driftEvents);
 
 export { app };
