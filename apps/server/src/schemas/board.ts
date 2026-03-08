@@ -111,6 +111,26 @@ export const PatchFeatureBoardMetaBody = z.object({
 
 export type PatchFeatureBoardMetaBody = z.infer<typeof PatchFeatureBoardMetaBody>;
 
+// --- Board move body ---
+
+export const MoveFeatureBody = z.object({
+  feature_id: z.string().min(1),
+  sprint: z.number().int().positive(),
+  target_column_id: z.string().min(1),
+  target_assignee: AssigneeEnum.optional(),
+});
+
+export type MoveFeatureBody = z.infer<typeof MoveFeatureBody>;
+
+// --- Auto-route body ---
+
+export const AutoRouteBody = z.object({
+  sprint: z.number().int().positive(),
+  feature_ids: z.array(z.string()).optional(),
+});
+
+export type AutoRouteBody = z.infer<typeof AutoRouteBody>;
+
 // Dict: featureId -> FeatureBoardMeta
 export type BoardMetaDict = Record<string, FeatureBoardMeta>;
 

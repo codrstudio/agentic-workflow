@@ -6,6 +6,8 @@ import {
   BoardConfigSchema,
   PatchBoardConfigBody,
   PatchFeatureBoardMetaBody,
+  MoveFeatureBody,
+  AutoRouteBody,
   DEFAULT_COLUMNS,
   PRIORITY_ORDER,
   type BoardConfig,
@@ -323,5 +325,219 @@ board.get("/hub/projects/:slug/board", async (c) => {
 
   return c.json(response);
 });
+
+// --- Helper: load raw features ---
+
+async function loadRawFeatures(slug: string, sprint: number): Promise<RawFeature[]> {
+  return await readJSON<RawFeature[]>(featuresPath(slug, sprint));
+}
+
+async function saveRawFeatures(slug: string, sprint: number, features: RawFeature[]): Promise<void> {
+  await writeJSON(featuresPath(slug, sprint), features);
+}
+
+// --- POST /hub/projects/:slug/board/move ---
+
+board.post("/hub/projects/:slug/board/move", async (c) => {
+  const slug = c.req.param("slug");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = MoveFeatureBody.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Validation failed", details: parsed.error.flatten() }, 400);
+  }
+
+  const { feature_id, sprint, target_column_id, target_assignee } = parsed.data;
+
+  // Load board config to find target column
+  const boardConfig = await loadBoardConfig(slug, sprint);
+  const targetColumn = boardConfig.columns.find((col) => col.id === target_column_id);
+  if (!targetColumn) {
+    return c.json({ error: `Column '${target_column_id}' not found in board config` }, 404);
+  }
+
+  // Load features and find target feature
+  let features: RawFeature[];
+  try {
+    features = await loadRawFeatures(slug, sprint);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found")) return c.json({ error: "Sprint features not found" }, 404);
+    throw err;
+  }
+
+  const featureIndex = features.findIndex((f) => f.id === feature_id);
+  if (featureIndex === -1) {
+    return c.json({ error: `Feature '${feature_id}' not found` }, 404);
+  }
+
+  // Map column to new status: use first status_filter value of the target column
+  const newStatus = targetColumn.status_filter[0]!;
+  features[featureIndex]!.status = newStatus;
+
+  // If moving to "passing", set completed_at
+  if (newStatus === "passing" && !features[featureIndex]!.completed_at) {
+    features[featureIndex]!.completed_at = new Date().toISOString();
+  }
+
+  // Save features.json
+  await saveRawFeatures(slug, sprint, features);
+
+  // Update board-meta with assignee
+  const metaDict = await loadBoardMeta(slug, sprint);
+  const existingMeta = metaDict[feature_id] ?? defaultMeta();
+
+  // Determine assignee: explicit target_assignee > column's assignee_filter[0] > keep existing
+  let newAssignee = existingMeta.assignee;
+  if (target_assignee) {
+    newAssignee = target_assignee;
+  } else if (targetColumn.assignee_filter && targetColumn.assignee_filter.length > 0) {
+    newAssignee = targetColumn.assignee_filter[0] as FeatureBoardMeta["assignee"];
+  }
+
+  metaDict[feature_id] = { ...existingMeta, assignee: newAssignee };
+
+  await ensureDir(sprintDir(slug, sprint));
+  await writeJSON(boardMetaPath(slug, sprint), metaDict);
+
+  return c.json({
+    ...features[featureIndex]!,
+    board_meta: metaDict[feature_id],
+  });
+});
+
+// --- POST /hub/projects/:slug/board/auto-route ---
+
+board.post("/hub/projects/:slug/board/auto-route", async (c) => {
+  const slug = c.req.param("slug");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = AutoRouteBody.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Validation failed", details: parsed.error.flatten() }, 400);
+  }
+
+  const { sprint, feature_ids } = parsed.data;
+
+  // Load board config for routing rules
+  const boardConfig = await loadBoardConfig(slug, sprint);
+  if (boardConfig.routing_rules.length === 0) {
+    return c.json({ routed: [] });
+  }
+
+  // Load features
+  let features: RawFeature[];
+  try {
+    features = await loadRawFeatures(slug, sprint);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found")) return c.json({ error: "Sprint features not found" }, 404);
+    throw err;
+  }
+
+  // Load board-meta
+  const metaDict = await loadBoardMeta(slug, sprint);
+
+  // Build feature map for dependency checks
+  const featureMap = new Map<string, RawFeature>();
+  for (const f of features) {
+    featureMap.set(f.id, f);
+  }
+
+  // Filter features to route: either specified IDs or all with assignee=pending
+  const targetFeatures = features.filter((f) => {
+    if (feature_ids && feature_ids.length > 0) {
+      return feature_ids.includes(f.id);
+    }
+    const meta = metaDict[f.id] ?? defaultMeta();
+    return meta.assignee === "pending";
+  });
+
+  const routed: Array<{ feature_id: string; assignee: string }> = [];
+
+  for (const feature of targetFeatures) {
+    const meta = metaDict[feature.id] ?? defaultMeta();
+
+    for (const rule of boardConfig.routing_rules) {
+      if (evaluateCondition(rule.condition, feature, meta, featureMap)) {
+        meta.assignee = rule.assignee;
+        metaDict[feature.id] = meta;
+        routed.push({ feature_id: feature.id, assignee: rule.assignee });
+        break;
+      }
+    }
+  }
+
+  // Persist updated board-meta
+  if (routed.length > 0) {
+    await ensureDir(sprintDir(slug, sprint));
+    await writeJSON(boardMetaPath(slug, sprint), metaDict);
+  }
+
+  return c.json({ routed });
+});
+
+// --- Routing condition evaluator ---
+
+function evaluateCondition(
+  condition: string,
+  feature: RawFeature,
+  meta: FeatureBoardMeta,
+  featureMap: Map<string, RawFeature>
+): boolean {
+  const trimmed = condition.trim();
+
+  // "default" — always matches
+  if (trimmed === "default") return true;
+
+  // "has_label:X" — check if meta.labels includes X
+  const labelMatch = trimmed.match(/^has_label:(.+)$/);
+  if (labelMatch) {
+    const label = labelMatch[1]!.trim();
+    return (meta.labels ?? []).includes(label);
+  }
+
+  // "priority=X" — check meta.priority
+  const priorityMatch = trimmed.match(/^priority=(.+)$/);
+  if (priorityMatch) {
+    return meta.priority === priorityMatch[1]!.trim();
+  }
+
+  // "complexity > N" — check feature priority as proxy (or complexity field if present)
+  const complexityMatch = trimmed.match(/^complexity\s*>\s*(\d+)$/);
+  if (complexityMatch) {
+    const threshold = parseInt(complexityMatch[1]!, 10);
+    // Use feature.priority as complexity proxy
+    return feature.priority > threshold;
+  }
+
+  // "has_dep" — feature has unfinished dependencies
+  if (trimmed === "has_dep") {
+    return feature.dependencies.some((depId) => {
+      const dep = featureMap.get(depId);
+      return dep && dep.status !== "passing" && dep.status !== "skipped";
+    });
+  }
+
+  return false;
+}
 
 export { board };
