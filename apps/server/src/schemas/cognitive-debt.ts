@@ -75,3 +75,19 @@ export const IndicatorsCacheSchema = z.object({
 });
 
 export type IndicatorsCache = z.infer<typeof IndicatorsCacheSchema>;
+
+export const DetectRiskBodySchema = z.object({
+  phase: z.string().min(1),
+  artifacts_changed: z.number().int().min(0),
+  lines_generated: z.number().int().min(0),
+});
+
+export type DetectRiskBody = z.infer<typeof DetectRiskBodySchema>;
+
+export const DetectRiskResponseSchema = z.object({
+  risk_level: AutoDetectedRiskEnum,
+  gate_type: ComprehensionGateTypeEnum,
+  prompt: z.string(),
+});
+
+export type DetectRiskResponse = z.infer<typeof DetectRiskResponseSchema>;

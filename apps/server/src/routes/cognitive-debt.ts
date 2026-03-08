@@ -9,11 +9,15 @@ import {
   CreateGateBodySchema,
   PatchGateBodySchema,
   IndicatorsCacheSchema,
+  DetectRiskBodySchema,
   type ComprehensionGate,
   type IndicatorsCache,
   type CognitiveDebtIndicator,
+  type AutoDetectedRisk,
+  type ComprehensionGateType,
 } from "../schemas/cognitive-debt.js";
 import { type Project } from "../schemas/project.js";
+import { spawnClaudeStream } from "../lib/claude-client.js";
 
 const INDICATORS_TTL_MINUTES = 10;
 
@@ -377,6 +381,114 @@ cognitiveDebt.get(
     }
 
     return c.json(indicators);
+  },
+);
+
+// ---- detect-risk helpers ----
+
+function computeRiskLevel(
+  linesGenerated: number,
+  artifactsChanged: number,
+): AutoDetectedRisk {
+  if (linesGenerated > 500 || artifactsChanged > 100) return "high";
+  if (linesGenerated > 200 || artifactsChanged > 50) return "medium";
+  return "low";
+}
+
+function gateTypeForRisk(risk: AutoDetectedRisk): ComprehensionGateType {
+  if (risk === "high") return "diff_review";
+  if (risk === "medium") return "summary_required";
+  return "intent_confirmation";
+}
+
+const FALLBACK_PROMPTS: Record<AutoDetectedRisk, (phase: string) => string> = {
+  high: (phase) =>
+    `You just generated a large amount of code in the "${phase}" phase. ` +
+    `Please review the diff and summarize: what was added, what changed, and what could break?`,
+  medium: (phase) =>
+    `You made significant changes in the "${phase}" phase. ` +
+    `In 2-3 sentences, summarize what you implemented and why.`,
+  low: (phase) =>
+    `Quick check for the "${phase}" phase: what was your main intent with these changes?`,
+};
+
+function spawnClaudePromise(
+  userPrompt: string,
+  model: string,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let result = "";
+    const proc = spawnClaudeStream(
+      { prompt: userPrompt, model, maxTurns: 1, allowedTools: [] },
+      {
+        onDelta: (text) => {
+          result += text;
+        },
+        onComplete: (full) => {
+          resolve(full || result);
+        },
+        onError: (err) => {
+          reject(new Error(err));
+        },
+      },
+    );
+    // Safety timeout: if process hangs, reject after 30s
+    const timer = setTimeout(() => {
+      proc.kill();
+      reject(new Error("Claude Haiku timeout"));
+    }, 30_000);
+    proc.on("exit", () => clearTimeout(timer));
+  });
+}
+
+// POST /hub/projects/:projectId/cognitive-debt/detect-risk
+cognitiveDebt.post(
+  "/hub/projects/:projectId/cognitive-debt/detect-risk",
+  async (c) => {
+    const slug = c.req.param("projectId");
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const parsed = DetectRiskBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return c.json({ error: "Validation failed", details: parsed.error.issues }, 400);
+    }
+
+    const { phase, artifacts_changed, lines_generated } = parsed.data;
+
+    const riskLevel = computeRiskLevel(lines_generated, artifacts_changed);
+    const gateType = gateTypeForRisk(riskLevel);
+
+    const riskLabel =
+      riskLevel === "high" ? "HIGH" : riskLevel === "medium" ? "MEDIUM" : "LOW";
+
+    const haikusPrompt =
+      `You are a cognitive load assistant for software developers. ` +
+      `A developer just completed the "${phase}" phase of an agentic pipeline. ` +
+      `They generated ${lines_generated} lines of code and changed ${artifacts_changed} artifacts. ` +
+      `Risk level: ${riskLabel}. ` +
+      `Generate ONE concise comprehension-check question (1-2 sentences) that tests whether ` +
+      `the developer truly understands what was built. ` +
+      `The question should be specific to the phase "${phase}" and proportional to the volume of changes. ` +
+      `Reply with ONLY the question text, no preamble.`;
+
+    let prompt: string;
+    try {
+      const raw = await spawnClaudePromise(haikusPrompt, "claude-haiku-4-5-20251001");
+      prompt = raw.trim() || FALLBACK_PROMPTS[riskLevel](phase);
+    } catch {
+      // Fallback when Claude Haiku is unavailable
+      prompt = FALLBACK_PROMPTS[riskLevel](phase);
+    }
+
+    return c.json({ risk_level: riskLevel, gate_type: gateType, prompt });
   },
 );
 
