@@ -383,6 +383,7 @@ export async function buildTrace(
             task: spawn?.task,
             agent: spawn?.agent,
             model: parsed2.model,
+            jsonl_path: jsonlPath,
           },
           input_summary: parsed2.input_summary,
           output_summary: parsed2.output_summary,
@@ -524,6 +525,7 @@ export async function buildTrace(
               task: attemptSpawn?.task,
               agent: attemptSpawn?.agent,
               model: parsed2.model,
+              jsonl_path: attemptJsonlPath,
             },
             input_summary: parsed2.input_summary,
             output_summary: parsed2.output_summary,
@@ -540,12 +542,13 @@ export async function buildTrace(
 
           spans.push(agentCallSpan);
 
-          // Propagate token/cost data up to feature_attempt span
+          // Propagate token/cost data and jsonl_path up to feature_attempt span
           featureAttemptSpan.tokens_input = parsed2.tokens_input;
           featureAttemptSpan.tokens_output = parsed2.tokens_output;
           featureAttemptSpan.cost_usd = parsed2.cost_usd;
           featureAttemptSpan.input_summary = parsed2.input_summary;
           featureAttemptSpan.output_summary = parsed2.output_summary;
+          featureAttemptSpan.metadata = { ...featureAttemptSpan.metadata, jsonl_path: attemptJsonlPath };
         }
       }
     }
@@ -621,6 +624,7 @@ export async function buildTrace(
           task: mergeSpawn?.task,
           agent: mergeSpawn?.agent,
           model: parsed2.model,
+          jsonl_path: mergeJsonlPath,
         },
         input_summary: parsed2.input_summary,
         output_summary: parsed2.output_summary,
