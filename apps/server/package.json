@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@arc/server": "file:",
     "@hono/node-server": "^1.14.0",
     "hono": "^4.7.0",
     "zod": "^4.3.6"

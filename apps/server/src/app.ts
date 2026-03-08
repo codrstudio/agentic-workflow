@@ -53,6 +53,7 @@ import { search } from "./routes/search.js";
 import { cognitiveDebt } from "./routes/cognitive-debt.js";
 import { pipeline } from "./routes/pipeline.js";
 import { reviewPipelines } from "./routes/review-pipelines.js";
+import { maturity } from "./routes/maturity.js";
 
 const app = new Hono();
 
@@ -115,5 +116,6 @@ app.route("/api/v1", search);
 app.route("/api/v1", cognitiveDebt);
 app.route("/api/v1", pipeline);
 app.route("/api/v1", reviewPipelines);
+app.route("/api/v1", maturity);
 
 export { app };
