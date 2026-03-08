@@ -38,6 +38,7 @@ import { SpecListPage } from "@/pages/spec-list";
 import { SpecDetailPage } from "@/pages/spec-detail";
 import { ThroughputDashboardPage } from "@/pages/throughput-dashboard";
 import { ROIDashboardPage } from "@/pages/roi-dashboard";
+import { RescueWizardPage } from "@/pages/rescue-wizard";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -350,6 +351,14 @@ const projectROIRoute = createRoute({
   staticData: { breadcrumb: "ROI" },
 });
 
+// /projects/$projectId/rescue/$rescueId (F-206)
+const rescueWizardRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/rescue/$rescueId",
+  component: RescueWizardPage,
+  staticData: { breadcrumb: "Rescue Wizard" },
+});
+
 // /harness
 const harnessRoute = createRoute({
   getParentRoute: () => authenticatedLayout,
@@ -399,6 +408,7 @@ const routeTree = rootRoute.addChildren([
         specDetailRoute,
         projectThroughputRoute,
         projectROIRoute,
+        rescueWizardRoute,
       ]),
     ]),
     harnessRoute.addChildren([harnessDetailRoute]),
