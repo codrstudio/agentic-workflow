@@ -1,0 +1,9 @@
+{
+  "project_id": "test-proj",
+  "enabled": true,
+  "coverage_threshold_pct": 70,
+  "coverage_tool": "vitest",
+  "report_dir": "coverage",
+  "fail_on_uncovered_files": false,
+  "updated_at": "2026-03-07T23:29:46.603Z"
+}

@@ -1,0 +1,4 @@
+[
+  {"id":"F-001","name":"Feature One","description":"Desc","status":"pending","priority":1,"agent":"coder","task":"vibe-code","dependencies":[],"tests":[]},
+  {"id":"F-002","name":"Feature Two","description":"Desc","status":"pending","priority":2,"agent":"coder","task":"vibe-code","dependencies":[],"tests":[]}
+]

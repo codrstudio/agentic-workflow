@@ -1,0 +1,16 @@
+[
+  {
+    "id": "6e8e0080-bbf0-4e39-85fc-8e786cad582b",
+    "project_id": "49dfbad7-a7b1-46cd-b669-1ba0c2f27b32",
+    "name": "Test Graph",
+    "type": "codebase_graph",
+    "size_bytes": 0,
+    "created_at": "2026-03-08T00:22:02.339Z",
+    "updated_at": "2026-03-08T00:22:02.339Z",
+    "tags": [],
+    "category": "general",
+    "pinned": false,
+    "auto_include": false,
+    "relevance_tags": []
+  }
+]

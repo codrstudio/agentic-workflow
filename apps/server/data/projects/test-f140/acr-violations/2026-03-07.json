@@ -1,0 +1,42 @@
+[
+  {
+    "id": "2258909b-7b79-452b-b6b1-92d319d347b3",
+    "project_id": "test-f140",
+    "acr_id": "c277a029-672e-4e5f-b8cc-b6dfa5206451",
+    "acr_slug": "ACR-001",
+    "detected_at": "2026-03-07T23:34:48.640Z",
+    "context": "review",
+    "description": "Violated layered pattern in module X",
+    "artifact_id": null,
+    "feature_id": null,
+    "resolution": "fixed",
+    "resolved_at": "2026-03-07T23:40:21.337Z",
+    "resolution_note": "Fixed layered pattern"
+  },
+  {
+    "id": "a7e9a8cf-df7b-43a5-baea-71d270e07d42",
+    "project_id": "test-f140",
+    "acr_id": "c277a029-672e-4e5f-b8cc-b6dfa5206451",
+    "acr_slug": "ACR-001",
+    "detected_at": "2026-03-07T23:34:48.765Z",
+    "context": "manual",
+    "description": "Another violation in module Y",
+    "artifact_id": null,
+    "feature_id": null,
+    "resolution": "open",
+    "resolved_at": null
+  },
+  {
+    "id": "03f3578e-2585-47d7-80cf-7ef82d93c79a",
+    "project_id": "test-f140",
+    "acr_id": "c277a029-672e-4e5f-b8cc-b6dfa5206451",
+    "acr_slug": "ACR-001",
+    "detected_at": "2026-03-07T23:34:48.876Z",
+    "context": "manual",
+    "description": "Accepted violation for legacy code",
+    "artifact_id": null,
+    "feature_id": null,
+    "resolution": "open",
+    "resolved_at": null
+  }
+]
