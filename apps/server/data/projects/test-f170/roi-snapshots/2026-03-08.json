@@ -1,0 +1,12 @@
+{
+  "id": "d2f51d98-1343-4b21-bd97-b182ab0e772d",
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "date": "2026-03-08",
+  "roi_ratio": 2.5,
+  "cost_per_feature_usd": 12.5,
+  "first_pass_accuracy": 0.75,
+  "rework_ratio": 0.25,
+  "total_cost_usd": 50,
+  "features_completed": 4,
+  "created_at": "2026-03-08T13:01:44.458Z"
+}

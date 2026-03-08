@@ -49,6 +49,7 @@ import { roi } from "./routes/roi.js";
 import { learningCheckpoints } from "./routes/learning-checkpoints.js";
 import { rescue } from "./routes/rescue.js";
 import { platform } from "./routes/platform.js";
+import { search } from "./routes/search.js";
 
 const app = new Hono();
 
@@ -107,5 +108,6 @@ app.route("/api/v1", roi);
 app.route("/api/v1", learningCheckpoints);
 app.route("/api/v1", rescue);
 app.route("/api/v1", platform);
+app.route("/api/v1", search);
 
 export { app };

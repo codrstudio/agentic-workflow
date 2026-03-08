@@ -1,0 +1,15 @@
+{
+  "id": "89484eed-ad02-4c91-933c-62a867aae3ed",
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "feature_id": "F-102",
+  "sprint": 6,
+  "started_at": "2026-03-08T12:36:57.802Z",
+  "completed_at": null,
+  "status": "in_progress",
+  "attempts": 1,
+  "review_iterations": 0,
+  "first_pass": true,
+  "ai_contribution": "none",
+  "cycle_time_hours": null,
+  "tags": []
+}

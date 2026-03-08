@@ -1,0 +1,17 @@
+{
+  "id": "9cd65488-d033-432d-b829-c333c5fd33ce",
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "scan_id": "3572c885-9a7a-47f4-8833-9a14efd9bfa9",
+  "feature_id": "F-998",
+  "severity": "low",
+  "category": "other",
+  "title": "Low",
+  "description": "Low issue",
+  "file_path": null,
+  "line_number": null,
+  "suggested_fix": null,
+  "resolution": "open",
+  "resolution_note": null,
+  "resolved_at": null,
+  "created_at": "2026-03-08T12:46:35.183Z"
+}

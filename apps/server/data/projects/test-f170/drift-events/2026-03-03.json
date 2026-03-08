@@ -1,0 +1,14 @@
+[
+  {
+    "id": "83be7755-4105-4eab-9adb-9e4e67313865",
+    "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+    "policy_id": "ecca1ccd-d99f-4463-96c4-ebc17e0b27f2",
+    "policy_name": "Strict Policy",
+    "drift_type": "path_violation",
+    "description": "Path issue again",
+    "step": "step-05",
+    "agent": "researcher",
+    "action_taken": "killed",
+    "detected_at": "2026-03-03T08:00:00.000Z"
+  }
+]
