@@ -11,6 +11,7 @@ import type { EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
 import { ModelResolver } from './model-resolver.js';
 import { runCoverageGate, formatCoverageFailureContext, type CoverageGateConfig } from './coverage-gate.js';
+import { type ContributionQualityGateConfig, calculateOverallScore, formatQualityFailureContext, formatQualityRetryContext } from './quality-gate.js';
 
 export interface FeatureLoopContext {
   worktreeDir: string;
@@ -27,6 +28,7 @@ export interface FeatureLoopContext {
   workflowSlug?: string;
   modelResolver?: ModelResolver;
   coverageGateConfig?: CoverageGateConfig;
+  qualityGateConfig?: ContributionQualityGateConfig;
   hubBaseUrl?: string;
 }
 
@@ -176,7 +178,26 @@ export class FeatureLoop {
         const featureContext = `\n\n## Feature: ${feature.id} — ${feature.name}\n\n${feature.description}\n\nTests:\n${(feature.tests ?? []).map((t) => `- ${t}`).join('\n')}`;
         const coverageCtx = (feature as Record<string, unknown>).coverage_failure_context;
         const coverageSuffix = typeof coverageCtx === 'string' ? `\n\n## Coverage Gate Feedback\n\n${coverageCtx}` : '';
-        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${coverageSuffix}`;
+        const qualityCtx = (feature as Record<string, unknown>).quality_failure_context;
+        const qualitySuffix = typeof qualityCtx === 'string' ? `\n\n## Quality Gate Feedback\n\n${qualityCtx}` : '';
+
+        // Add quality gate scoring instruction when enabled
+        let qualityGateInstruction = '';
+        if (ctx.qualityGateConfig?.enabled) {
+          qualityGateInstruction = `\n\n## Quality Gate Evaluation
+
+Beyond functional review, evaluate the contribution quality in these dimensions (0-100 each):
+
+1. **originality** (20%): absence of AI-generated boilerplate patterns
+2. **test_coverage** (30%): coverage of modified files with meaningful tests
+3. **code_duplication** (15%): absence of duplicated code (DRY violations)
+4. **security** (25%): absence of vulnerable patterns (injection, XSS, hardcoded credentials, eval, etc.)
+5. **architectural_conformance** (10%): conformance with active ACRs of the project
+
+For each issue found, include a flag with: type, severity, message, file, line.`;
+        }
+
+        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${coverageSuffix}${qualitySuffix}${qualityGateInstruction}`;
 
         const resolver = ctx.modelResolver ?? new ModelResolver();
         const resolvedModel = await resolver.resolve({
@@ -289,7 +310,22 @@ export class FeatureLoop {
             }
           }
 
-          if (!coverageGateFailed) {
+          // Run quality gate if enabled (after coverage gate)
+          let qualityGateFailed = false;
+          if (!coverageGateFailed && ctx.qualityGateConfig?.enabled) {
+            try {
+              const qualityResult = await this.evaluateQualityGate(
+                feature, agentName, ctx, updatedFeatures, featuresPath, retries,
+              );
+              if (qualityResult) {
+                qualityGateFailed = true;
+              }
+            } catch {
+              // Quality gate error — non-fatal
+            }
+          }
+
+          if (!coverageGateFailed && !qualityGateFailed) {
             this.featuresDone++;
             await this.emitEvent('feature:pass', ctx, {
               feature_id: feature.id,
@@ -304,7 +340,9 @@ export class FeatureLoop {
             (updatedFeature as Record<string, unknown>).retries = newRetries;
           }
 
-          const gutterAction = this.gutter.evaluate(newRetries, maxRetries);
+          // Check if feature was auto-rejected by quality gate
+          const autoRejected = (updatedFeature as Record<string, unknown> | undefined)?.auto_rejected === true;
+          const gutterAction = this.gutter.evaluate(newRetries, maxRetries, autoRejected);
 
           if (gutterAction.action === 'skip') {
             if (updatedFeature) {
@@ -364,6 +402,87 @@ export class FeatureLoop {
 
   stop(): void {
     this.stopRequested = true;
+  }
+
+  /**
+   * Evaluate quality gate for a passing feature.
+   * Returns true if quality gate failed (feature set to failing).
+   */
+  private async evaluateQualityGate(
+    feature: Feature,
+    agentName: string,
+    ctx: FeatureLoopContext,
+    updatedFeatures: Feature[],
+    featuresPath: string,
+    retries: number,
+  ): Promise<boolean> {
+    const config = ctx.qualityGateConfig!;
+    const updatedFeature = updatedFeatures.find((f) => f.id === feature.id);
+    if (!updatedFeature) return false;
+
+    // Quality scoring is done by the review agent via prompt instruction.
+    // Here we simulate scoring based on feature state for the engine pipeline.
+    // In production, the review agent returns scores via --json-schema.
+    // For now, read quality result if posted by the review agent to the hub.
+    if (!ctx.hubBaseUrl || !ctx.projectSlug) return false;
+
+    // The review agent posts quality results to the hub.
+    // Check if a result was posted for this feature.
+    try {
+      const res = await fetch(
+        `${ctx.hubBaseUrl}/api/v1/hub/projects/${ctx.projectSlug}/contribution-quality-results?feature_id=${feature.id}&limit=1`,
+      );
+      if (!res.ok) return false;
+
+      const results = await res.json() as Array<{
+        overall_score: number;
+        passed: boolean;
+        auto_rejected: boolean;
+        scores: Record<string, number>;
+        flags: Array<{ type: string; severity: string; message: string; file?: string; line?: number }>;
+      }>;
+      const latest = results[0];
+      if (!latest) return false;
+
+      if (latest.auto_rejected) {
+        (updatedFeature as Record<string, unknown>).status = 'failing';
+        (updatedFeature as Record<string, unknown>).auto_rejected = true;
+        const qualityContext = formatQualityFailureContext(latest.scores, latest.overall_score, config, latest.flags);
+        (updatedFeature as Record<string, unknown>).quality_failure_context = qualityContext;
+        const newRetries = retries + 1;
+        (updatedFeature as Record<string, unknown>).retries = newRetries;
+        await this.state.saveFeatures(featuresPath, updatedFeatures);
+
+        await this.emitEvent('feature:fail', ctx, {
+          feature_id: feature.id,
+          feature_name: feature.name,
+          reason: 'quality_gate_auto_rejected',
+          overall_score: latest.overall_score,
+        });
+        return true;
+      }
+
+      if (!latest.passed) {
+        (updatedFeature as Record<string, unknown>).status = 'failing';
+        const qualityContext = formatQualityRetryContext(latest.scores, latest.overall_score, config, latest.flags);
+        (updatedFeature as Record<string, unknown>).quality_failure_context = qualityContext;
+        const newRetries = retries + 1;
+        (updatedFeature as Record<string, unknown>).retries = newRetries;
+        await this.state.saveFeatures(featuresPath, updatedFeatures);
+
+        await this.emitEvent('feature:fail', ctx, {
+          feature_id: feature.id,
+          feature_name: feature.name,
+          reason: 'quality_gate_failed',
+          overall_score: latest.overall_score,
+        });
+        return true;
+      }
+    } catch {
+      // Non-fatal: hub may not be available
+    }
+
+    return false;
   }
 
   private async emitEvent(
