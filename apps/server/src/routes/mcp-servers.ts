@@ -1,75 +1,73 @@
 import { Hono } from "hono";
 import path from "node:path";
 import crypto from "node:crypto";
+import { readdir, unlink } from "node:fs/promises";
 import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
-import { getMcpManager } from "../lib/mcp-manager.js";
-import { type Source } from "../schemas/source.js";
-
-// --- Types ---
-
-type McpTransport = "stdio" | "sse";
-
-interface McpServerConfig {
-  id: string;
-  name: string;
-  description?: string;
-  transport: McpTransport;
-  command?: string;
-  args: string[];
-  env: Record<string, string>;
-  url?: string;
-  enabled: boolean;
-  status: "disconnected" | "connecting" | "connected" | "error";
-  last_error?: string;
-  created_at: string;
-}
+import {
+  MCPServerRegistrySchema,
+  CreateMCPServerRegistrySchema,
+  UpdateMCPServerRegistrySchema,
+  type MCPServerRegistry,
+} from "../schemas/mcp-registry.js";
+import { type Project } from "../schemas/project.js";
 
 // --- Helpers ---
 
-function serversPath(slug: string): string {
-  return path.join(config.projectsDir, slug, "mcp", "servers.json");
+function mcpServersDir(slug: string): string {
+  return path.join(config.projectsDir, slug, "mcp", "servers");
 }
 
-async function loadServers(slug: string): Promise<McpServerConfig[]> {
+function serverFilePath(slug: string, id: string): string {
+  return path.join(mcpServersDir(slug), `${id}.json`);
+}
+
+async function loadServer(slug: string, id: string): Promise<MCPServerRegistry | null> {
   try {
-    return await readJSON<McpServerConfig[]>(serversPath(slug));
+    const data = await readJSON<MCPServerRegistry>(serverFilePath(slug, id));
+    return MCPServerRegistrySchema.parse(data);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("not found") || msg.includes("ENOENT")) {
-      return [];
-    }
+    if (msg.includes("not found") || msg.includes("ENOENT")) return null;
     throw err;
   }
 }
 
-async function saveServers(
-  slug: string,
-  servers: McpServerConfig[]
-): Promise<void> {
-  const filePath = serversPath(slug);
-  await ensureDir(path.dirname(filePath));
-  await writeJSON(filePath, servers);
+async function saveServer(slug: string, server: MCPServerRegistry): Promise<void> {
+  const dir = mcpServersDir(slug);
+  await ensureDir(dir);
+  await writeJSON(serverFilePath(slug, server.id), server);
 }
 
-function validateCreate(body: Record<string, unknown>): string | null {
-  if (!body.name || typeof body.name !== "string" || body.name.trim() === "") {
-    return "name is required";
+async function listServers(slug: string): Promise<MCPServerRegistry[]> {
+  const dir = mcpServersDir(slug);
+  try {
+    const entries = await readdir(dir);
+    const jsonFiles = entries.filter((e) => e.endsWith(".json"));
+    const servers = await Promise.all(
+      jsonFiles.map(async (file) => {
+        try {
+          const data = await readJSON<MCPServerRegistry>(path.join(dir, file));
+          return MCPServerRegistrySchema.parse(data);
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return servers.filter((s): s is MCPServerRegistry => s !== null);
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.code === "ENOENT") return [];
+    throw err;
   }
-  if (!body.transport || !["stdio", "sse"].includes(body.transport as string)) {
-    return "transport must be 'stdio' or 'sse'";
+}
+
+async function loadProject(slug: string): Promise<Project | null> {
+  try {
+    return await readJSON<Project>(path.join(config.projectsDir, slug, "project.json"));
+  } catch {
+    return null;
   }
-  if (body.transport === "stdio") {
-    if (!body.command || typeof body.command !== "string" || (body.command as string).trim() === "") {
-      return "command is required for stdio transport";
-    }
-  }
-  if (body.transport === "sse") {
-    if (!body.url || typeof body.url !== "string" || (body.url as string).trim() === "") {
-      return "url is required for sse transport";
-    }
-  }
-  return null;
 }
 
 // --- Routes ---
@@ -79,16 +77,8 @@ const mcpServers = new Hono();
 // GET /hub/projects/:slug/mcp/servers
 mcpServers.get("/hub/projects/:slug/mcp/servers", async (c) => {
   const slug = c.req.param("slug");
-  const servers = await loadServers(slug);
-
-  // Enrich with live status from manager
-  const manager = getMcpManager(slug);
-  for (const server of servers) {
-    const live = manager.getStatus(server.id);
-    server.status = live.status;
-    server.last_error = live.last_error;
-  }
-
+  const servers = await listServers(slug);
+  servers.sort((a, b) => a.created_at.localeCompare(b.created_at));
   return c.json({ servers });
 });
 
@@ -97,65 +87,78 @@ mcpServers.post("/hub/projects/:slug/mcp/servers", async (c) => {
   const slug = c.req.param("slug");
   const body = await c.req.json<Record<string, unknown>>();
 
-  const error = validateCreate(body);
-  if (error) {
-    return c.json({ error }, 400);
+  const parsed = CreateMCPServerRegistrySchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
   }
 
-  const transport = body.transport as McpTransport;
+  const project = await loadProject(slug);
+  const projectId = project?.id ?? crypto.randomUUID();
 
-  const server: McpServerConfig = {
+  const now = new Date().toISOString();
+  const server: MCPServerRegistry = {
     id: crypto.randomUUID(),
-    name: (body.name as string).trim(),
-    description: typeof body.description === "string" ? body.description.trim() : undefined,
-    transport,
-    command: transport === "stdio" ? (body.command as string).trim() : undefined,
-    args: transport === "stdio" && Array.isArray(body.args)
-      ? (body.args as string[])
-      : [],
-    env: transport === "stdio" && body.env && typeof body.env === "object" && !Array.isArray(body.env)
-      ? (body.env as Record<string, string>)
-      : {},
-    url: transport === "sse" ? (body.url as string).trim() : undefined,
-    enabled: body.enabled !== false,
-    status: "disconnected",
-    created_at: new Date().toISOString(),
+    project_id: projectId,
+    name: parsed.data.name,
+    server_url: parsed.data.server_url,
+    transport: parsed.data.transport,
+    status: parsed.data.status ?? "active",
+    tools_available: parsed.data.tools_available ?? [],
+    allowed_agents: parsed.data.allowed_agents ?? [],
+    requires_approval: parsed.data.requires_approval ?? false,
+    cost_per_call_usd: parsed.data.cost_per_call_usd ?? null,
+    monthly_budget_usd: parsed.data.monthly_budget_usd ?? null,
+    current_month_spend_usd: 0,
+    last_health_check: null,
+    avg_latency_ms: null,
+    error_rate: 0,
+    created_at: now,
+    updated_at: now,
   };
 
-  const servers = await loadServers(slug);
-  servers.push(server);
-  await saveServers(slug, servers);
-
+  await saveServer(slug, server);
   return c.json({ server }, 201);
 });
 
-// PATCH /hub/projects/:slug/mcp/servers/:id
-mcpServers.patch("/hub/projects/:slug/mcp/servers/:id", async (c) => {
+// GET /hub/projects/:slug/mcp/servers/:id
+mcpServers.get("/hub/projects/:slug/mcp/servers/:id", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+
+  const server = await loadServer(slug, id);
+  if (!server) return c.json({ error: "Server not found" }, 404);
+  return c.json({ server });
+});
+
+// PUT /hub/projects/:slug/mcp/servers/:id
+mcpServers.put("/hub/projects/:slug/mcp/servers/:id", async (c) => {
   const slug = c.req.param("slug");
   const id = c.req.param("id");
   const body = await c.req.json<Record<string, unknown>>();
 
-  const servers = await loadServers(slug);
-  const idx = servers.findIndex((s) => s.id === id);
-  if (idx === -1) {
-    return c.json({ error: "Server not found" }, 404);
+  const server = await loadServer(slug, id);
+  if (!server) return c.json({ error: "Server not found" }, 404);
+
+  const parsed = UpdateMCPServerRegistrySchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: parsed.error.issues[0]?.message ?? "Invalid body" }, 400);
   }
 
-  const server = servers[idx]!;
+  const updates = parsed.data;
+  if (updates.name !== undefined) server.name = updates.name;
+  if (updates.server_url !== undefined) server.server_url = updates.server_url;
+  if (updates.transport !== undefined) server.transport = updates.transport;
+  if (updates.status !== undefined) server.status = updates.status;
+  if (updates.tools_available !== undefined) server.tools_available = updates.tools_available;
+  if (updates.allowed_agents !== undefined) server.allowed_agents = updates.allowed_agents;
+  if (updates.requires_approval !== undefined) server.requires_approval = updates.requires_approval;
+  if (updates.cost_per_call_usd !== undefined) server.cost_per_call_usd = updates.cost_per_call_usd;
+  if (updates.monthly_budget_usd !== undefined) server.monthly_budget_usd = updates.monthly_budget_usd;
+  if (updates.current_month_spend_usd !== undefined) server.current_month_spend_usd = updates.current_month_spend_usd;
+  if (updates.error_rate !== undefined) server.error_rate = updates.error_rate;
+  server.updated_at = new Date().toISOString();
 
-  if (typeof body.name === "string") server.name = body.name.trim();
-  if (typeof body.description === "string") server.description = body.description.trim();
-  if (typeof body.enabled === "boolean") server.enabled = body.enabled;
-  if (typeof body.command === "string") server.command = body.command.trim();
-  if (Array.isArray(body.args)) server.args = body.args as string[];
-  if (body.env && typeof body.env === "object" && !Array.isArray(body.env)) {
-    server.env = body.env as Record<string, string>;
-  }
-  if (typeof body.url === "string") server.url = body.url.trim();
-
-  servers[idx] = server;
-  await saveServers(slug, servers);
-
+  await saveServer(slug, server);
   return c.json({ server });
 });
 
@@ -164,201 +167,64 @@ mcpServers.delete("/hub/projects/:slug/mcp/servers/:id", async (c) => {
   const slug = c.req.param("slug");
   const id = c.req.param("id");
 
-  const servers = await loadServers(slug);
-  const idx = servers.findIndex((s) => s.id === id);
-  if (idx === -1) {
-    return c.json({ error: "Server not found" }, 404);
+  const server = await loadServer(slug, id);
+  if (!server) return c.json({ error: "Server not found" }, 404);
+
+  try {
+    await unlink(serverFilePath(slug, id));
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    if (e.code !== "ENOENT") throw err;
   }
-
-  // Disconnect before removing
-  const manager = getMcpManager(slug);
-  await manager.disconnect(id);
-
-  servers.splice(idx, 1);
-  await saveServers(slug, servers);
 
   return c.body(null, 204);
 });
 
-// POST /hub/projects/:slug/mcp/servers/:id/connect
-mcpServers.post("/hub/projects/:slug/mcp/servers/:id/connect", async (c) => {
-  const slug = c.req.param("slug");
-  const id = c.req.param("id");
-  const body = await c.req.json<{ action?: string }>();
-
-  const action = body.action;
-  if (action !== "connect" && action !== "disconnect") {
-    return c.json({ error: "action must be 'connect' or 'disconnect'" }, 400);
-  }
-
-  const servers = await loadServers(slug);
-  const idx = servers.findIndex((s) => s.id === id);
-  if (idx === -1) {
-    return c.json({ error: "Server not found" }, 404);
-  }
-
-  const server = servers[idx]!;
-  const manager = getMcpManager(slug);
-
-  if (action === "connect") {
-    server.status = "connecting";
-    await saveServers(slug, servers);
-
-    const result = await manager.connect(server);
-    server.status = result.status;
-    server.last_error = result.last_error;
-    await saveServers(slug, servers);
-  } else {
-    await manager.disconnect(id);
-    server.status = "disconnected";
-    server.last_error = undefined;
-    await saveServers(slug, servers);
-  }
-
-  return c.json({ server });
-});
-
-// GET /hub/projects/:slug/mcp/servers/:id/status
-mcpServers.get("/hub/projects/:slug/mcp/servers/:id/status", async (c) => {
+// POST /hub/projects/:slug/mcp/servers/:id/health
+mcpServers.post("/hub/projects/:slug/mcp/servers/:id/health", async (c) => {
   const slug = c.req.param("slug");
   const id = c.req.param("id");
 
-  const servers = await loadServers(slug);
-  const server = servers.find((s) => s.id === id);
-  if (!server) {
-    return c.json({ error: "Server not found" }, 404);
-  }
+  const server = await loadServer(slug, id);
+  if (!server) return c.json({ error: "Server not found" }, 404);
 
-  // Get live status from manager (may differ from persisted)
-  const manager = getMcpManager(slug);
-  const liveStatus = manager.getStatus(id);
+  const start = Date.now();
+  let status: "active" | "error" = "active";
+  const tools_count = server.tools_available.length;
 
-  return c.json({
-    id: server.id,
-    status: liveStatus.status,
-    last_error: liveStatus.last_error,
-  });
-});
-
-// --- Discovery Endpoints (F-080) ---
-
-// GET /hub/projects/:slug/mcp/servers/:id/tools
-mcpServers.get("/hub/projects/:slug/mcp/servers/:id/tools", async (c) => {
-  const slug = c.req.param("slug");
-  const id = c.req.param("id");
-
-  const servers = await loadServers(slug);
-  const server = servers.find((s) => s.id === id);
-  if (!server) {
-    return c.json({ error: "Server not found" }, 404);
-  }
-
-  const manager = getMcpManager(slug);
-  const client = manager.getClient(id);
-  if (!client || client.status !== "connected") {
-    return c.json({ error: "Server not connected" }, 409);
-  }
-
-  const tools = await client.listTools();
-  return c.json({ tools });
-});
-
-// GET /hub/projects/:slug/mcp/servers/:id/resources
-mcpServers.get("/hub/projects/:slug/mcp/servers/:id/resources", async (c) => {
-  const slug = c.req.param("slug");
-  const id = c.req.param("id");
-
-  const servers = await loadServers(slug);
-  const server = servers.find((s) => s.id === id);
-  if (!server) {
-    return c.json({ error: "Server not found" }, 404);
-  }
-
-  const manager = getMcpManager(slug);
-  const client = manager.getClient(id);
-  if (!client || client.status !== "connected") {
-    return c.json({ error: "Server not connected" }, 409);
-  }
-
-  const resources = await client.listResources();
-  return c.json({ resources });
-});
-
-// POST /hub/projects/:slug/mcp/servers/:id/resources/import
-mcpServers.post("/hub/projects/:slug/mcp/servers/:id/resources/import", async (c) => {
-  const slug = c.req.param("slug");
-  const id = c.req.param("id");
-  const body = await c.req.json<{ uri?: string }>();
-
-  if (!body.uri || typeof body.uri !== "string") {
-    return c.json({ error: "uri is required" }, 400);
-  }
-
-  const servers = await loadServers(slug);
-  const server = servers.find((s) => s.id === id);
-  if (!server) {
-    return c.json({ error: "Server not found" }, 404);
-  }
-
-  const manager = getMcpManager(slug);
-  const client = manager.getClient(id);
-  if (!client || client.status !== "connected") {
-    return c.json({ error: "Server not connected" }, 409);
-  }
-
-  // Read the resource content via MCP
-  const result = await client.readResource(body.uri);
-  const firstContent = result.contents[0];
-  const text = firstContent?.text ?? "";
-
-  // Determine source name from URI
-  const uriParts = body.uri.split("/");
-  const sourceName = uriParts[uriParts.length - 1] || body.uri;
-
-  // Load project to get project_id
-  const projectJsonPath = path.join(config.projectsDir, slug, "project.json");
-  const project = await readJSON<{ id: string }>(projectJsonPath);
-
-  // Create source with category 'reference'
-  const now = new Date().toISOString();
-  const sourceId = crypto.randomUUID();
-  const sizeBytes = Buffer.byteLength(text, "utf-8");
-
-  const source: Source = {
-    id: sourceId,
-    project_id: project.id,
-    name: sourceName,
-    type: "text",
-    content: text,
-    file_path: undefined,
-    url: undefined,
-    size_bytes: sizeBytes,
-    created_at: now,
-    updated_at: now,
-    tags: [`mcp:${server.name}`, `uri:${body.uri}`],
-    category: "reference",
-    pinned: false,
-    auto_include: false,
-    relevance_tags: [],
-  };
-
-  // Persist to sources.json
-  const sourcesJsonPath = path.join(config.projectsDir, slug, "sources", "sources.json");
-  let allSources: Source[] = [];
   try {
-    allSources = await readJSON<Source[]>(sourcesJsonPath);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (!msg.includes("not found") && !msg.includes("ENOENT")) {
-      throw err;
+    if (
+      server.transport === "sse" ||
+      server.transport === "streamable-http" ||
+      server.server_url.startsWith("http")
+    ) {
+      const response = await fetch(server.server_url, {
+        signal: AbortSignal.timeout(5000),
+      });
+      // 4xx client errors still mean server is reachable (active)
+      status = response.status < 500 ? "active" : "error";
+    } else {
+      // stdio transport with non-HTTP url: assume active if configured
+      status = "active";
     }
+  } catch {
+    status = "error";
   }
 
-  allSources.push(source);
-  await ensureDir(path.join(config.projectsDir, slug, "sources"));
-  await writeJSON(sourcesJsonPath, allSources);
+  const latency_ms = Date.now() - start;
 
-  return c.json({ source }, 201);
+  // Update server health metrics
+  server.last_health_check = new Date().toISOString();
+  server.avg_latency_ms =
+    server.avg_latency_ms !== null
+      ? Math.round((server.avg_latency_ms + latency_ms) / 2)
+      : latency_ms;
+  server.status = status;
+  server.updated_at = new Date().toISOString();
+
+  await saveServer(slug, server);
+
+  return c.json({ status, latency_ms, tools_count });
 });
 
 export { mcpServers };

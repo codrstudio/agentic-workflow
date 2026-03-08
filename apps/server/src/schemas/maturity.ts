@@ -16,7 +16,7 @@ export const StageHistoryEntrySchema = z.object({
   stage: MaturityStageEnum,
   entered_at: z.string().datetime(),
   gate_passed: z.boolean(),
-  gate_results: z.record(z.unknown()),
+  gate_results: z.record(z.string(), z.unknown()),
 });
 
 export type StageHistoryEntry = z.infer<typeof StageHistoryEntrySchema>;
