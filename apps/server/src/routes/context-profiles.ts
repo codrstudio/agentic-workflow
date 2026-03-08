@@ -11,7 +11,6 @@ import {
 } from "../schemas/context-profile.js";
 import { type Project } from "../schemas/project.js";
 import { type Source } from "../schemas/source.js";
-import { type ChatSession } from "../schemas/session.js";
 
 const contextProfiles = new Hono();
 
@@ -19,8 +18,9 @@ function projectDir(slug: string): string {
   return path.join(config.projectsDir, slug);
 }
 
+// New F-223 persistence: context/profiles/{id}.json
 function profilesDir(slug: string): string {
-  return path.join(projectDir(slug), "context-profiles");
+  return path.join(projectDir(slug), "context", "profiles");
 }
 
 function profilePath(slug: string, profileId: string): string {
@@ -86,10 +86,10 @@ async function listAllProfiles(slug: string): Promise<ContextProfile[]> {
 function applySourceDefaults(source: Record<string, unknown>): Source {
   return {
     ...source,
-    category: source.category ?? "general",
-    pinned: source.pinned ?? false,
-    auto_include: source.auto_include ?? false,
-    relevance_tags: source.relevance_tags ?? [],
+    category: source["category"] ?? "general",
+    pinned: source["pinned"] ?? false,
+    auto_include: source["auto_include"] ?? false,
+    relevance_tags: source["relevance_tags"] ?? [],
   } as Source;
 }
 
@@ -106,37 +106,20 @@ async function loadSources(slug: string): Promise<Source[]> {
   }
 }
 
-async function loadSession(
-  slug: string,
-  sessionId: string
-): Promise<ChatSession | null> {
-  try {
-    return await readJSON<ChatSession>(
-      path.join(projectDir(slug), "sessions", `${sessionId}.json`)
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("not found")) return null;
-    throw err;
-  }
-}
-
-// GET /hub/projects/:slug/context-profiles — list profiles
-contextProfiles.get("/hub/projects/:slug/context-profiles", async (c) => {
+// GET /hub/projects/:slug/context/profiles — list profiles
+contextProfiles.get("/hub/projects/:slug/context/profiles", async (c) => {
   const slug = c.req.param("slug");
   const project = await loadProject(slug);
   if (!project) return c.json({ error: "Project not found" }, 404);
 
   const profiles = await listAllProfiles(slug);
-
-  // Sort by name
   profiles.sort((a, b) => a.name.localeCompare(b.name));
 
   return c.json(profiles);
 });
 
-// POST /hub/projects/:slug/context-profiles — create profile
-contextProfiles.post("/hub/projects/:slug/context-profiles", async (c) => {
+// POST /hub/projects/:slug/context/profiles — create profile
+contextProfiles.post("/hub/projects/:slug/context/profiles", async (c) => {
   const slug = c.req.param("slug");
   const project = await loadProject(slug);
   if (!project) return c.json({ error: "Project not found" }, 404);
@@ -156,7 +139,16 @@ contextProfiles.post("/hub/projects/:slug/context-profiles", async (c) => {
     );
   }
 
-  const { name, description, source_ids, is_default } = parsed.data;
+  const {
+    name,
+    description,
+    is_default,
+    included_sources,
+    included_categories,
+    excluded_sources,
+    token_budget,
+  } = parsed.data;
+
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -176,9 +168,14 @@ contextProfiles.post("/hub/projects/:slug/context-profiles", async (c) => {
     id,
     project_id: project.id,
     name,
-    description,
-    source_ids,
+    description: description ?? null,
     is_default: is_default ?? false,
+    included_sources: included_sources ?? [],
+    included_categories: included_categories ?? [],
+    excluded_sources: excluded_sources ?? [],
+    token_budget: token_budget ?? 24000,
+    current_token_count: 0,
+    density_score: 0,
     created_at: now,
     updated_at: now,
   };
@@ -188,9 +185,9 @@ contextProfiles.post("/hub/projects/:slug/context-profiles", async (c) => {
   return c.json(profile, 201);
 });
 
-// GET /hub/projects/:slug/context-profiles/:id — get profile
+// GET /hub/projects/:slug/context/profiles/:id — get profile
 contextProfiles.get(
-  "/hub/projects/:slug/context-profiles/:id",
+  "/hub/projects/:slug/context/profiles/:id",
   async (c) => {
     const slug = c.req.param("slug");
     const id = c.req.param("id");
@@ -204,9 +201,9 @@ contextProfiles.get(
   }
 );
 
-// PATCH /hub/projects/:slug/context-profiles/:id — update profile
-contextProfiles.patch(
-  "/hub/projects/:slug/context-profiles/:id",
+// PUT /hub/projects/:slug/context/profiles/:id — update profile
+contextProfiles.put(
+  "/hub/projects/:slug/context/profiles/:id",
   async (c) => {
     const slug = c.req.param("slug");
     const id = c.req.param("id");
@@ -233,8 +230,11 @@ contextProfiles.patch(
 
     const updates = parsed.data;
     if (updates.name !== undefined) profile.name = updates.name;
-    if (updates.description !== undefined) profile.description = updates.description;
-    if (updates.source_ids !== undefined) profile.source_ids = updates.source_ids;
+    if (updates.description !== undefined) profile.description = updates.description ?? null;
+    if (updates.included_sources !== undefined) profile.included_sources = updates.included_sources;
+    if (updates.included_categories !== undefined) profile.included_categories = updates.included_categories;
+    if (updates.excluded_sources !== undefined) profile.excluded_sources = updates.excluded_sources;
+    if (updates.token_budget !== undefined) profile.token_budget = updates.token_budget;
 
     // If setting as default, clear default from others
     if (updates.is_default === true) {
@@ -258,9 +258,9 @@ contextProfiles.patch(
   }
 );
 
-// DELETE /hub/projects/:slug/context-profiles/:id — delete profile
+// DELETE /hub/projects/:slug/context/profiles/:id — delete profile
 contextProfiles.delete(
-  "/hub/projects/:slug/context-profiles/:id",
+  "/hub/projects/:slug/context/profiles/:id",
   async (c) => {
     const slug = c.req.param("slug");
     const id = c.req.param("id");
@@ -280,53 +280,89 @@ contextProfiles.delete(
   }
 );
 
-// GET /hub/projects/:slug/sessions/:id/resolved-context — resolve effective sources
-contextProfiles.get(
-  "/hub/projects/:slug/sessions/:id/resolved-context",
+// POST /hub/projects/:slug/context/profiles/:id/apply — activate profile for chat session
+contextProfiles.post(
+  "/hub/projects/:slug/context/profiles/:id/apply",
   async (c) => {
     const slug = c.req.param("slug");
     const id = c.req.param("id");
     const project = await loadProject(slug);
     if (!project) return c.json({ error: "Project not found" }, 404);
 
-    const session = await loadSession(slug, id);
-    if (!session) return c.json({ error: "Session not found" }, 404);
+    const profile = await loadProfile(slug, id);
+    if (!profile) return c.json({ error: "Context profile not found" }, 404);
 
     const allSources = await loadSources(slug);
 
-    // Collect effective source IDs: pinned + auto_include + session-selected
-    const selectedIds = new Set(session.source_ids);
-    const effectiveIds = new Set<string>();
+    // Filter active sources based on profile rules:
+    // included_sources: explicit UUIDs to include
+    // included_categories: include all sources in these categories
+    // excluded_sources: explicit UUIDs to exclude
+    const includedSourceSet = new Set(profile.included_sources);
+    const excludedSourceSet = new Set(profile.excluded_sources);
+    const includedCategories = new Set(profile.included_categories);
 
-    for (const source of allSources) {
-      if (source.pinned || source.auto_include || selectedIds.has(source.id)) {
-        effectiveIds.add(source.id);
+    const activeSources = allSources.filter((source) => {
+      // Never include excluded sources
+      if (excludedSourceSet.has(source.id)) return false;
+
+      // Include if explicitly in included_sources
+      if (includedSourceSet.has(source.id)) return true;
+
+      // Include if category matches included_categories
+      if (
+        includedCategories.size > 0 &&
+        source.category &&
+        includedCategories.has(source.category)
+      ) {
+        return true;
       }
+
+      // If no explicit filters set, include all non-excluded sources
+      if (includedSourceSet.size === 0 && includedCategories.size === 0) {
+        return true;
+      }
+
+      return false;
+    });
+
+    // Compute token count: estimate 1 token ~= 4 chars using size_bytes
+    let tokenCount = 0;
+    for (const source of activeSources) {
+      tokenCount += Math.ceil(source.size_bytes / 4);
     }
 
-    const effectiveSources = allSources.filter((s) => effectiveIds.has(s.id));
+    // Enforce token budget: remove lowest-priority sources if over budget
+    let sourcesIncluded = activeSources;
+    if (tokenCount > profile.token_budget) {
+      // Sort by pinned (keep) then remove from end until within budget
+      const sorted = [...activeSources].sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return 0;
+      });
 
-    // Estimate tokens: 1 token ~= 4 chars
-    let totalChars = 0;
-    for (const source of effectiveSources) {
-      totalChars += source.size_bytes; // size_bytes approximates char count for text
+      sourcesIncluded = [];
+      let running = 0;
+      for (const source of sorted) {
+        const t = Math.ceil(source.size_bytes / 4);
+        if (running + t <= profile.token_budget) {
+          sourcesIncluded.push(source);
+          running += t;
+        }
+      }
+      tokenCount = running;
     }
-    const totalTokensEstimate = Math.ceil(totalChars / 4);
 
-    // Strip content from response
-    const sourcesResult = effectiveSources.map(({ content, ...rest }) => ({
-      ...rest,
-      included_by: [
-        ...(rest.pinned ? ["pinned" as const] : []),
-        ...(rest.auto_include ? ["auto_include" as const] : []),
-        ...(selectedIds.has(rest.id) ? ["selected" as const] : []),
-      ],
-    }));
+    // Update profile with current token count
+    profile.current_token_count = tokenCount;
+    profile.updated_at = new Date().toISOString();
+    await saveProfile(slug, profile);
 
     return c.json({
-      session_id: session.id,
-      sources: sourcesResult,
-      total_tokens_estimate: totalTokensEstimate,
+      applied: true,
+      token_count: tokenCount,
+      sources_included: sourcesIncluded.map((s) => s.id),
     });
   }
 );
