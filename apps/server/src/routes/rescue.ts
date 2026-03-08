@@ -10,9 +10,12 @@ import {
   PatchRescueProjectBody,
   CodebaseAuditSchema,
   RescueDifficultyEnum,
+  PatchRemediationBody,
   type RescueProject,
   type CodebaseAudit,
   type ReverseSpec,
+  type RemediationPlan,
+  type RemediationItem,
 } from "../schemas/rescue.js";
 import {
   SpecDocumentSchema,
@@ -573,5 +576,301 @@ rescue.post(
     return c.json({ reverse_spec: updatedRs, spec: doc }, 201);
   }
 );
+
+// ---- RemediationPlan helpers ----
+
+function remediationPlansDirPath(slug: string): string {
+  return path.join(projectDir(slug), "remediation-plans");
+}
+
+function remediationPlanPath(slug: string, rescueId: string): string {
+  return path.join(remediationPlansDirPath(slug), `${rescueId}.json`);
+}
+
+function featuresJsonPath(slug: string): string {
+  return path.join(projectDir(slug), "features.json");
+}
+
+function computeTotalEffort(items: RemediationItem[]): string {
+  const effortWeights: Record<string, number> = { small: 1, medium: 3, large: 5, xlarge: 10 };
+  const total = items.reduce((sum, item) => sum + (effortWeights[item.effort_estimate] ?? 3), 0);
+  if (total <= 5) return "small";
+  if (total <= 15) return "medium";
+  if (total <= 30) return "large";
+  return "xlarge";
+}
+
+// Deterministic remediation plan items based on common audit findings
+const REMEDIATION_ITEMS_TEMPLATE: Omit<RemediationItem, "id">[] = [
+  {
+    priority: 1,
+    category: "security",
+    title: "Fix hardcoded secrets and credentials",
+    description:
+      "Remove hardcoded JWT secrets, API keys, and credentials from source code. Move to environment variables and secrets management.",
+    effort_estimate: "small",
+    status: "pending",
+    feature_id: null,
+  },
+  {
+    priority: 2,
+    category: "testing",
+    title: "Establish test suite foundation",
+    description:
+      "Set up testing framework (Jest/Vitest), write unit tests for core business logic, achieve minimum 60% coverage.",
+    effort_estimate: "large",
+    status: "pending",
+    feature_id: null,
+  },
+  {
+    priority: 3,
+    category: "architecture",
+    title: "Separate concerns with layered architecture",
+    description:
+      "Introduce service layer between routes and data access. Extract business logic from controllers. Apply repository pattern for data access.",
+    effort_estimate: "xlarge",
+    status: "pending",
+    feature_id: null,
+  },
+  {
+    priority: 4,
+    category: "types",
+    title: "Add TypeScript strict mode and Zod validation",
+    description:
+      "Enable strict TypeScript mode. Add Zod schemas for all API request/response bodies. Eliminate implicit any types.",
+    effort_estimate: "medium",
+    status: "pending",
+    feature_id: null,
+  },
+  {
+    priority: 5,
+    category: "documentation",
+    title: "Document APIs and architecture decisions",
+    description:
+      "Add OpenAPI/Swagger documentation for all endpoints. Write architecture decision records (ADRs). Document setup and deployment procedures.",
+    effort_estimate: "medium",
+    status: "pending",
+    feature_id: null,
+  },
+  {
+    priority: 6,
+    category: "performance",
+    title: "Configure database connection pooling",
+    description:
+      "Add connection pooling to database client. Configure pool size based on expected load. Add query timeout handling.",
+    effort_estimate: "small",
+    status: "pending",
+    feature_id: null,
+  },
+];
+
+// POST /hub/projects/:slug/rescue/:rescueId/remediation  (202 Accepted, async)
+rescue.post("/hub/projects/:slug/rescue/:rescueId/remediation", async (c) => {
+  const slug = c.req.param("slug");
+  const rescueId = c.req.param("rescueId");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  try {
+    await readJSON<RescueProject>(rescueProjectPath(slug, rescueId));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found") || msg.includes("ENOENT")) {
+      return c.json({ error: "RescueProject not found" }, 404);
+    }
+    throw err;
+  }
+
+  const planId = randomUUID();
+  const now = new Date().toISOString();
+
+  const items: RemediationItem[] = REMEDIATION_ITEMS_TEMPLATE.map((tpl) => ({
+    ...tpl,
+    id: randomUUID(),
+  }));
+
+  const plan: RemediationPlan = {
+    id: planId,
+    rescue_id: rescueId,
+    items,
+    total_effort_estimate: computeTotalEffort(items),
+    created_at: now,
+    updated_at: now,
+  };
+
+  await ensureDir(remediationPlansDirPath(slug));
+  await writeJSON(remediationPlanPath(slug, rescueId), plan);
+
+  return c.json({ accepted: true, plan_id: planId, rescue_id: rescueId, items_count: items.length }, 202);
+});
+
+// GET /hub/projects/:slug/rescue/:rescueId/remediation
+rescue.get("/hub/projects/:slug/rescue/:rescueId/remediation", async (c) => {
+  const slug = c.req.param("slug");
+  const rescueId = c.req.param("rescueId");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let plan: RemediationPlan;
+  try {
+    plan = await readJSON<RemediationPlan>(remediationPlanPath(slug, rescueId));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found") || msg.includes("ENOENT")) {
+      return c.json({ error: "RemediationPlan not found" }, 404);
+    }
+    throw err;
+  }
+
+  const sorted = { ...plan, items: [...plan.items].sort((a, b) => a.priority - b.priority) };
+  return c.json(sorted);
+});
+
+// PATCH /hub/projects/:slug/rescue/:rescueId/remediation
+rescue.patch("/hub/projects/:slug/rescue/:rescueId/remediation", async (c) => {
+  const slug = c.req.param("slug");
+  const rescueId = c.req.param("rescueId");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let plan: RemediationPlan;
+  try {
+    plan = await readJSON<RemediationPlan>(remediationPlanPath(slug, rescueId));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found") || msg.includes("ENOENT")) {
+      return c.json({ error: "RemediationPlan not found" }, 404);
+    }
+    throw err;
+  }
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = PatchRemediationBody.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Invalid body", details: parsed.error.issues }, 400);
+  }
+
+  const now = new Date().toISOString();
+  let items = [...plan.items];
+
+  if (parsed.data.items) {
+    for (const patch of parsed.data.items) {
+      const idx = items.findIndex((item) => item.id === patch.id);
+      if (idx === -1) continue;
+      const item = items[idx]!;
+      items[idx] = {
+        ...item,
+        priority: patch.priority ?? item.priority,
+        status: patch.status ?? item.status,
+        feature_id: patch.feature_id !== undefined ? patch.feature_id : item.feature_id,
+      };
+    }
+  }
+
+  const updated: RemediationPlan = {
+    ...plan,
+    items,
+    total_effort_estimate: computeTotalEffort(items),
+    updated_at: now,
+  };
+
+  await writeJSON(remediationPlanPath(slug, rescueId), updated);
+  const sorted = { ...updated, items: [...updated.items].sort((a, b) => a.priority - b.priority) };
+  return c.json(sorted);
+});
+
+// POST /hub/projects/:slug/rescue/:rescueId/remediation/generate-features
+rescue.post("/hub/projects/:slug/rescue/:rescueId/remediation/generate-features", async (c) => {
+  const slug = c.req.param("slug");
+  const rescueId = c.req.param("rescueId");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let plan: RemediationPlan;
+  try {
+    plan = await readJSON<RemediationPlan>(remediationPlanPath(slug, rescueId));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found") || msg.includes("ENOENT")) {
+      return c.json({ error: "RemediationPlan not found" }, 404);
+    }
+    throw err;
+  }
+
+  // Load existing features.json (if it exists)
+  let existingFeatures: Array<Record<string, unknown>> = [];
+  try {
+    existingFeatures = await readJSON<Array<Record<string, unknown>>>(featuresJsonPath(slug));
+  } catch {
+    existingFeatures = [];
+  }
+
+  // Compute next feature ID number
+  const existingIds = existingFeatures
+    .map((f) => {
+      const id = typeof f.id === "string" ? f.id : "";
+      const m = id.match(/^F-(\d+)$/);
+      return m ? parseInt(m[1]!, 10) : 0;
+    })
+    .filter((n) => n > 0);
+  let nextNum = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1;
+
+  // Convert pending items to features
+  const pendingItems = plan.items.filter((item) => item.status === "pending");
+  const newFeatures: Array<Record<string, unknown>> = [];
+  const updatedItems = [...plan.items];
+
+  for (const item of pendingItems) {
+    const featureId = `F-${String(nextNum).padStart(3, "0")}`;
+    nextNum++;
+
+    newFeatures.push({
+      id: featureId,
+      name: item.title,
+      description: item.description,
+      status: "pending",
+      priority: item.priority,
+      category: item.category,
+      effort_estimate: item.effort_estimate,
+      source: "remediation",
+      rescue_id: rescueId,
+    });
+
+    // Update item with feature_id
+    const idx = updatedItems.findIndex((i) => i.id === item.id);
+    if (idx !== -1) {
+      updatedItems[idx] = { ...updatedItems[idx]!, feature_id: featureId };
+    }
+  }
+
+  // Save updated features.json
+  const allFeatures = [...existingFeatures, ...newFeatures];
+  await writeJSON(featuresJsonPath(slug), allFeatures);
+
+  // Update remediation plan with feature_ids
+  const now = new Date().toISOString();
+  const updatedPlan: RemediationPlan = {
+    ...plan,
+    items: updatedItems,
+    updated_at: now,
+  };
+  await writeJSON(remediationPlanPath(slug, rescueId), updatedPlan);
+
+  return c.json({
+    features_created: newFeatures.length,
+    feature_ids: newFeatures.map((f) => f.id),
+    plan: updatedPlan,
+  }, 201);
+});
 
 export { rescue };

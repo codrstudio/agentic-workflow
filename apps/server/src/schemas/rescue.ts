@@ -98,3 +98,59 @@ export const ReverseSpecSchema = z.object({
 });
 
 export type ReverseSpec = z.infer<typeof ReverseSpecSchema>;
+
+// RemediationPlan
+
+export const RemediationItemCategoryEnum = z.enum([
+  "testing",
+  "types",
+  "architecture",
+  "security",
+  "documentation",
+  "performance",
+]);
+
+export const RemediationItemEffortEnum = z.enum(["small", "medium", "large", "xlarge"]);
+
+export const RemediationItemStatusEnum = z.enum([
+  "pending",
+  "in_progress",
+  "completed",
+  "skipped",
+]);
+
+export const RemediationItemSchema = z.object({
+  id: z.string().uuid(),
+  priority: z.number().int().min(1),
+  category: RemediationItemCategoryEnum,
+  title: z.string(),
+  description: z.string(),
+  effort_estimate: RemediationItemEffortEnum,
+  status: RemediationItemStatusEnum.default("pending"),
+  feature_id: z.string().nullable().default(null),
+});
+
+export const RemediationPlanSchema = z.object({
+  id: z.string().uuid(),
+  rescue_id: z.string().uuid(),
+  items: z.array(RemediationItemSchema),
+  total_effort_estimate: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const PatchRemediationBody = z.object({
+  items: z
+    .array(
+      z.object({
+        id: z.string().uuid(),
+        priority: z.number().int().min(1).optional(),
+        status: RemediationItemStatusEnum.optional(),
+        feature_id: z.string().nullable().optional(),
+      })
+    )
+    .optional(),
+});
+
+export type RemediationItem = z.infer<typeof RemediationItemSchema>;
+export type RemediationPlan = z.infer<typeof RemediationPlanSchema>;
