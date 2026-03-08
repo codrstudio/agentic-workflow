@@ -19,6 +19,7 @@ import { EscalationBanner, ApprovalGateDialog } from "@/components/approval-gate
 import { usePhaseAutonomyConfigs } from "@/hooks/use-phase-autonomy";
 import type { PipelinePhase as AutonomyPhase } from "@/hooks/use-phase-autonomy";
 import { ROISummaryWidget } from "@/components/roi-summary-widget";
+import { ACRPipelineBadge } from "@/components/acr-pipeline-badge";
 
 export function ProjectPipelinePage() {
   const { projectId } = useParams({
@@ -171,6 +172,9 @@ export function ProjectPipelinePage() {
             gates={pipelineGates}
             onGateClick={(transition) => setSelectedGate(transition)}
           />
+          <div className="mt-3 flex items-center border-t pt-3">
+            <ACRPipelineBadge projectSlug={projectId} />
+          </div>
         </div>
       )}
 

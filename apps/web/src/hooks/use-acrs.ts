@@ -126,6 +126,42 @@ export function useDeprecateACR(projectSlug: string) {
   });
 }
 
+export interface ACRContextResponse {
+  acrs: ACR[];
+  violations_summary: { open: number; accepted: number };
+}
+
+export function useACRContext(projectSlug: string) {
+  return useQuery({
+    queryKey: [...acrKeys.all(projectSlug), "context"],
+    queryFn: () =>
+      apiFetch<ACRContextResponse>(
+        `/hub/projects/${projectSlug}/acrs/context`,
+      ),
+  });
+}
+
+export function useCreateACR(projectSlug: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      title: string;
+      category: ACRCategory;
+      constraint: string;
+      rationale: string;
+      examples?: { compliant?: string; non_compliant?: string };
+      tags?: string[];
+    }) =>
+      apiFetch<ACR>(`/hub/projects/${projectSlug}/acrs`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: acrKeys.all(projectSlug) });
+    },
+  });
+}
+
 export function useCreateViolation(projectSlug: string, acrId: string) {
   const queryClient = useQueryClient();
   return useMutation({

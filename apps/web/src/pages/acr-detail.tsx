@@ -15,6 +15,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ViolationDialog } from "@/components/violation-dialog";
 import { cn } from "@/lib/utils";
 
 const RESOLUTION_VARIANT: Record<
@@ -41,6 +42,7 @@ export function ACRDetailPage() {
   const [editState, setEditState] = useState<Partial<ACR>>({});
   const [dirty, setDirty] = useState(false);
   const [showViolationForm, setShowViolationForm] = useState(false);
+  const [violationDialogOpen, setViolationDialogOpen] = useState(false);
 
   const currentValue = useCallback(
     <K extends keyof ACR>(field: K): ACR[K] | undefined => {
@@ -205,20 +207,20 @@ export function ACRDetailPage() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => setShowViolationForm(true)}
+            onClick={() => setViolationDialogOpen(true)}
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
             Register Violation
           </Button>
         </div>
 
-        {showViolationForm && (
-          <ViolationForm
-            projectId={projectId}
-            acrId={acrId}
-            onClose={() => setShowViolationForm(false)}
-          />
-        )}
+        <ViolationDialog
+          open={violationDialogOpen}
+          onOpenChange={setViolationDialogOpen}
+          projectSlug={projectId}
+          acrId={acrId}
+          acrSlug={acr.slug}
+        />
 
         {violations && violations.length > 0 ? (
           <div className="space-y-2">

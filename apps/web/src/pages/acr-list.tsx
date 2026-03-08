@@ -1,12 +1,14 @@
 import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "@tanstack/react-router";
-import { Shield, Search } from "lucide-react";
+import { Shield, Search, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useACRs, type ACR, type ACRStatus, type ACRCategory, type ACRViolation, acrKeys } from "@/hooks/use-acrs";
 import { apiFetch } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/empty-state";
+import { ACRFormDialog } from "@/components/acr-form-dialog";
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS: { value: string; label: string }[] = [
@@ -54,6 +56,7 @@ export function ACRListPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
 
   // Fetch all ACRs (apply server-side status/category filters)
   const apiFilters: { status?: string; category?: string } = {};
@@ -86,7 +89,18 @@ export function ACRListPage() {
             Architectural Constraint Records — governance rules for your codebase
           </p>
         </div>
+        <Button size="sm" onClick={() => setFormOpen(true)} className="gap-1.5">
+          <Plus className="h-4 w-4" />
+          Nova ACR
+        </Button>
       </div>
+
+      {/* ACR Form Dialog */}
+      <ACRFormDialog
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        projectSlug={projectId}
+      />
 
       {/* Search + Filters */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
