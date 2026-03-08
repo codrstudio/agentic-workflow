@@ -13,6 +13,11 @@ import {
   UpdateCostControlSchema,
   type CostControl,
 } from "../schemas/pipeline-cost-control.js";
+import {
+  PipelineRunConfigSchema,
+  UpdatePipelineRunConfigSchema,
+  type PipelineRunConfig,
+} from "../schemas/pipeline-run-config.js";
 import { type Project } from "../schemas/project.js";
 
 const pipeline = new Hono();
@@ -395,6 +400,91 @@ pipeline.get("/hub/projects/:projectId/pipeline/cost-history", async (c) => {
   }
 
   return c.json({ cost_history: filtered, total: filtered.length });
+});
+
+// ---- run config helpers ----
+
+function runConfigPath(slug: string): string {
+  return path.join(projectDir(slug), "pipeline", "run-config.json");
+}
+
+async function loadRunConfig(slug: string): Promise<PipelineRunConfig | null> {
+  try {
+    return await readJSON<PipelineRunConfig>(runConfigPath(slug));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found")) return null;
+    throw err;
+  }
+}
+
+async function saveRunConfig(
+  slug: string,
+  data: PipelineRunConfig,
+): Promise<void> {
+  await ensureDir(path.join(projectDir(slug), "pipeline"));
+  await writeJSON(runConfigPath(slug), data);
+}
+
+function buildDefaultRunConfig(projectId: string): PipelineRunConfig {
+  return PipelineRunConfigSchema.parse({
+    project_id: projectId,
+    circuit_breaker_threshold: 3,
+    circuit_breaker_cooldown_minutes: 5,
+    step_timeout_minutes: 30,
+    wave_timeout_minutes: 180,
+    max_retries_per_step: 2,
+    max_retries_per_feature: 3,
+    retry_backoff_strategy: "fixed",
+    notify_on_failure: true,
+    notify_on_circuit_break: true,
+    notify_on_budget_alert: true,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+// GET /hub/projects/:projectId/pipeline/config
+pipeline.get("/hub/projects/:projectId/pipeline/config", async (c) => {
+  const slug = c.req.param("projectId");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const existing = await loadRunConfig(slug);
+  if (existing) return c.json(existing);
+
+  return c.json(buildDefaultRunConfig(project.id));
+});
+
+// PUT /hub/projects/:projectId/pipeline/config
+pipeline.put("/hub/projects/:projectId/pipeline/config", async (c) => {
+  const slug = c.req.param("projectId");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = UpdatePipelineRunConfigSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Validation failed", details: parsed.error.issues }, 400);
+  }
+
+  const existing = await loadRunConfig(slug) ?? buildDefaultRunConfig(project.id);
+
+  const updated: PipelineRunConfig = PipelineRunConfigSchema.parse({
+    ...existing,
+    ...Object.fromEntries(
+      Object.entries(parsed.data).filter(([, v]) => v !== undefined),
+    ),
+    updated_at: new Date().toISOString(),
+  });
+
+  await saveRunConfig(slug, updated);
+  return c.json(updated);
 });
 
 export { pipeline };
