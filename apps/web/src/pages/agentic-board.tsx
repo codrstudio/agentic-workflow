@@ -22,6 +22,8 @@ import {
   type BoardColumnView,
 } from "@/hooks/use-board";
 import { useSprints } from "@/hooks/use-sprints";
+import { FeatureCostBadgeInline } from "@/components/feature-cost-badge";
+import { FeatureCostBadge } from "@/components/feature-cost-badge";
 
 // --- Priority badge ---
 
@@ -128,9 +130,10 @@ function FeatureCard({ feature, isDragging, onClick }: FeatureCardProps) {
         ))}
 
         {meta.actual_cost_usd != null && (
-          <span className="text-[10px] font-mono text-muted-foreground">
-            ${meta.actual_cost_usd.toFixed(2)}
-          </span>
+          <FeatureCostBadgeInline
+            totalCost={meta.actual_cost_usd}
+            totalTokens={0}
+          />
         )}
 
         {feature.status === "in_progress" ? (
@@ -234,10 +237,11 @@ function KanbanColumn({ column, onCardClick }: KanbanColumnProps) {
 
 interface FeatureDetailPanelProps {
   feature: FeatureWithMeta;
+  projectSlug: string;
   onClose: () => void;
 }
 
-function FeatureDetailPanel({ feature, onClose }: FeatureDetailPanelProps) {
+function FeatureDetailPanel({ feature, projectSlug, onClose }: FeatureDetailPanelProps) {
   const meta = feature.board_meta;
   const statusCfg = (STATUS_LABELS[feature.status] ?? STATUS_LABELS["pending"])!;
 
@@ -326,6 +330,17 @@ function FeatureDetailPanel({ feature, onClose }: FeatureDetailPanelProps) {
               </p>
             </div>
           )}
+
+          {/* AI Cost detail (accordion with spawn records) */}
+          <div>
+            <span className="text-xs text-muted-foreground">Custo AI (Tokens)</span>
+            <div className="mt-1">
+              <FeatureCostBadge
+                projectSlug={projectSlug}
+                featureId={feature.id}
+              />
+            </div>
+          </div>
 
           {/* Dependencies */}
           {feature.dependencies.length > 0 && (
@@ -617,6 +632,7 @@ export function AgenticBoardPage() {
       {detailFeature && (
         <FeatureDetailPanel
           feature={detailFeature}
+          projectSlug={projectId}
           onClose={() => setDetailFeature(null)}
         />
       )}

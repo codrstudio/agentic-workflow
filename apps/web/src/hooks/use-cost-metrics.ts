@@ -72,3 +72,53 @@ export function useModelRecommendations(projectSlug: string) {
       ),
   });
 }
+
+// --- Token usage record type (mirrors server schema) ---
+
+export interface TokenUsageRecord {
+  id: string;
+  project_id: string;
+  session_id?: string;
+  feature_id?: string;
+  phase?: string;
+  context: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cost_usd: number;
+  recorded_at: string;
+}
+
+// --- Phase cost hook ---
+
+export function usePhaseCost(projectSlug: string, phase: string) {
+  return useQuery({
+    queryKey: [...costKeys.all(projectSlug), "phase", phase] as const,
+    queryFn: () =>
+      apiFetch<TokenUsageRecord[]>(
+        `/hub/projects/${projectSlug}/token-usage?phase=${encodeURIComponent(phase)}&limit=200`
+      ),
+    enabled: !!phase,
+  });
+}
+
+// --- Feature cost hook ---
+
+export interface FeatureCostResponse {
+  feature_id: string;
+  total_cost_usd: number;
+  total_tokens: number;
+  records: TokenUsageRecord[];
+}
+
+export function useFeatureCost(projectSlug: string, featureId: string) {
+  return useQuery({
+    queryKey: [...costKeys.all(projectSlug), "feature", featureId] as const,
+    queryFn: () =>
+      apiFetch<FeatureCostResponse>(
+        `/hub/projects/${projectSlug}/token-usage/features/${encodeURIComponent(featureId)}`
+      ),
+    enabled: !!featureId,
+  });
+}

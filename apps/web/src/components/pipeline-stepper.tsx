@@ -18,6 +18,7 @@ export interface PipelinePhase {
   icon: ReactNode;
   status: PhaseStatus;
   autonomyBadge?: ReactNode;
+  costBadge?: ReactNode;
 }
 
 export interface PipelineGate {
@@ -116,6 +117,7 @@ export function PipelineStepper({
                 <span className="sm:hidden">{phase.shortLabel}</span>
               </span>
               {phase.autonomyBadge && phase.autonomyBadge}
+              {phase.costBadge && phase.costBadge}
             </button>
 
             {/* Connector line with gate indicator */}

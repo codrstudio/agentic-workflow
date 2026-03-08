@@ -20,6 +20,7 @@ import { usePhaseAutonomyConfigs } from "@/hooks/use-phase-autonomy";
 import type { PipelinePhase as AutonomyPhase } from "@/hooks/use-phase-autonomy";
 import { ROISummaryWidget } from "@/components/roi-summary-widget";
 import { ACRPipelineBadge } from "@/components/acr-pipeline-badge";
+import { CostPipelineBadge } from "@/components/cost-pipeline-badge";
 
 export function ProjectPipelinePage() {
   const { projectId } = useParams({
@@ -44,8 +45,29 @@ export function ProjectPipelinePage() {
   const { data: sprintDetail } = useSprintDetail(projectId, selectedSprint);
   const { data: gatesData } = useQualityGates(projectId, selectedSprint);
 
+  const PHASE_COST_MAP: Record<string, { phase: string; label: string }> = {
+    "1-brainstorming": { phase: "brainstorming", label: "Brainstorming" },
+    "2-specs": { phase: "specs", label: "Specs" },
+    "3-prps": { phase: "prps", label: "PRPs" },
+    features: { phase: "implementation", label: "Features" },
+  };
+
   const pipelinePhases = currentSprint
-    ? computePhaseStatus(currentSprint.phases, currentSprint.features_count)
+    ? computePhaseStatus(currentSprint.phases, currentSprint.features_count).map(
+        (p) => {
+          const costMap = PHASE_COST_MAP[p.id];
+          return {
+            ...p,
+            costBadge: costMap ? (
+              <CostPipelineBadge
+                projectSlug={projectId}
+                phase={costMap.phase}
+                phaseLabel={costMap.label}
+              />
+            ) : undefined,
+          };
+        }
+      )
     : [];
 
   const pipelineGates: PipelineGate[] = (gatesData ?? []).map((g) => ({
