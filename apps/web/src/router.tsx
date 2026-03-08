@@ -24,6 +24,7 @@ import { ProjectSettingsPage } from "@/pages/project-settings";
 import { McpServerDetailPage } from "@/pages/mcp-server-detail";
 import { ACRListPage } from "@/pages/acr-list";
 import { ACRDetailPage } from "@/pages/acr-detail";
+import { CostDashboardPage } from "@/pages/cost-dashboard";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -198,6 +199,14 @@ const projectMetricsRoute = createRoute({
   }),
 });
 
+// /projects/$projectId/metrics/cost (F-146)
+const projectCostRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/metrics/cost",
+  component: CostDashboardPage,
+  staticData: { breadcrumb: "Cost" },
+});
+
 // /projects/$projectId/settings
 const projectSettingsRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -247,6 +256,7 @@ const routeTree = rootRoute.addChildren([
         projectReviewsRoute,
         reviewPanelRoute,
         projectMetricsRoute,
+        projectCostRoute,
         projectSettingsRoute,
         mcpServerDetailRoute,
       ]),
