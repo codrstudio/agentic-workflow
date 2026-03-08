@@ -1,11 +1,12 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { ArrowRightLeft, BarChart3, ClipboardCheck, FileText, GitBranch, Kanban, MessageSquare, Package, Settings, Shield } from "lucide-react";
+import { ArrowRightLeft, BarChart3, ClipboardCheck, FileText, GitBranch, Kanban, MessageSquare, Package, ScrollText, Settings, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { label: "Sources", to: "/projects/$projectId/sources" as const, icon: FileText },
   { label: "Chat", to: "/projects/$projectId/chat" as const, icon: MessageSquare },
   { label: "Artifacts", to: "/projects/$projectId/artifacts" as const, icon: Package },
+  { label: "Specs", to: "/projects/$projectId/specs" as const, icon: ScrollText },
   { label: "Handoff", to: "/projects/$projectId/handoff" as const, icon: ArrowRightLeft },
   { label: "Board", to: "/projects/$projectId/harness/board" as const, icon: Kanban },
   { label: "Pipeline", to: "/projects/$projectId/pipeline" as const, icon: GitBranch },

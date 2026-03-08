@@ -34,6 +34,8 @@ import { GraphConfigPage } from "@/pages/graph-config";
 import { QualityGatesSettingsPage } from "@/pages/quality-gates-settings";
 import { ContainmentPoliciesPage } from "@/pages/containment-policies";
 import { SecurityDashboardPage } from "@/pages/security-dashboard";
+import { SpecListPage } from "@/pages/spec-list";
+import { SpecDetailPage } from "@/pages/spec-detail";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -314,6 +316,22 @@ const mcpServerDetailRoute = createRoute({
   staticData: { breadcrumb: "MCP Server" },
 });
 
+// /projects/$projectId/specs (F-201)
+const projectSpecsRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/specs",
+  component: SpecListPage,
+  staticData: { breadcrumb: "Specs" },
+});
+
+// /projects/$projectId/specs/$specId (F-201)
+const specDetailRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/specs/$specId",
+  component: SpecDetailPage,
+  staticData: { breadcrumb: "Spec Detail" },
+});
+
 // /harness
 const harnessRoute = createRoute({
   getParentRoute: () => authenticatedLayout,
@@ -359,6 +377,8 @@ const routeTree = rootRoute.addChildren([
         projectSettingsRoute,
         qualityGatesSettingsRoute,
         mcpServerDetailRoute,
+        projectSpecsRoute,
+        specDetailRoute,
       ]),
     ]),
     harnessRoute.addChildren([harnessDetailRoute]),
