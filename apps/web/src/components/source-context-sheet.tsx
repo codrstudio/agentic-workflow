@@ -33,6 +33,7 @@ const typeIcons: Record<Source["type"], React.ComponentType<{ className?: string
   pdf: File,
   url: Link,
   code: Code,
+  codebase_graph: Code,
 };
 
 const CATEGORY_ORDER: SourceCategory[] = [

@@ -1,4 +1,4 @@
-import { FileText, Link as LinkIcon, Code, FileType2, File, Pin, MoreVertical, Settings2 } from "lucide-react";
+import { FileText, Link as LinkIcon, Code, FileType2, File, Network, Pin, MoreVertical, Settings2 } from "lucide-react";
 import type { Source } from "@/hooks/use-sources";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,7 @@ const typeIcons: Record<Source["type"], LucideIcon> = {
   pdf: FileType2,
   url: LinkIcon,
   code: Code,
+  codebase_graph: Network,
 };
 
 const typeLabels: Record<Source["type"], string> = {
@@ -20,6 +21,7 @@ const typeLabels: Record<Source["type"], string> = {
   pdf: "PDF",
   url: "URL",
   code: "Code",
+  codebase_graph: "Codebase Graph",
 };
 
 function formatDate(iso: string): string {

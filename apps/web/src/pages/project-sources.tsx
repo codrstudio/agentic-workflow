@@ -3,6 +3,7 @@ import { useParams } from "@tanstack/react-router";
 import { FileText, Plus, Search } from "lucide-react";
 import { useSources, useUpdateSource, type Source, type SourceCategory } from "@/hooks/use-sources";
 import { SourceCard, SourceGridSkeleton } from "@/components/source-card";
+import { CodebaseGraphSourceCard } from "@/components/codebase-graph-source-card";
 import { SourceViewerSheet } from "@/components/source-viewer-sheet";
 import { SourceSettingsSheet } from "@/components/source-settings-sheet";
 import { AddSourceDialog } from "@/components/add-source-dialog";
@@ -18,6 +19,7 @@ const SOURCE_TYPES: { value: Source["type"] | "all"; label: string }[] = [
   { value: "pdf", label: "PDF" },
   { value: "url", label: "URL" },
   { value: "code", label: "Code" },
+  { value: "codebase_graph", label: "Codebase Graph" },
 ];
 
 export function ProjectSourcesPage() {
@@ -156,9 +158,13 @@ export function ProjectSourcesPage() {
       {/* Grid */}
       {!isLoading && !isError && filtered.length > 0 && (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((source) => (
-            <SourceCard key={source.id} source={source} onClick={handleSourceClick} onConfigureContext={handleConfigureContext} />
-          ))}
+          {filtered.map((source) =>
+            source.type === "codebase_graph" ? (
+              <CodebaseGraphSourceCard key={source.id} source={source} />
+            ) : (
+              <SourceCard key={source.id} source={source} onClick={handleSourceClick} onConfigureContext={handleConfigureContext} />
+            )
+          )}
         </div>
       )}
 

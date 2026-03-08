@@ -7,7 +7,7 @@ export interface Source {
   id: string;
   project_id: string;
   name: string;
-  type: "markdown" | "text" | "pdf" | "url" | "code";
+  type: "markdown" | "text" | "pdf" | "url" | "code" | "codebase_graph";
   content?: string;
   file_path?: string;
   url?: string;

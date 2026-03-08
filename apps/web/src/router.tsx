@@ -28,6 +28,7 @@ import { CostDashboardPage } from "@/pages/cost-dashboard";
 import { HandoffListPage } from "@/pages/handoff-list";
 import { AgenticBoardPage } from "@/pages/agentic-board";
 import { PipelineModelConfigPage } from "@/pages/pipeline-model-config";
+import { GraphConfigPage } from "@/pages/graph-config";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -245,6 +246,14 @@ const projectSettingsRoute = createRoute({
   staticData: { breadcrumb: "Settings" },
 });
 
+// /projects/$projectId/sources/$sourceId/graph-config (F-171)
+const graphConfigRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/sources/$sourceId/graph-config",
+  component: GraphConfigPage,
+  staticData: { breadcrumb: "Graph Config" },
+});
+
 // /projects/$projectId/settings/mcp/$serverId (F-083)
 const mcpServerDetailRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -290,6 +299,7 @@ const routeTree = rootRoute.addChildren([
         projectCostRoute,
         projectBoardRoute,
         pipelineModelConfigRoute,
+        graphConfigRoute,
         projectSettingsRoute,
         mcpServerDetailRoute,
       ]),
