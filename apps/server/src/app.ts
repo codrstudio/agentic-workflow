@@ -41,6 +41,8 @@ import { learningMode } from "./routes/learning-mode.js";
 import { containmentPolicies } from "./routes/containment-policies.js";
 import { specs } from "./routes/specs.js";
 import { security } from "./routes/security.js";
+import { featureCycles } from "./routes/feature-cycles.js";
+import { mentoringProfiles } from "./routes/mentoring-profiles.js";
 
 const app = new Hono();
 
@@ -91,5 +93,7 @@ app.route("/api/v1", learningMode);
 app.route("/api/v1", containmentPolicies);
 app.route("/api/v1", specs);
 app.route("/api/v1", security);
+app.route("/api/v1", featureCycles);
+app.route("/api/v1", mentoringProfiles);
 
 export { app };
