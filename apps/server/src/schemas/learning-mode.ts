@@ -119,3 +119,36 @@ export const PatchReflectionBody = z.object({
 });
 
 export type PatchReflectionBody = z.infer<typeof PatchReflectionBody>;
+
+// Generate endpoint
+export const GenerateReflectionBody = z.object({
+  phase_transition: z.string(),
+  context: z.object({
+    sprint: z.string().optional(),
+    features_in_progress: z.array(z.string()).optional(),
+    recent_decisions: z.array(z.string()).optional(),
+  }).optional(),
+});
+
+export type GenerateReflectionBody = z.infer<typeof GenerateReflectionBody>;
+
+export const GenerateReflectionResponse = z.object({
+  questions: z.array(z.string()).min(2).max(3),
+  checkpoint_type: CheckpointTypeEnum,
+});
+
+export type GenerateReflectionResponse = z.infer<typeof GenerateReflectionResponse>;
+
+// Evaluate endpoint
+export const EvaluateReflectionBody = z.object({
+  developer_response: z.string().min(1),
+});
+
+export type EvaluateReflectionBody = z.infer<typeof EvaluateReflectionBody>;
+
+export const EvaluateReflectionResponse = z.object({
+  ai_evaluation: z.string(),
+  depth_classification: DepthClassificationEnum,
+});
+
+export type EvaluateReflectionResponse = z.infer<typeof EvaluateReflectionResponse>;
