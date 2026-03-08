@@ -8,6 +8,11 @@ import {
   PipelineHealthStatusSchema,
   type PipelineHealthStatus,
 } from "../schemas/pipeline-health.js";
+import {
+  CostControlSchema,
+  UpdateCostControlSchema,
+  type CostControl,
+} from "../schemas/pipeline-cost-control.js";
 import { type Project } from "../schemas/project.js";
 
 const pipeline = new Hono();
@@ -261,6 +266,135 @@ pipeline.get("/hub/projects/:projectId/pipeline/health/stream", (c) => {
 
     pipelineEventBus.off(`pipeline:${slug}`, listener);
   });
+});
+
+// ---- cost control helpers ----
+
+function costControlPath(slug: string): string {
+  return path.join(projectDir(slug), "pipeline", "cost-control.json");
+}
+
+async function loadCostControl(slug: string): Promise<CostControl | null> {
+  try {
+    return await readJSON<CostControl>(costControlPath(slug));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found")) return null;
+    throw err;
+  }
+}
+
+async function saveCostControl(
+  slug: string,
+  data: CostControl,
+): Promise<void> {
+  await ensureDir(path.join(projectDir(slug), "pipeline"));
+  await writeJSON(costControlPath(slug), data);
+}
+
+function buildDefaultCostControl(projectId: string): CostControl {
+  return {
+    project_id: projectId,
+    budget_limit_usd: null,
+    current_spend_usd: 0,
+    alert_threshold_percent: 80,
+    per_wave_limit_usd: null,
+    per_step_limit_usd: null,
+    cost_history: [],
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function isAlertThresholdReached(cc: CostControl): boolean {
+  if (cc.budget_limit_usd === null || cc.budget_limit_usd <= 0) return false;
+  const threshold = (cc.alert_threshold_percent / 100) * cc.budget_limit_usd;
+  return cc.current_spend_usd >= threshold;
+}
+
+// GET /hub/projects/:projectId/pipeline/cost-control
+pipeline.get("/hub/projects/:projectId/pipeline/cost-control", async (c) => {
+  const slug = c.req.param("projectId");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const existing = await loadCostControl(slug);
+  if (existing) return c.json(existing);
+
+  return c.json(buildDefaultCostControl(project.id));
+});
+
+// PUT /hub/projects/:projectId/pipeline/cost-control
+pipeline.put("/hub/projects/:projectId/pipeline/cost-control", async (c) => {
+  const slug = c.req.param("projectId");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const parsed = UpdateCostControlSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json({ error: "Validation failed", details: parsed.error.issues }, 400);
+  }
+
+  const existing = await loadCostControl(slug) ?? buildDefaultCostControl(project.id);
+
+  const updated: CostControl = CostControlSchema.parse({
+    ...existing,
+    ...Object.fromEntries(
+      Object.entries(parsed.data).filter(([, v]) => v !== undefined),
+    ),
+    updated_at: new Date().toISOString(),
+  });
+
+  await saveCostControl(slug, updated);
+
+  // Emit SSE cost-alert if threshold reached
+  if (isAlertThresholdReached(updated)) {
+    pipelineEventBus.emit(`pipeline:${slug}`, {
+      event: "pipeline:cost-alert",
+      data: updated,
+    });
+  }
+
+  return c.json(updated);
+});
+
+// GET /hub/projects/:projectId/pipeline/cost-history
+pipeline.get("/hub/projects/:projectId/pipeline/cost-history", async (c) => {
+  const slug = c.req.param("projectId");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const existing = await loadCostControl(slug);
+  const history = existing ? existing.cost_history : [];
+
+  const waveParam = c.req.query("wave");
+  const fromParam = c.req.query("from");
+
+  let filtered = history;
+
+  if (waveParam !== undefined) {
+    const wave = parseInt(waveParam, 10);
+    if (isNaN(wave) || wave < 1) {
+      return c.json({ error: "Invalid wave number" }, 400);
+    }
+    filtered = filtered.filter((e) => e.wave === wave);
+  }
+
+  if (fromParam !== undefined) {
+    const from = new Date(fromParam);
+    if (isNaN(from.getTime())) {
+      return c.json({ error: "Invalid from date" }, 400);
+    }
+    filtered = filtered.filter((e) => new Date(e.timestamp) >= from);
+  }
+
+  return c.json({ cost_history: filtered, total: filtered.length });
 });
 
 export { pipeline };

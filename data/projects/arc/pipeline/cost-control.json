@@ -1,0 +1,56 @@
+{
+  "project_id": "550e8400-e29b-41d4-a716-446655440000",
+  "budget_limit_usd": 50.00,
+  "current_spend_usd": 12.45,
+  "alert_threshold_percent": 80,
+  "per_wave_limit_usd": 10.00,
+  "per_step_limit_usd": null,
+  "cost_history": [
+    {
+      "wave": 8,
+      "step": 1,
+      "task": "pain-gain-analysis",
+      "tokens_input": 12500,
+      "tokens_output": 4200,
+      "cost_usd": 2.15,
+      "timestamp": "2026-03-08T14:58:00.000Z"
+    },
+    {
+      "wave": 8,
+      "step": 2,
+      "task": "go-no-go",
+      "tokens_input": 8000,
+      "tokens_output": 1500,
+      "cost_usd": 1.20,
+      "timestamp": "2026-03-08T15:02:00.000Z"
+    },
+    {
+      "wave": 8,
+      "step": 3,
+      "task": "derive-specs",
+      "tokens_input": 15000,
+      "tokens_output": 6800,
+      "cost_usd": 3.10,
+      "timestamp": "2026-03-08T15:11:00.000Z"
+    },
+    {
+      "wave": 8,
+      "step": 4,
+      "task": "derive-prps",
+      "tokens_input": 18000,
+      "tokens_output": 9000,
+      "cost_usd": 3.50,
+      "timestamp": "2026-03-08T15:18:00.000Z"
+    },
+    {
+      "wave": 8,
+      "step": 5,
+      "task": "plan-features",
+      "tokens_input": 9000,
+      "tokens_output": 3500,
+      "cost_usd": 2.50,
+      "timestamp": "2026-03-08T15:27:00.000Z"
+    }
+  ],
+  "updated_at": "2026-03-08T15:27:00.000Z"
+}
