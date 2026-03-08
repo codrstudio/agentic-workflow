@@ -22,6 +22,8 @@ import { ProjectMetricsPage } from "@/pages/project-metrics";
 import { ReviewPanelPage } from "@/pages/review-panel";
 import { ProjectSettingsPage } from "@/pages/project-settings";
 import { McpServerDetailPage } from "@/pages/mcp-server-detail";
+import { ACRListPage } from "@/pages/acr-list";
+import { ACRDetailPage } from "@/pages/acr-detail";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -145,6 +147,22 @@ const projectArtifactsRoute = createRoute({
   staticData: { breadcrumb: "Artifacts" },
 });
 
+// /projects/$projectId/artifacts/acrs
+const projectACRsRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/artifacts/acrs",
+  component: ACRListPage,
+  staticData: { breadcrumb: "ACRs" },
+});
+
+// /projects/$projectId/artifacts/acrs/$acrId
+const acrDetailRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/artifacts/acrs/$acrId",
+  component: ACRDetailPage,
+  staticData: { breadcrumb: "ACR Detail" },
+});
+
 // /projects/$projectId/pipeline
 const projectPipelineRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -223,6 +241,8 @@ const routeTree = rootRoute.addChildren([
         projectChatRoute,
         chatSessionRoute,
         projectArtifactsRoute,
+        projectACRsRoute,
+        acrDetailRoute,
         projectPipelineRoute,
         projectReviewsRoute,
         reviewPanelRoute,
