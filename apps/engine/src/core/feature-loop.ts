@@ -7,6 +7,7 @@ import { GutterDetector, type RollbackMode } from './gutter-detector.js';
 import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
 import { PlanResolver } from './plan-resolver.js';
+import type { AcrInjector } from './acr-injector.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
@@ -23,6 +24,7 @@ export interface FeatureLoopContext {
   sprintNumber: number;
   templateContext: Record<string, string>;
   project?: string;
+  projectSlug?: string;
   onCheckpoint?: () => Promise<void>;
 }
 
@@ -48,7 +50,7 @@ export class FeatureLoop {
   private featuresDone = 0;
   private startedAt = now();
 
-  constructor(readonly notifier: Notifier) {}
+  constructor(readonly notifier: Notifier, private readonly acrInjector?: AcrInjector) {}
 
   async execute(
     taskSlug: string,
@@ -169,11 +171,14 @@ export class FeatureLoop {
           feature_id: feature.id,
         });
 
-        // Compose prompt: agent body + task body with feature context
+        // Compose prompt: agent body + task body with feature context + ACR section
         const agentPrompt = this.renderer.render(agentBody, ctx.templateContext);
         const taskPrompt = this.renderer.render(task.body, ctx.templateContext);
         const featureContext = `\n\n## Feature: ${feature.id} — ${feature.name}\n\n${feature.description}\n\nTests:\n${(feature.tests ?? []).map((t) => `- ${t}`).join('\n')}`;
-        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}`;
+        const acrSection = ctx.projectSlug && this.acrInjector
+          ? await this.acrInjector.buildSection(ctx.projectSlug)
+          : '';
+        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${acrSection}`;
 
         const meta: SpawnMeta = {
           task: taskSlug,

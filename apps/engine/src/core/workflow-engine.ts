@@ -9,6 +9,7 @@ import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
 import { OperatorQueue } from './operator-queue.js';
 import { PlanResolver } from './plan-resolver.js';
+import { AcrInjector } from './acr-injector.js';
 import { detectNextWave, resolveSprintForWave, setupWave } from './bootstrap.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
@@ -20,6 +21,7 @@ export interface WorkflowRunnerContext {
   workflow: Workflow;
   plan: Plan;
   projectName: string;
+  projectSlug: string;
   workspaceDir: string;
   projectDir: string;
   repoDir: string;
@@ -43,7 +45,8 @@ export class WorkflowRunner {
   readonly notifier = new Notifier();
   readonly renderer = new TemplateRenderer();
   readonly planResolver = new PlanResolver();
-  readonly operatorQueue = new OperatorQueue(this.state, this.spawner, this.notifier, this.renderer);
+  readonly acrInjector = new AcrInjector();
+  readonly operatorQueue = new OperatorQueue(this.state, this.spawner, this.notifier, this.renderer, this.acrInjector);
 
   private stopRequested = false;
 
@@ -217,6 +220,7 @@ export class WorkflowRunner {
       sprintNumber: ctx.sprintNumber,
       templateContext: this.buildTemplateContext(ctx),
       project: ctx.projectName,
+      projectSlug: ctx.projectSlug,
     });
   }
 
@@ -446,7 +450,8 @@ export class WorkflowRunner {
     const templateContext = this.buildTemplateContext(ctx);
     const agentPrompt = this.renderer.render(agentBody, templateContext);
     const taskPrompt = this.renderer.render(task.body, templateContext);
-    const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}`;
+    const acrSection = await this.acrInjector.buildSection(ctx.projectSlug);
+    const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${acrSection}`;
 
     return { prompt, agentName, frontmatter, taskFrontmatter: task.frontmatter };
   }
@@ -632,7 +637,7 @@ export class WorkflowRunner {
       }
     }
 
-    const loop = new FeatureLoop(this.notifier);
+    const loop = new FeatureLoop(this.notifier, this.acrInjector);
     return loop.execute(taskSlug, {
       worktreeDir: ctx.worktreeDir,
       sprintDir: ctx.sprintDir,
@@ -644,6 +649,7 @@ export class WorkflowRunner {
       sprintNumber: ctx.sprintNumber,
       templateContext: this.buildTemplateContext(ctx),
       project: ctx.projectName,
+      projectSlug: ctx.projectSlug,
       onCheckpoint: () => this.drainOperatorQueue(ctx),
     });
   }

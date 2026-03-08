@@ -156,6 +156,7 @@ async function main(): Promise<void> {
     workflow: result.workflow,
     plan: result.plan,
     projectName: result.projectConfig.name,
+    projectSlug: result.projectConfig.slug,
     workspaceDir: result.workspaceDir,
     projectDir: result.projectDir,
     repoDir: result.repoDir,

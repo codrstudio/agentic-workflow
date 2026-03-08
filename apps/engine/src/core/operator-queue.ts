@@ -5,6 +5,7 @@ import { StateManager, now } from './state-manager.js';
 import { AgentSpawner, type SpawnMeta } from './agent-spawner.js';
 import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
+import type { AcrInjector } from './acr-injector.js';
 import { OperatorMessageSchema, type OperatorMessage } from '../schemas/operator-queue.js';
 import type { EngineEventType } from '../schemas/event.js';
 
@@ -18,6 +19,7 @@ export interface OperatorQueueDrainConfig {
   sprintNumber: number;
   templateContext: Record<string, string>;
   project?: string;
+  projectSlug?: string;
 }
 
 export class OperatorQueue {
@@ -28,6 +30,7 @@ export class OperatorQueue {
     private readonly spawner: AgentSpawner,
     private readonly notifier: Notifier,
     private readonly renderer: TemplateRenderer,
+    private readonly acrInjector?: AcrInjector,
   ) {}
 
   /**
@@ -169,7 +172,10 @@ export class OperatorQueue {
 
     const agentPrompt = this.renderer.render(agentBody, templateContext);
     const taskPrompt = this.renderer.render(task.body, templateContext);
-    return `${agentPrompt}\n\n---\n\n# Task: operator-message\n\n${taskPrompt}`;
+    const acrSection = config.projectSlug && this.acrInjector
+      ? await this.acrInjector.buildSection(config.projectSlug)
+      : '';
+    return `${agentPrompt}\n\n---\n\n# Task: operator-message\n\n${taskPrompt}${acrSection}`;
   }
 
   private emitEvent(type: EngineEventType, data: Record<string, unknown>): void {
