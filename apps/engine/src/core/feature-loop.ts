@@ -10,6 +10,7 @@ import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
 import { ModelResolver } from './model-resolver.js';
+import { runCoverageGate, formatCoverageFailureContext, type CoverageGateConfig } from './coverage-gate.js';
 
 export interface FeatureLoopContext {
   worktreeDir: string;
@@ -25,6 +26,8 @@ export interface FeatureLoopContext {
   projectSlug?: string;
   workflowSlug?: string;
   modelResolver?: ModelResolver;
+  coverageGateConfig?: CoverageGateConfig;
+  hubBaseUrl?: string;
 }
 
 export interface FeatureLoopOptions {
@@ -171,7 +174,9 @@ export class FeatureLoop {
         const agentPrompt = this.renderer.render(agentBody, ctx.templateContext);
         const taskPrompt = this.renderer.render(task.body, ctx.templateContext);
         const featureContext = `\n\n## Feature: ${feature.id} — ${feature.name}\n\n${feature.description}\n\nTests:\n${(feature.tests ?? []).map((t) => `- ${t}`).join('\n')}`;
-        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}`;
+        const coverageCtx = (feature as Record<string, unknown>).coverage_failure_context;
+        const coverageSuffix = typeof coverageCtx === 'string' ? `\n\n## Coverage Gate Feedback\n\n${coverageCtx}` : '';
+        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${coverageSuffix}`;
 
         const resolver = ctx.modelResolver ?? new ModelResolver();
         const resolvedModel = await resolver.resolve({
@@ -221,13 +226,78 @@ export class FeatureLoop {
         const updatedFeature = updatedFeatures.find((f) => f.id === feature.id);
 
         if (updatedFeature?.status === 'passing') {
-          this.featuresDone++;
-          await this.emitEvent('feature:pass', ctx, {
-            feature_id: feature.id,
-            feature_name: feature.name,
-            iteration: this.iteration,
-            features_done: this.featuresDone,
-          });
+          // Run coverage gate if enabled
+          let coverageGateFailed = false;
+          if (ctx.coverageGateConfig?.enabled) {
+            try {
+              const coverageResult = await runCoverageGate(ctx.coverageGateConfig, worktreeDir);
+              // POST result to hub if available
+              if (ctx.hubBaseUrl && ctx.projectSlug) {
+                try {
+                  const postBody = {
+                    feature_id: feature.id,
+                    attempt,
+                    lines_pct: coverageResult.lines_pct,
+                    branches_pct: coverageResult.branches_pct,
+                    functions_pct: coverageResult.functions_pct,
+                    statements_pct: coverageResult.statements_pct,
+                    overall_pct: coverageResult.overall_pct,
+                    threshold_pct: coverageResult.threshold_pct,
+                    passed: coverageResult.passed,
+                    uncovered_files: coverageResult.uncovered_files,
+                    tool_used: coverageResult.tool_used,
+                    stdout_preview: coverageResult.stdout_preview,
+                    duration_ms: coverageResult.duration_ms,
+                  };
+                  await fetch(`${ctx.hubBaseUrl}/api/v1/hub/projects/${ctx.projectSlug}/test-coverage-results`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(postBody),
+                  });
+                } catch {
+                  // non-fatal: hub may not be available
+                }
+              }
+
+              if (!coverageResult.passed) {
+                coverageGateFailed = true;
+                // Mark feature as failing with coverage context
+                (updatedFeature as Record<string, unknown>).status = 'failing';
+                const coverageContext = formatCoverageFailureContext(coverageResult);
+                (updatedFeature as Record<string, unknown>).coverage_failure_context = coverageContext;
+                const newRetries = retries + 1;
+                (updatedFeature as Record<string, unknown>).retries = newRetries;
+                await this.state.saveFeatures(featuresPath, updatedFeatures);
+
+                await this.emitEvent('feature:fail', ctx, {
+                  feature_id: feature.id,
+                  feature_name: feature.name,
+                  reason: 'coverage_gate_failed',
+                  overall_pct: coverageResult.overall_pct,
+                  threshold_pct: coverageResult.threshold_pct,
+                });
+              }
+            } catch (err) {
+              // Coverage gate execution error — log but don't block
+              await this.emitEvent('feature:pass', ctx, {
+                feature_id: feature.id,
+                feature_name: feature.name,
+                iteration: this.iteration,
+                features_done: this.featuresDone + 1,
+                coverage_gate_error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+
+          if (!coverageGateFailed) {
+            this.featuresDone++;
+            await this.emitEvent('feature:pass', ctx, {
+              feature_id: feature.id,
+              feature_name: feature.name,
+              iteration: this.iteration,
+              features_done: this.featuresDone,
+            });
+          }
         } else {
           const newRetries = retries + 1;
           if (updatedFeature) {

@@ -35,6 +35,7 @@ import { handoffRequests } from "./routes/handoff-requests.js";
 import { board } from "./routes/board.js";
 import { qualityGateConfigs } from "./routes/quality-gate-configs.js";
 import { modelRouting } from "./routes/model-routing.js";
+import { testCoverageResults } from "./routes/test-coverage-results.js";
 
 const app = new Hono();
 
@@ -79,5 +80,6 @@ app.route("/api/v1", handoffRequests);
 app.route("/api/v1", board);
 app.route("/api/v1", qualityGateConfigs);
 app.route("/api/v1", modelRouting);
+app.route("/api/v1", testCoverageResults);
 
 export { app };
