@@ -45,6 +45,7 @@ import { featureCycles } from "./routes/feature-cycles.js";
 import { mentoringProfiles } from "./routes/mentoring-profiles.js";
 import { driftEvents } from "./routes/drift-events.js";
 import { throughputMetrics } from "./routes/throughput-metrics.js";
+import { roi } from "./routes/roi.js";
 
 const app = new Hono();
 
@@ -99,5 +100,6 @@ app.route("/api/v1", featureCycles);
 app.route("/api/v1", mentoringProfiles);
 app.route("/api/v1", driftEvents);
 app.route("/api/v1", throughputMetrics);
+app.route("/api/v1", roi);
 
 export { app };
