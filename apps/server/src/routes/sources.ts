@@ -1,9 +1,12 @@
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
+import { EventEmitter } from "node:events";
 import path from "node:path";
 import { readFile, writeFile, unlink } from "node:fs/promises";
 import { readJSON, writeJSON, ensureDir } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
+import { McpClient } from "../lib/mcp-client.js";
 import {
   CreateSourceBody,
   UpdateSourceBody,
@@ -532,6 +535,273 @@ sources.patch("/hub/projects/:slug/sources/:id/graph-config", async (c) => {
   await saveGraphConfig(slug, existing);
 
   return c.json(existing);
+});
+
+// --- Indexing: event bus + job tracking ---
+
+const indexEventBus = new EventEmitter();
+indexEventBus.setMaxListeners(100);
+
+interface IndexJob {
+  job_id: string;
+  source_id: string;
+  project_slug: string;
+  started_at: string;
+  status: "running" | "completed" | "error";
+}
+
+const activeJobs = new Map<string, IndexJob>();
+
+async function runIndexing(
+  slug: string,
+  sourceId: string,
+  graphCfg: CodebaseGraphConfig,
+  jobId: string,
+): Promise<void> {
+  const channel = `index:${sourceId}`;
+  let client: McpClient | null = null;
+
+  try {
+    // Connect to MCP server
+    client = new McpClient({
+      transport: "sse",
+      args: [],
+      env: {},
+      url: graphCfg.mcp_server_url,
+    });
+    await client.connect();
+
+    // Emit initial progress
+    indexEventBus.emit(channel, {
+      type: "progress",
+      nodes_indexed: 0,
+    });
+
+    // Call the indexing tool — use first configured tool or "index"
+    const toolName =
+      graphCfg.mcp_tools.length > 0 ? graphCfg.mcp_tools[0]! : "index";
+    const result = (await client.callTool(toolName, {
+      repo_path: graphCfg.repo_path ?? ".",
+      index_patterns: graphCfg.index_patterns,
+      exclude_patterns: graphCfg.exclude_patterns,
+    })) as {
+      content?: Array<{ text?: string }>;
+      node_count?: number;
+      edge_count?: number;
+    };
+
+    // Extract counts from MCP response
+    let nodeCount = result.node_count ?? 0;
+    let edgeCount = result.edge_count ?? 0;
+
+    // Some MCP servers return results inside content[].text as JSON
+    if (!nodeCount && result.content?.length) {
+      try {
+        const parsed = JSON.parse(result.content[0]?.text ?? "{}") as {
+          node_count?: number;
+          edge_count?: number;
+        };
+        nodeCount = parsed.node_count ?? nodeCount;
+        edgeCount = parsed.edge_count ?? edgeCount;
+      } catch {
+        // ignore parse errors
+      }
+    }
+
+    // Update config: ready
+    graphCfg.index_status = "ready";
+    graphCfg.index_error = null;
+    graphCfg.last_indexed_at = new Date().toISOString();
+    graphCfg.node_count = nodeCount;
+    graphCfg.edge_count = edgeCount;
+    graphCfg.updated_at = new Date().toISOString();
+    await saveGraphConfig(slug, graphCfg);
+
+    // Update job
+    const job = activeJobs.get(jobId);
+    if (job) job.status = "completed";
+
+    // Emit complete
+    indexEventBus.emit(channel, {
+      type: "complete",
+      node_count: nodeCount,
+      edge_count: edgeCount,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+
+    // Update config: error
+    graphCfg.index_status = "error";
+    graphCfg.index_error = message;
+    graphCfg.updated_at = new Date().toISOString();
+    await saveGraphConfig(slug, graphCfg);
+
+    // Update job
+    const job = activeJobs.get(jobId);
+    if (job) job.status = "error";
+
+    // Emit error
+    indexEventBus.emit(channel, {
+      type: "error",
+      message,
+    });
+  } finally {
+    if (client) {
+      try {
+        await client.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+
+// POST /hub/projects/:slug/sources/:id/index — start async indexing
+sources.post("/hub/projects/:slug/sources/:id/index", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const all = await loadSources(slug);
+  const source = all.find((s) => s.id === id);
+  if (!source) return c.json({ error: "Source not found" }, 404);
+  if (source.type !== "codebase_graph") {
+    return c.json({ error: "Source is not of type codebase_graph" }, 400);
+  }
+
+  const graphCfg = await loadGraphConfig(slug, id);
+  if (!graphCfg) return c.json({ error: "Graph config not found" }, 404);
+
+  // Prevent concurrent indexing
+  if (graphCfg.index_status === "indexing") {
+    return c.json({ error: "Indexing already in progress" }, 409);
+  }
+
+  // Set status to indexing
+  graphCfg.index_status = "indexing";
+  graphCfg.index_error = null;
+  graphCfg.updated_at = new Date().toISOString();
+  await saveGraphConfig(slug, graphCfg);
+
+  // Create job
+  const jobId = randomUUID();
+  const job: IndexJob = {
+    job_id: jobId,
+    source_id: id,
+    project_slug: slug,
+    started_at: new Date().toISOString(),
+    status: "running",
+  };
+  activeJobs.set(jobId, job);
+
+  // Start async indexing (fire-and-forget)
+  runIndexing(slug, id, graphCfg, jobId);
+
+  return c.json({ job_id: jobId }, 202);
+});
+
+// GET /hub/projects/:slug/sources/:id/index/events — SSE stream for indexing progress
+sources.get("/hub/projects/:slug/sources/:id/index/events", (c) => {
+  const id = c.req.param("id");
+  const channel = `index:${id}`;
+
+  return streamSSE(c, async (stream) => {
+    await stream.writeSSE({
+      event: "connected",
+      data: JSON.stringify({
+        source_id: id,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    let done = false;
+
+    const listener = async (event: { type: string; [key: string]: unknown }) => {
+      try {
+        await stream.writeSSE({
+          event: event.type,
+          data: JSON.stringify(event),
+        });
+        if (event.type === "complete" || event.type === "error") {
+          done = true;
+        }
+      } catch {
+        // Client disconnected
+        done = true;
+      }
+    };
+
+    indexEventBus.on(channel, listener);
+
+    stream.onAbort(() => {
+      indexEventBus.off(channel, listener);
+      done = true;
+    });
+
+    // Keep alive with heartbeat until indexing completes or client disconnects
+    while (!done) {
+      try {
+        await stream.writeSSE({
+          event: "heartbeat",
+          data: JSON.stringify({ timestamp: new Date().toISOString() }),
+        });
+        await stream.sleep(10000);
+      } catch {
+        break;
+      }
+    }
+
+    indexEventBus.off(channel, listener);
+  });
+});
+
+// POST /hub/projects/:slug/sources/:id/index/merge-hook — auto-reindex after merge
+sources.post("/hub/projects/:slug/sources/:id/index/merge-hook", async (c) => {
+  const slug = c.req.param("slug");
+  const id = c.req.param("id");
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const all = await loadSources(slug);
+  const source = all.find((s) => s.id === id);
+  if (!source) return c.json({ error: "Source not found" }, 404);
+  if (source.type !== "codebase_graph") {
+    return c.json({ error: "Source is not of type codebase_graph" }, 400);
+  }
+
+  const graphCfg = await loadGraphConfig(slug, id);
+  if (!graphCfg) return c.json({ error: "Graph config not found" }, 404);
+
+  if (!graphCfg.auto_reindex_on_merge) {
+    return c.json({ triggered: false, reason: "auto_reindex_on_merge is disabled" });
+  }
+
+  // Skip if already indexing
+  if (graphCfg.index_status === "indexing") {
+    return c.json({ triggered: false, reason: "Indexing already in progress" });
+  }
+
+  // Set status to indexing
+  graphCfg.index_status = "indexing";
+  graphCfg.index_error = null;
+  graphCfg.updated_at = new Date().toISOString();
+  await saveGraphConfig(slug, graphCfg);
+
+  const jobId = randomUUID();
+  const job: IndexJob = {
+    job_id: jobId,
+    source_id: id,
+    project_slug: slug,
+    started_at: new Date().toISOString(),
+    status: "running",
+  };
+  activeJobs.set(jobId, job);
+
+  // Fire-and-forget
+  runIndexing(slug, id, graphCfg, jobId);
+
+  return c.json({ triggered: true, job_id: jobId }, 202);
 });
 
 export { sources };
