@@ -10,6 +10,7 @@ import {
   SubmitCheckpointBody,
   type LearningCheckpoint,
 } from "../schemas/learning-checkpoint.js";
+import type { PhaseDetail } from "../schemas/learning-checkpoint.js";
 import {
   MentoringProfileSchema,
   type MentoringProfile,
@@ -515,6 +516,94 @@ function evaluateAnswer(question: string, answer: string, level: ExperienceLevel
 // --- Endpoints ---
 
 const BASE = "/hub/projects/:projectId/mentoring/profiles/:profileId";
+
+// GET /hub/projects/:projectId/mentoring/profiles/:profileId/progress
+learningCheckpoints.get(`${BASE}/progress`, async (c) => {
+  const projectId = c.req.param("projectId");
+  const profileId = c.req.param("profileId");
+
+  const project = await loadProject(projectId);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  const profile = await loadProfile(projectId, profileId);
+  if (!profile) return c.json({ error: "Profile not found" }, 404);
+
+  const allCheckpoints = await loadAllCheckpoints(projectId);
+  const checkpoints = allCheckpoints.filter((cp) => cp.profile_id === profileId);
+
+  const total_checkpoints = checkpoints.length;
+  const completed_checkpoints = checkpoints.filter((cp) => cp.completed).length;
+  const completion_rate = total_checkpoints === 0 ? 0 : completed_checkpoints / total_checkpoints;
+
+  let questions_answered = 0;
+  let questions_passed = 0;
+  for (const cp of checkpoints) {
+    for (const q of cp.questions) {
+      if (q.developer_answer !== null) {
+        questions_answered++;
+        if (q.passed === true) questions_passed++;
+      }
+    }
+  }
+  const pass_rate = questions_answered === 0 ? 0 : questions_passed / questions_answered;
+
+  // Group by phase
+  const phaseMap = new Map<string, { checkpoints: number; completed: number; qa: number; qp: number }>();
+  for (const cp of checkpoints) {
+    if (!phaseMap.has(cp.phase)) {
+      phaseMap.set(cp.phase, { checkpoints: 0, completed: 0, qa: 0, qp: 0 });
+    }
+    const entry = phaseMap.get(cp.phase)!;
+    entry.checkpoints++;
+    if (cp.completed) entry.completed++;
+    for (const q of cp.questions) {
+      if (q.developer_answer !== null) {
+        entry.qa++;
+        if (q.passed === true) entry.qp++;
+      }
+    }
+  }
+
+  const phases_detail: PhaseDetail[] = Array.from(phaseMap.entries()).map(([phase, d]) => ({
+    phase,
+    checkpoints: d.checkpoints,
+    completed: d.completed,
+    pass_rate: d.qa === 0 ? 0 : d.qp / d.qa,
+  }));
+
+  // strongest/weakest: phases with min 2 checkpoints
+  const eligible = phases_detail.filter((p) => p.checkpoints >= 2);
+  let strongest_phase: string | null = null;
+  let weakest_phase: string | null = null;
+
+  if (eligible.length > 0) {
+    let maxRate = -1;
+    let minRate = 2;
+    for (const p of eligible) {
+      if (p.pass_rate > maxRate) { maxRate = p.pass_rate; strongest_phase = p.phase; }
+      if (p.pass_rate < minRate) { minRate = p.pass_rate; weakest_phase = p.phase; }
+    }
+  }
+
+  const recommended_focus = weakest_phase
+    ? `Focus on the ${weakest_phase} phase, which has the lowest pass rate among phases with sufficient checkpoint data.`
+    : phases_detail.length > 0
+    ? `Continue progressing through all phases. Generate more checkpoints per phase to unlock detailed recommendations.`
+    : `Start generating checkpoints to track your learning progress.`;
+
+  return c.json({
+    total_checkpoints,
+    completed_checkpoints,
+    completion_rate,
+    questions_answered,
+    questions_passed,
+    pass_rate,
+    phases_detail,
+    strongest_phase,
+    weakest_phase,
+    recommended_focus,
+  });
+});
 
 // GET /hub/projects/:projectId/mentoring/profiles/:profileId/checkpoints
 learningCheckpoints.get(`${BASE}/checkpoints`, async (c) => {

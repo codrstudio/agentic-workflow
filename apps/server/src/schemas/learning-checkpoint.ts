@@ -37,3 +37,25 @@ export const SubmitCheckpointBody = z.object({
   answers: z.array(SubmitAnswerSchema).min(1),
 });
 export type SubmitCheckpointBody = z.infer<typeof SubmitCheckpointBody>;
+
+export const PhaseDetailSchema = z.object({
+  phase: z.string(),
+  checkpoints: z.number().int().min(0),
+  completed: z.number().int().min(0),
+  pass_rate: z.number().min(0).max(1),
+});
+export type PhaseDetail = z.infer<typeof PhaseDetailSchema>;
+
+export const MentoringProgressSchema = z.object({
+  total_checkpoints: z.number().int().min(0),
+  completed_checkpoints: z.number().int().min(0),
+  completion_rate: z.number().min(0).max(1),
+  questions_answered: z.number().int().min(0),
+  questions_passed: z.number().int().min(0),
+  pass_rate: z.number().min(0).max(1),
+  phases_detail: z.array(PhaseDetailSchema),
+  strongest_phase: z.string().nullable(),
+  weakest_phase: z.string().nullable(),
+  recommended_focus: z.string(),
+});
+export type MentoringProgress = z.infer<typeof MentoringProgressSchema>;
