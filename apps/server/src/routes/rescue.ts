@@ -12,7 +12,14 @@ import {
   RescueDifficultyEnum,
   type RescueProject,
   type CodebaseAudit,
+  type ReverseSpec,
 } from "../schemas/rescue.js";
+import {
+  SpecDocumentSchema,
+  SpecIndexSchema,
+  type SpecDocument,
+  type SpecIndex,
+} from "../schemas/spec-document.js";
 import { type Project } from "../schemas/project.js";
 
 const rescue = new Hono();
@@ -303,5 +310,268 @@ rescue.get("/hub/projects/:slug/rescue/:rescueId/audit", async (c) => {
 
   return c.json(audit);
 });
+
+// ---- ReverseSpec helpers ----
+
+function reverseSpecsDirPath(slug: string): string {
+  return path.join(projectDir(slug), "reverse-specs");
+}
+
+function reverseSpecPath(slug: string, id: string): string {
+  return path.join(reverseSpecsDirPath(slug), `${id}.json`);
+}
+
+async function loadAllReverseSpecs(slug: string, rescueId: string): Promise<ReverseSpec[]> {
+  const dir = reverseSpecsDirPath(slug);
+  let files: string[];
+  try {
+    const entries = await readdir(dir);
+    files = entries.filter((f) => f.endsWith(".json")).sort();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("ENOENT") || msg.includes("not found")) return [];
+    throw err;
+  }
+
+  const result: ReverseSpec[] = [];
+  for (const file of files) {
+    try {
+      const rs = await readJSON<ReverseSpec>(path.join(dir, file));
+      if (rs.rescue_id === rescueId) result.push(rs);
+    } catch {
+      // skip malformed
+    }
+  }
+  return result;
+}
+
+// Spec index helpers (for promote)
+function specIndexPath(slug: string): string {
+  return path.join(projectDir(slug), "spec-index.json");
+}
+
+function specsDirPath(slug: string): string {
+  return path.join(projectDir(slug), "specs");
+}
+
+function specFilePath(slug: string, id: string): string {
+  return path.join(specsDirPath(slug), `${id}.json`);
+}
+
+async function loadSpecIndex(slug: string): Promise<SpecIndex> {
+  try {
+    return await readJSON<SpecIndex>(specIndexPath(slug));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found") || msg.includes("ENOENT")) {
+      return { slugs: [], next_number: 1 };
+    }
+    throw err;
+  }
+}
+
+// Deterministic module list for reverse spec generation
+const SAMPLE_MODULES = [
+  {
+    module_name: "AuthModule",
+    file_paths: ["src/auth/index.ts", "src/auth/middleware.ts"],
+    inferred_purpose: "Handles user authentication and session management",
+    current_behavior:
+      "Implements JWT-based auth with hardcoded secrets and no token refresh logic",
+    issues_found: [
+      { description: "Hardcoded JWT secret in source code", severity: "critical" as const },
+      { description: "No token refresh mechanism", severity: "high" as const },
+    ],
+    recommended_changes: [
+      "Move JWT secret to environment variables",
+      "Implement token refresh flow",
+      "Add rate limiting to auth endpoints",
+    ],
+  },
+  {
+    module_name: "DataLayer",
+    file_paths: ["src/db/client.ts", "src/db/queries.ts", "src/models/"],
+    inferred_purpose: "Database access layer for CRUD operations",
+    current_behavior:
+      "Direct SQL queries mixed with business logic, no ORM, no connection pooling",
+    issues_found: [
+      { description: "SQL queries mixed with business logic", severity: "high" as const },
+      { description: "No connection pooling configured", severity: "medium" as const },
+      { description: "Missing input sanitization on raw queries", severity: "high" as const },
+    ],
+    recommended_changes: [
+      "Extract data access into repository pattern",
+      "Configure connection pooling",
+      "Add input validation layer",
+    ],
+  },
+  {
+    module_name: "APIRouter",
+    file_paths: ["src/routes/", "src/middleware/"],
+    inferred_purpose: "HTTP routing and request handling",
+    current_behavior: "Monolithic router file with all endpoints, no modular separation",
+    issues_found: [
+      { description: "Single 800-line router file", severity: "medium" as const },
+      { description: "No request validation on most endpoints", severity: "high" as const },
+    ],
+    recommended_changes: [
+      "Split router into domain-specific modules",
+      "Add Zod schema validation for all request bodies",
+      "Implement consistent error response format",
+    ],
+  },
+];
+
+// POST /hub/projects/:slug/rescue/:rescueId/reverse-specs  (202 Accepted, async trigger)
+rescue.post("/hub/projects/:slug/rescue/:rescueId/reverse-specs", async (c) => {
+  const slug = c.req.param("slug");
+  const rescueId = c.req.param("rescueId");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  let rescueProject: RescueProject;
+  try {
+    rescueProject = await readJSON<RescueProject>(rescueProjectPath(slug, rescueId));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found") || msg.includes("ENOENT")) {
+      return c.json({ error: "RescueProject not found" }, 404);
+    }
+    throw err;
+  }
+
+  // Generate deterministic reverse-specs for each module
+  await ensureDir(reverseSpecsDirPath(slug));
+  const now = new Date().toISOString();
+  const createdIds: string[] = [];
+
+  for (const mod of SAMPLE_MODULES) {
+    const id = randomUUID();
+    const rs: ReverseSpec = {
+      id,
+      rescue_id: rescueId,
+      module_name: mod.module_name,
+      file_paths: mod.file_paths,
+      inferred_purpose: mod.inferred_purpose,
+      current_behavior: mod.current_behavior,
+      issues_found: mod.issues_found,
+      recommended_changes: mod.recommended_changes,
+      promoted_to_spec_id: null,
+      created_at: now,
+    };
+    await writeJSON(reverseSpecPath(slug, id), rs);
+    createdIds.push(id);
+  }
+
+  return c.json(
+    { accepted: true, rescue_id: rescueId, reverse_specs_queued: createdIds.length },
+    202
+  );
+});
+
+// GET /hub/projects/:slug/rescue/:rescueId/reverse-specs
+rescue.get("/hub/projects/:slug/rescue/:rescueId/reverse-specs", async (c) => {
+  const slug = c.req.param("slug");
+  const rescueId = c.req.param("rescueId");
+
+  const project = await loadProject(slug);
+  if (!project) return c.json({ error: "Project not found" }, 404);
+
+  // Verify rescue project exists
+  try {
+    await readJSON<RescueProject>(rescueProjectPath(slug, rescueId));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("not found") || msg.includes("ENOENT")) {
+      return c.json({ error: "RescueProject not found" }, 404);
+    }
+    throw err;
+  }
+
+  const reverseSpecs = await loadAllReverseSpecs(slug, rescueId);
+  return c.json(reverseSpecs);
+});
+
+// POST /hub/projects/:slug/rescue/:rescueId/reverse-specs/:reverseSpecId/promote
+rescue.post(
+  "/hub/projects/:slug/rescue/:rescueId/reverse-specs/:reverseSpecId/promote",
+  async (c) => {
+    const slug = c.req.param("slug");
+    const rescueId = c.req.param("rescueId");
+    const reverseSpecId = c.req.param("reverseSpecId");
+
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    // Load reverse spec
+    let rs: ReverseSpec;
+    try {
+      rs = await readJSON<ReverseSpec>(reverseSpecPath(slug, reverseSpecId));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("not found") || msg.includes("ENOENT")) {
+        return c.json({ error: "ReverseSpec not found" }, 404);
+      }
+      throw err;
+    }
+
+    if (rs.rescue_id !== rescueId) {
+      return c.json({ error: "ReverseSpec does not belong to this rescue project" }, 400);
+    }
+
+    if (rs.promoted_to_spec_id !== null) {
+      return c.json({ error: "ReverseSpec already promoted" }, 409);
+    }
+
+    // Create SpecDocument from reverse-spec
+    const specIndex = await loadSpecIndex(slug);
+    const num = specIndex.next_number;
+    const specSlug = `S-${String(num).padStart(3, "0")}`;
+    const now = new Date().toISOString();
+    const specId = randomUUID();
+
+    const contentMd = [
+      `## Inferred Purpose\n\n${rs.inferred_purpose}`,
+      `## Current Behavior\n\n${rs.current_behavior}`,
+      `## Recommended Changes\n\n${rs.recommended_changes.map((c) => `- ${c}`).join("\n")}`,
+      `## Files\n\n${rs.file_paths.map((f) => `- \`${f}\``).join("\n")}`,
+    ].join("\n\n");
+
+    const doc: SpecDocument = SpecDocumentSchema.parse({
+      id: specId,
+      project_id: project.id,
+      slug: specSlug,
+      title: rs.module_name,
+      status: "draft",
+      version: 1,
+      content_md: contentMd,
+      sections: [],
+      discoveries: [],
+      derived_features: [],
+      review_score: null,
+      reviewed_by: [],
+      superseded_by: null,
+      tags: ["rescue", "reverse-spec"],
+      created_at: now,
+      updated_at: now,
+    });
+
+    await ensureDir(specsDirPath(slug));
+    await writeJSON(specFilePath(slug, specId), doc);
+
+    const updatedIndex: SpecIndex = {
+      slugs: [...specIndex.slugs, specSlug],
+      next_number: num + 1,
+    };
+    await writeJSON(specIndexPath(slug), updatedIndex);
+
+    // Mark reverse-spec as promoted
+    const updatedRs: ReverseSpec = { ...rs, promoted_to_spec_id: specId };
+    await writeJSON(reverseSpecPath(slug, reverseSpecId), updatedRs);
+
+    return c.json({ reverse_spec: updatedRs, spec: doc }, 201);
+  }
+);
 
 export { rescue };

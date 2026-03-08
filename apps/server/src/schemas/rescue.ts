@@ -74,3 +74,27 @@ export const CodebaseAuditSchema = z.object({
 });
 
 export type CodebaseAudit = z.infer<typeof CodebaseAuditSchema>;
+
+// ReverseSpec
+
+export const ReverseSpecIssueSeverityEnum = z.enum(["critical", "high", "medium", "low"]);
+
+export const ReverseSpecIssueSchema = z.object({
+  description: z.string(),
+  severity: ReverseSpecIssueSeverityEnum,
+});
+
+export const ReverseSpecSchema = z.object({
+  id: z.string().uuid(),
+  rescue_id: z.string().uuid(),
+  module_name: z.string(),
+  file_paths: z.array(z.string()),
+  inferred_purpose: z.string(),
+  current_behavior: z.string(),
+  issues_found: z.array(ReverseSpecIssueSchema),
+  recommended_changes: z.array(z.string()),
+  promoted_to_spec_id: z.string().uuid().nullable(),
+  created_at: z.string(),
+});
+
+export type ReverseSpec = z.infer<typeof ReverseSpecSchema>;
