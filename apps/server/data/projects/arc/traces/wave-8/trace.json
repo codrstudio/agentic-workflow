@@ -1,0 +1,5849 @@
+{
+  "trace_id": "arc-wave-8",
+  "project_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "wave": 8,
+  "started_at": "2026-03-08T14:45:39Z",
+  "ended_at": null,
+  "status": "running",
+  "spans": [
+    {
+      "id": "arc-wave-8-wave",
+      "parent_id": null,
+      "trace_id": "arc-wave-8",
+      "name": "wave 8",
+      "type": "wave",
+      "status": "running",
+      "started_at": "2026-03-08T14:45:39Z",
+      "ended_at": null,
+      "duration_ms": null,
+      "metadata": {
+        "wave_number": 8,
+        "step_count": 6,
+        "has_loop": true,
+        "has_merge": false
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": null,
+      "tokens_output": null,
+      "cost_usd": null,
+      "tool_calls": [],
+      "exit_code": null,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-1-pain-gain-analysis",
+      "parent_id": "arc-wave-8-wave",
+      "trace_id": "arc-wave-8",
+      "name": "step 1: pain-gain-analysis",
+      "type": "step",
+      "status": "completed",
+      "started_at": "2026-03-08T14:45:39Z",
+      "ended_at": "2026-03-08T14:58:39Z",
+      "duration_ms": 780000,
+      "metadata": {
+        "step_number": 1,
+        "task": "pain-gain-analysis",
+        "agent": "researcher",
+        "pid": 11820,
+        "timed_out": false
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": null,
+      "tokens_output": null,
+      "cost_usd": null,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-1-pain-gain-analysis-agent-call",
+      "parent_id": "arc-wave-8-step-1-pain-gain-analysis",
+      "trace_id": "arc-wave-8",
+      "name": "agent: pain-gain-analysis",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T14:45:39Z",
+      "ended_at": "2026-03-08T14:58:39Z",
+      "duration_ms": 780000,
+      "metadata": {
+        "task": "pain-gain-analysis",
+        "agent": "researcher",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "Sessão completa. Resumo do que foi produzido:\n\n---\n\n## Sprint 8 — Pain-Gain Analysis\n\n**20 novas discoveries** (mínimo 10 exigido):\n\n### Pains (D-073 a D-082)\n| ID | Tema | Score |\n|----|------|-------|\n| D-073 | **Cognitive Debt Crisis** — AI outpace compreensão 5-7x; dívida que vive na mente do dev | 9 |\n| D-074 | Code Review Bottleneck — PR volume +29% YoY, revisão humana não escalou | 8 |\n| D-",
+      "tokens_input": 2459382,
+      "tokens_output": 627,
+      "cost_usd": 7.387551,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.282Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "ToolSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "WebSearch",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.283Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-2-go-no-go",
+      "parent_id": "arc-wave-8-wave",
+      "trace_id": "arc-wave-8",
+      "name": "step 2: go-no-go",
+      "type": "step",
+      "status": "completed",
+      "started_at": "2026-03-08T14:58:39Z",
+      "ended_at": "2026-03-08T15:02:38Z",
+      "duration_ms": 239000,
+      "metadata": {
+        "step_number": 2,
+        "task": "go-no-go",
+        "agent": "general",
+        "pid": 38888,
+        "timed_out": false
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": null,
+      "tokens_output": null,
+      "cost_usd": null,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-2-go-no-go-agent-call",
+      "parent_id": "arc-wave-8-step-2-go-no-go",
+      "trace_id": "arc-wave-8",
+      "name": "agent: go-no-go",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T14:58:39Z",
+      "ended_at": "2026-03-08T15:02:38Z",
+      "duration_ms": 239000,
+      "metadata": {
+        "task": "go-no-go",
+        "agent": "general",
+        "model": null
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": null,
+      "tokens_output": null,
+      "cost_usd": null,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-3-derive-specs",
+      "parent_id": "arc-wave-8-wave",
+      "trace_id": "arc-wave-8",
+      "name": "step 3: derive-specs",
+      "type": "step",
+      "status": "completed",
+      "started_at": "2026-03-08T15:02:38Z",
+      "ended_at": "2026-03-08T15:11:37Z",
+      "duration_ms": 539000,
+      "metadata": {
+        "step_number": 3,
+        "task": "derive-specs",
+        "agent": "general",
+        "pid": 37468,
+        "timed_out": false
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": null,
+      "tokens_output": null,
+      "cost_usd": null,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-3-derive-specs-agent-call",
+      "parent_id": "arc-wave-8-step-3-derive-specs",
+      "trace_id": "arc-wave-8",
+      "name": "agent: derive-specs",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:02:38Z",
+      "ended_at": "2026-03-08T15:11:37Z",
+      "duration_ms": 539000,
+      "metadata": {
+        "task": "derive-specs",
+        "agent": "general",
+        "model": "claude-opus-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "The workspace is gitignored in the parent repo. That's fine — the specs are committed in the worktree repo, which is what matters. The workflow-progress.txt is already updated on disk.\n\n**Derive-specs complete.** Summary:\n\n**8 specs derivadas (S-043 a S-050):**\n\n| Spec | Titulo | Discoveries | Score Max |\n|------|--------|-------------|-----------|\n| S-043 | Cognitive Debt Prevention Pipeline | D-",
+      "tokens_input": 2506673,
+      "tokens_output": 373,
+      "cost_usd": 37.62807,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.290Z",
+          "duration_ms": null,
+          "success": false
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-4-derive-prps",
+      "parent_id": "arc-wave-8-wave",
+      "trace_id": "arc-wave-8",
+      "name": "step 4: derive-prps",
+      "type": "step",
+      "status": "completed",
+      "started_at": "2026-03-08T15:11:37Z",
+      "ended_at": "2026-03-08T15:18:41Z",
+      "duration_ms": 424000,
+      "metadata": {
+        "step_number": 4,
+        "task": "derive-prps",
+        "agent": "general",
+        "pid": 34280,
+        "timed_out": false
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": null,
+      "tokens_output": null,
+      "cost_usd": null,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-4-derive-prps-agent-call",
+      "parent_id": "arc-wave-8-step-4-derive-prps",
+      "trace_id": "arc-wave-8",
+      "name": "agent: derive-prps",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:11:37Z",
+      "ended_at": "2026-03-08T15:18:41Z",
+      "duration_ms": 424000,
+      "metadata": {
+        "task": "derive-prps",
+        "agent": "general",
+        "model": "claude-opus-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "Tarefa concluida. Resumo:\n\n**8 PRPs derivados** (PRP-043 a PRP-050) com **35 features atomicas** (F-215 a F-249):\n\n| PRP | Spec | Tema | Features |\n|-----|------|------|----------|\n| PRP-043 | S-043 | Cognitive Debt Prevention Pipeline | F-215..F-218 (4) |\n| PRP-044 | S-044 | AI Code Review at Scale | F-219..F-222 (4) |\n| PRP-045 | S-045 | Context Engineering Platform | F-223..F-227 (5) |\n| PRP-04",
+      "tokens_input": 2507319,
+      "tokens_output": 316,
+      "cost_usd": 37.633485,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.293Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-5-plan-features",
+      "parent_id": "arc-wave-8-wave",
+      "trace_id": "arc-wave-8",
+      "name": "step 5: plan-features",
+      "type": "step",
+      "status": "completed",
+      "started_at": "2026-03-08T15:18:41Z",
+      "ended_at": "2026-03-08T15:27:04Z",
+      "duration_ms": 503000,
+      "metadata": {
+        "step_number": 5,
+        "task": "plan-features",
+        "agent": "general",
+        "pid": 46352,
+        "timed_out": false
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": null,
+      "tokens_output": null,
+      "cost_usd": null,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-5-plan-features-agent-call",
+      "parent_id": "arc-wave-8-step-5-plan-features",
+      "trace_id": "arc-wave-8",
+      "name": "agent: plan-features",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:18:41Z",
+      "ended_at": "2026-03-08T15:27:04Z",
+      "duration_ms": 503000,
+      "metadata": {
+        "task": "plan-features",
+        "agent": "general",
+        "model": "claude-opus-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "Done. Here's the summary:\n\n**features.json created with 35 features (F-215 to F-249)** from 8 PRPs.\n\n**Priority strategy:**\n- **P1-P8**: Backend/API foundation (CRUD, schemas, core endpoints) — all 8 PRPs' base APIs\n- **P9-P19**: Secondary APIs (metrics, configs, derived endpoints) — respecting within-PRP and cross-PRP deps\n- **P20-P35**: UI features (dashboards, views, modals) — after their API d",
+      "tokens_input": 2544201,
+      "tokens_output": 488,
+      "cost_usd": 38.199615,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "ToolSearch",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.300Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "parent_id": "arc-wave-8-wave",
+      "trace_id": "arc-wave-8",
+      "name": "loop: ralph-wiggum",
+      "type": "step",
+      "status": "running",
+      "started_at": "2026-03-08T18:52:52.301Z",
+      "ended_at": null,
+      "duration_ms": null,
+      "metadata": {
+        "step_number": 6,
+        "task": "ralph-wiggum-loop",
+        "agent": "unknown",
+        "timed_out": false,
+        "loop_status": "running",
+        "loop_iteration": 3,
+        "loop_total": 35,
+        "loop_done": 13,
+        "loop_features_done": 2
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": null,
+      "tokens_output": null,
+      "cost_usd": null,
+      "tool_calls": [],
+      "exit_code": null,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-215-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-215 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T15:27:04Z",
+      "ended_at": "2026-03-08T15:32:26Z",
+      "duration_ms": 322000,
+      "metadata": {
+        "feature_id": "F-215",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 40044
+      },
+      "input_summary": null,
+      "output_summary": "F-215 implementada e commitada. Resumo do que foi feito:\n\n**Schema** (`schemas/cognitive-debt.ts`):\n- `ComprehensionGate` com todos os campos especificados (id uuid, phase, type enum, cognitive_load_score 1-5, auto_detected_risk, completed/bypassed, etc.)\n- `CognitiveDebtIndicator` com todas as métricas\n- `IndicatorsCache` com TTL\n- Bodies de criação/patch com Zod\n\n**Rota** (`routes/cognitive-debt",
+      "tokens_input": 1806916,
+      "tokens_output": 807,
+      "cost_usd": 5.432853,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-215-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-215-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-215)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:27:04Z",
+      "ended_at": "2026-03-08T15:32:26Z",
+      "duration_ms": 322000,
+      "metadata": {
+        "feature_id": "F-215",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-215 implementada e commitada. Resumo do que foi feito:\n\n**Schema** (`schemas/cognitive-debt.ts`):\n- `ComprehensionGate` com todos os campos especificados (id uuid, phase, type enum, cognitive_load_score 1-5, auto_detected_risk, completed/bypassed, etc.)\n- `CognitiveDebtIndicator` com todas as métricas\n- `IndicatorsCache` com TTL\n- Bodies de criação/patch com Zod\n\n**Rota** (`routes/cognitive-debt",
+      "tokens_input": 1806916,
+      "tokens_output": 807,
+      "cost_usd": 5.432853,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "ToolSearch",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.317Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-216-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-216 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T16:25:33Z",
+      "ended_at": "2026-03-08T16:29:55Z",
+      "duration_ms": 262000,
+      "metadata": {
+        "feature_id": "F-216",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 51680
+      },
+      "input_summary": null,
+      "output_summary": "F-216 implementado e commitado. Resumo:\n\n**F-216 — Auto-detect cognitive risk endpoint** ✅\n\n- `POST /api/v1/hub/projects/:projectId/cognitive-debt/detect-risk`\n- Body: `{ phase, artifacts_changed, lines_generated }`\n- Lógica de risco:\n  - `high`: lines > 500 OR artifacts > 100 → gate_type `diff_review`\n  - `medium`: lines > 200 OR artifacts > 50 → gate_type `summary_required`\n  - `low`: else → gat",
+      "tokens_input": 1734781,
+      "tokens_output": 510,
+      "cost_usd": 5.211993,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-216-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-216-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-216)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T16:25:33Z",
+      "ended_at": "2026-03-08T16:29:55Z",
+      "duration_ms": 262000,
+      "metadata": {
+        "feature_id": "F-216",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-216 implementado e commitado. Resumo:\n\n**F-216 — Auto-detect cognitive risk endpoint** ✅\n\n- `POST /api/v1/hub/projects/:projectId/cognitive-debt/detect-risk`\n- Body: `{ phase, artifacts_changed, lines_generated }`\n- Lógica de risco:\n  - `high`: lines > 500 OR artifacts > 100 → gate_type `diff_review`\n  - `medium`: lines > 200 OR artifacts > 50 → gate_type `summary_required`\n  - `low`: else → gat",
+      "tokens_input": 1734781,
+      "tokens_output": 510,
+      "cost_usd": 5.211993,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.321Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-219-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-219 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T15:54:36Z",
+      "ended_at": "2026-03-08T16:02:28Z",
+      "duration_ms": 472000,
+      "metadata": {
+        "feature_id": "F-219",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 36596
+      },
+      "input_summary": null,
+      "output_summary": "F-219 implementado e commitado. Resumo:\n\n**Arquivos criados:**\n- `apps/server/src/schemas/review-pipeline.ts` — schema Zod completo: `ReviewPipeline`, `AgentConfig`, `Finding`, `AgentResult` com todos os enums especificados\n- `apps/server/src/routes/review-pipelines.ts` — 5 endpoints\n\n**Endpoints implementados:**\n| Método | Path | Descrição |\n|--------|------|-----------|\n| `GET` | `/hub/projects/",
+      "tokens_input": 2919723,
+      "tokens_output": 896,
+      "cost_usd": 8.772609,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-219-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-219-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-219)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:54:36Z",
+      "ended_at": "2026-03-08T16:02:28Z",
+      "duration_ms": 472000,
+      "metadata": {
+        "feature_id": "F-219",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-219 implementado e commitado. Resumo:\n\n**Arquivos criados:**\n- `apps/server/src/schemas/review-pipeline.ts` — schema Zod completo: `ReviewPipeline`, `AgentConfig`, `Finding`, `AgentResult` com todos os enums especificados\n- `apps/server/src/routes/review-pipelines.ts` — 5 endpoints\n\n**Endpoints implementados:**\n| Método | Path | Descrição |\n|--------|------|-----------|\n| `GET` | `/hub/projects/",
+      "tokens_input": 2919723,
+      "tokens_output": 896,
+      "cost_usd": 8.772609,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "ToolSearch",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.325Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-220-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-220 attempt 1",
+      "type": "feature_attempt",
+      "status": "failed",
+      "started_at": "2026-03-08T16:30:00Z",
+      "ended_at": "2026-03-08T18:25:58Z",
+      "duration_ms": 6958000,
+      "metadata": {
+        "feature_id": "F-220",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 40200
+      },
+      "input_summary": null,
+      "output_summary": "F-220 implementada e commitada. Resumo:\n\n## F-220 — Review Pipeline Config + Queue Metrics API ✅\n\n**Implementado:**\n\n**Schemas** (`review-pipeline.ts`):\n- `ReviewConfigSchema` — `{ agents_config, auto_trigger, updated_at }`\n- `UpdateReviewConfigBodySchema` — campos opcionais para PUT\n- `ReviewQueueMetricsSchema` — métricas completas\n- `FindingsBySeveritySchema`, `FindingsByAgentSchema`, `MetricsCa",
+      "tokens_input": 5367012,
+      "tokens_output": 1171,
+      "cost_usd": 16.118601,
+      "tool_calls": [],
+      "exit_code": 3221225786,
+      "error": "Exit code 3221225786"
+    },
+    {
+      "id": "arc-wave-8-F-220-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-220-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-220)",
+      "type": "agent_call",
+      "status": "failed",
+      "started_at": "2026-03-08T16:30:00Z",
+      "ended_at": "2026-03-08T18:25:58Z",
+      "duration_ms": 6958000,
+      "metadata": {
+        "feature_id": "F-220",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-220 implementada e commitada. Resumo:\n\n## F-220 — Review Pipeline Config + Queue Metrics API ✅\n\n**Implementado:**\n\n**Schemas** (`review-pipeline.ts`):\n- `ReviewConfigSchema` — `{ agents_config, auto_trigger, updated_at }`\n- `UpdateReviewConfigBodySchema` — campos opcionais para PUT\n- `ReviewQueueMetricsSchema` — métricas completas\n- `FindingsBySeveritySchema`, `FindingsByAgentSchema`, `MetricsCa",
+      "tokens_input": 5367012,
+      "tokens_output": 1171,
+      "cost_usd": 16.118601,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.328Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 3221225786,
+      "error": "Exit code 3221225786"
+    },
+    {
+      "id": "arc-wave-8-F-223-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-223 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T15:49:38Z",
+      "ended_at": "2026-03-08T15:54:31Z",
+      "duration_ms": 293000,
+      "metadata": {
+        "feature_id": "F-223",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 44492
+      },
+      "input_summary": null,
+      "output_summary": "F-223 implementada e commitada. Resumo:\n\n**Schema** (`context-profile.ts`) atualizado com todos os campos da spec:\n- `included_sources uuid[]`, `included_categories string[]`, `excluded_sources uuid[]`\n- `token_budget int` (default 24000), `current_token_count int` (default 0), `density_score 0-100` (default 0)\n- `description nullable`\n\n**Rotas** (`context-profiles.ts`) com URL pattern correto `/h",
+      "tokens_input": 1940301,
+      "tokens_output": 533,
+      "cost_usd": 5.828898,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-223-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-223-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-223)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:49:38Z",
+      "ended_at": "2026-03-08T15:54:31Z",
+      "duration_ms": 293000,
+      "metadata": {
+        "feature_id": "F-223",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-223 implementada e commitada. Resumo:\n\n**Schema** (`context-profile.ts`) atualizado com todos os campos da spec:\n- `included_sources uuid[]`, `included_categories string[]`, `excluded_sources uuid[]`\n- `token_budget int` (default 24000), `current_token_count int` (default 0), `density_score 0-100` (default 0)\n- `description nullable`\n\n**Rotas** (`context-profiles.ts`) com URL pattern correto `/h",
+      "tokens_input": 1940301,
+      "tokens_output": 533,
+      "cost_usd": 5.828898,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.331Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-224-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-224 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T18:26:00Z",
+      "ended_at": "2026-03-08T18:36:51Z",
+      "duration_ms": 651000,
+      "metadata": {
+        "feature_id": "F-224",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 52184
+      },
+      "input_summary": null,
+      "output_summary": "F-224 implementada e commitada. Resumo:\n\n**F-224 — Source Density Analysis + Recommendations API** ✅\n\n- **Schema** `source-density.ts`: `SourceDensityMetrics` com todos os campos especificados, enums de freshness e recommendation type\n- **GET** `/hub/projects/:projectId/context/density`: retorna array de métricas para todos os sources; suporta filtro `?profile_id=` que respeita included/excluded s",
+      "tokens_input": 3580750,
+      "tokens_output": 1218,
+      "cost_usd": 10.76052,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-224-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-224-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-224)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T18:26:00Z",
+      "ended_at": "2026-03-08T18:36:51Z",
+      "duration_ms": 651000,
+      "metadata": {
+        "feature_id": "F-224",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-224 implementada e commitada. Resumo:\n\n**F-224 — Source Density Analysis + Recommendations API** ✅\n\n- **Schema** `source-density.ts`: `SourceDensityMetrics` com todos os campos especificados, enums de freshness e recommendation type\n- **GET** `/hub/projects/:projectId/context/density`: retorna array de métricas para todos os sources; suporta filtro `?profile_id=` que respeita included/excluded s",
+      "tokens_input": 3580750,
+      "tokens_output": 1218,
+      "cost_usd": 10.76052,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.333Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.334Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-228-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-228 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T16:02:34Z",
+      "ended_at": "2026-03-08T16:18:39Z",
+      "duration_ms": 965000,
+      "metadata": {
+        "feature_id": "F-228",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 35400
+      },
+      "input_summary": null,
+      "output_summary": "F-228 implementado e commitado. Resumo:\n\n**F-228 MaturityStage + ProductionGate API — COMPLETO**\n\n### O que foi implementado:\n\n- **`schemas/maturity.ts`**: Schemas Zod para `MaturityStage`, `ProductionGate`, `GateCheck` com enums `MaturityStageEnum` (vibe/structured/architected/reviewed/production), `GateCheckTypeEnum` (automatic/manual), `GateCheckStatusEnum` (pending/passed/failed/skipped), `Gat",
+      "tokens_input": 6898747,
+      "tokens_output": 1880,
+      "cost_usd": 20.724441,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-228-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-228-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-228)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T16:02:34Z",
+      "ended_at": "2026-03-08T16:18:39Z",
+      "duration_ms": 965000,
+      "metadata": {
+        "feature_id": "F-228",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-228 implementado e commitado. Resumo:\n\n**F-228 MaturityStage + ProductionGate API — COMPLETO**\n\n### O que foi implementado:\n\n- **`schemas/maturity.ts`**: Schemas Zod para `MaturityStage`, `ProductionGate`, `GateCheck` com enums `MaturityStageEnum` (vibe/structured/architected/reviewed/production), `GateCheckTypeEnum` (automatic/manual), `GateCheckStatusEnum` (pending/passed/failed/skipped), `Gat",
+      "tokens_input": 6898747,
+      "tokens_output": 1880,
+      "cost_usd": 20.724441,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.336Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-229-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-229 attempt 1",
+      "type": "feature_attempt",
+      "status": "running",
+      "started_at": "2026-03-08T18:26:03Z",
+      "ended_at": null,
+      "duration_ms": null,
+      "metadata": {
+        "feature_id": "F-229",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 55364
+      },
+      "input_summary": null,
+      "output_summary": "F-229 implementada e commitada. Resumo:\n\n**Implementado:**\n\n1. **`POST /hub/projects/:projectId/maturity/advance`**\n   - Valida que `to_stage` é exatamente um step acima do current\n   - Busca gate com `from_stage=current, to_stage=target, overall_status=passed`\n   - Retorna 400 se gate não existe ou não passou\n   - Registra stage atual em `stage_history` com `gate_passed: true`\n   - Atualiza `curr",
+      "tokens_input": 2974263,
+      "tokens_output": 913,
+      "cost_usd": 8.936484,
+      "tool_calls": [],
+      "exit_code": null,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-229-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-229-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-229)",
+      "type": "agent_call",
+      "status": "running",
+      "started_at": "2026-03-08T18:26:03Z",
+      "ended_at": null,
+      "duration_ms": null,
+      "metadata": {
+        "feature_id": "F-229",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-229 implementada e commitada. Resumo:\n\n**Implementado:**\n\n1. **`POST /hub/projects/:projectId/maturity/advance`**\n   - Valida que `to_stage` é exatamente um step acima do current\n   - Busca gate com `from_stage=current, to_stage=target, overall_status=passed`\n   - Retorna 400 se gate não existe ou não passou\n   - Registra stage atual em `stage_history` com `gate_passed: true`\n   - Atualiza `curr",
+      "tokens_input": 2974263,
+      "tokens_output": 913,
+      "cost_usd": 8.936484,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.338Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.339Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.339Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.339Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.339Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.339Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.339Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.339Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.339Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": null,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-232-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-232 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T15:32:31Z",
+      "ended_at": "2026-03-08T15:38:17Z",
+      "duration_ms": 346000,
+      "metadata": {
+        "feature_id": "F-232",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 43184
+      },
+      "input_summary": null,
+      "output_summary": "F-232 implementada e commitada com sucesso. Resumo:\n\n**Implementado:**\n- `apps/server/src/schemas/pipeline-health.ts` — Schema Zod completo: `PipelineHealthStatusSchema`, `PipelineStepSchema`, `CircuitBreakerSchema` com todos os enums (`healthy/degraded/unhealthy/stopped`, `pending/running/completed/failed/skipped/circuit_broken`, `healthy/slow/failing/dead`)\n- `apps/server/src/routes/pipeline.ts`",
+      "tokens_input": 2773309,
+      "tokens_output": 763,
+      "cost_usd": 8.331372,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-232-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-232-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-232)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:32:31Z",
+      "ended_at": "2026-03-08T15:38:17Z",
+      "duration_ms": 346000,
+      "metadata": {
+        "feature_id": "F-232",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-232 implementada e commitada com sucesso. Resumo:\n\n**Implementado:**\n- `apps/server/src/schemas/pipeline-health.ts` — Schema Zod completo: `PipelineHealthStatusSchema`, `PipelineStepSchema`, `CircuitBreakerSchema` com todos os enums (`healthy/degraded/unhealthy/stopped`, `pending/running/completed/failed/skipped/circuit_broken`, `healthy/slow/failing/dead`)\n- `apps/server/src/routes/pipeline.ts`",
+      "tokens_input": 2773309,
+      "tokens_output": 763,
+      "cost_usd": 8.331372,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.341Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-233-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-233 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T15:38:22Z",
+      "ended_at": "2026-03-08T15:42:49Z",
+      "duration_ms": 267000,
+      "metadata": {
+        "feature_id": "F-233",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 37528
+      },
+      "input_summary": null,
+      "output_summary": "F-233 implementada e commitada. Resumo:\n\n**Arquivos criados/modificados:**\n- `apps/server/src/schemas/pipeline-cost-control.ts` — Zod schemas: `CostControl`, `CostHistoryEntry`, `UpdateCostControlSchema`\n- `apps/server/src/routes/pipeline.ts` — 3 novos endpoints adicionados ao router existente\n- `data/projects/arc/pipeline/cost-control.json` — sample data com 5 entradas de historico wave-8\n\n**Endp",
+      "tokens_input": 1623767,
+      "tokens_output": 689,
+      "cost_usd": 4.881636,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-233-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-233-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-233)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:38:22Z",
+      "ended_at": "2026-03-08T15:42:49Z",
+      "duration_ms": 267000,
+      "metadata": {
+        "feature_id": "F-233",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-233 implementada e commitada. Resumo:\n\n**Arquivos criados/modificados:**\n- `apps/server/src/schemas/pipeline-cost-control.ts` — Zod schemas: `CostControl`, `CostHistoryEntry`, `UpdateCostControlSchema`\n- `apps/server/src/routes/pipeline.ts` — 3 novos endpoints adicionados ao router existente\n- `data/projects/arc/pipeline/cost-control.json` — sample data com 5 entradas de historico wave-8\n\n**Endp",
+      "tokens_input": 1623767,
+      "tokens_output": 689,
+      "cost_usd": 4.881636,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "ToolSearch",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.343Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-234-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-234 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T15:42:54Z",
+      "ended_at": "2026-03-08T15:49:33Z",
+      "duration_ms": 399000,
+      "metadata": {
+        "feature_id": "F-234",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 51092
+      },
+      "input_summary": null,
+      "output_summary": "F-234 implementada e commitada. Resumo:\n\n**O que foi feito:**\n- `apps/server/src/schemas/pipeline-run-config.ts` — schema Zod com `PipelineRunConfigSchema` (11 campos com todos os defaults especificados) e `UpdatePipelineRunConfigSchema` (campos opcionais para PATCH parcial)\n- `apps/server/src/routes/pipeline.ts` — adicionados import, helpers (`runConfigPath`, `loadRunConfig`, `saveRunConfig`, `bu",
+      "tokens_input": 1841193,
+      "tokens_output": 638,
+      "cost_usd": 5.533149,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-234-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-234-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-234)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T15:42:54Z",
+      "ended_at": "2026-03-08T15:49:33Z",
+      "duration_ms": 399000,
+      "metadata": {
+        "feature_id": "F-234",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-234 implementada e commitada. Resumo:\n\n**O que foi feito:**\n- `apps/server/src/schemas/pipeline-run-config.ts` — schema Zod com `PipelineRunConfigSchema` (11 campos com todos os defaults especificados) e `UpdatePipelineRunConfigSchema` (campos opcionais para PATCH parcial)\n- `apps/server/src/routes/pipeline.ts` — adicionados import, helpers (`runConfigPath`, `loadRunConfig`, `saveRunConfig`, `bu",
+      "tokens_input": 1841193,
+      "tokens_output": 638,
+      "cost_usd": 5.533149,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.344Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-237-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-237 attempt 1",
+      "type": "feature_attempt",
+      "status": "running",
+      "started_at": "2026-03-08T18:45:19Z",
+      "ended_at": null,
+      "duration_ms": null,
+      "metadata": {
+        "feature_id": "F-237",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 29640
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": 3198360,
+      "tokens_output": 993,
+      "cost_usd": 9.609975,
+      "tool_calls": [],
+      "exit_code": null,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-237-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-237-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-237)",
+      "type": "agent_call",
+      "status": "running",
+      "started_at": "2026-03-08T18:45:19Z",
+      "ended_at": null,
+      "duration_ms": null,
+      "metadata": {
+        "feature_id": "F-237",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": null,
+      "tokens_input": 3198360,
+      "tokens_output": 993,
+      "cost_usd": 9.609975,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "ToolSearch",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.346Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": null,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-246-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-246 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T16:18:44Z",
+      "ended_at": "2026-03-08T16:25:28Z",
+      "duration_ms": 404000,
+      "metadata": {
+        "feature_id": "F-246",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 42884
+      },
+      "input_summary": null,
+      "output_summary": "F-246 completo. Resumo:\n\n**Implementado:**\n- `apps/server/src/schemas/mcp-registry.ts` — Schema Zod v4 com `MCPServerRegistry` (campos de governança: transport enum stdio/sse/streamable-http, status active/inactive/error/deprecated, tools_available, allowed_agents, requires_approval, cost tracking, health metrics)\n- `apps/server/src/routes/mcp-servers.ts` — Reescrita completa com 5 endpoints:\n  - ",
+      "tokens_input": 3152109,
+      "tokens_output": 872,
+      "cost_usd": 9.469407,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-246-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-246-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-246)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T16:18:44Z",
+      "ended_at": "2026-03-08T16:25:28Z",
+      "duration_ms": 404000,
+      "metadata": {
+        "feature_id": "F-246",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-246 completo. Resumo:\n\n**Implementado:**\n- `apps/server/src/schemas/mcp-registry.ts` — Schema Zod v4 com `MCPServerRegistry` (campos de governança: transport enum stdio/sse/streamable-http, status active/inactive/error/deprecated, tools_available, allowed_agents, requires_approval, cost tracking, health metrics)\n- `apps/server/src/routes/mcp-servers.ts` — Reescrita completa com 5 endpoints:\n  - ",
+      "tokens_input": 3152109,
+      "tokens_output": 872,
+      "cost_usd": 9.469407,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Glob",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "ToolSearch",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Write",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "TodoWrite",
+          "timestamp": "2026-03-08T18:52:52.348Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-247-attempt-1",
+      "parent_id": "arc-wave-8-step-6-ralph-wiggum-loop",
+      "trace_id": "arc-wave-8",
+      "name": "F-247 attempt 1",
+      "type": "feature_attempt",
+      "status": "completed",
+      "started_at": "2026-03-08T18:36:56Z",
+      "ended_at": "2026-03-08T18:45:14Z",
+      "duration_ms": 498000,
+      "metadata": {
+        "feature_id": "F-247",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "pid": 24772
+      },
+      "input_summary": null,
+      "output_summary": "F-247 está completa. Resumo do que foi implementado:\n\n## F-247 — MCP Audit Log + Governance Metrics API ✓\n\n**Schemas adicionados** (`mcp-registry.ts`):\n- `MCPAuditLogSchema` — id, project_id, server_id, server_name, tool_name, agent_type, session_id, feature_id, status enum `success/error/denied/timeout`, latency_ms, cost_usd, input/output_summary, error_message, timestamp\n- `MCPGovernanceMetricsS",
+      "tokens_input": 3088258,
+      "tokens_output": 946,
+      "cost_usd": 9.278964,
+      "tool_calls": [],
+      "exit_code": 0,
+      "error": null
+    },
+    {
+      "id": "arc-wave-8-F-247-attempt-1-agent-call",
+      "parent_id": "arc-wave-8-F-247-attempt-1",
+      "trace_id": "arc-wave-8",
+      "name": "agent: vibe-code (F-247)",
+      "type": "agent_call",
+      "status": "completed",
+      "started_at": "2026-03-08T18:36:56Z",
+      "ended_at": "2026-03-08T18:45:14Z",
+      "duration_ms": 498000,
+      "metadata": {
+        "feature_id": "F-247",
+        "attempt": 1,
+        "task": "vibe-code",
+        "agent": "coder",
+        "model": "claude-sonnet-4-6"
+      },
+      "input_summary": null,
+      "output_summary": "F-247 está completa. Resumo do que foi implementado:\n\n## F-247 — MCP Audit Log + Governance Metrics API ✓\n\n**Schemas adicionados** (`mcp-registry.ts`):\n- `MCPAuditLogSchema` — id, project_id, server_id, server_name, tool_name, agent_type, session_id, feature_id, status enum `success/error/denied/timeout`, latency_ms, cost_usd, input/output_summary, error_message, timestamp\n- `MCPGovernanceMetricsS",
+      "tokens_input": 3088258,
+      "tokens_output": 946,
+      "cost_usd": 9.278964,
+      "tool_calls": [
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Read",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Edit",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": false
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        },
+        {
+          "tool": "Bash",
+          "timestamp": "2026-03-08T18:52:52.350Z",
+          "duration_ms": null,
+          "success": true
+        }
+      ],
+      "exit_code": 0,
+      "error": null
+    }
+  ]
+}
