@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { useParams, useNavigate, useSearch } from "@tanstack/react-router";
+import { useParams, useNavigate, useSearch, Link } from "@tanstack/react-router";
 import {
   DndContext,
   DragOverlay,
@@ -12,12 +12,14 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { Kanban, Settings, Wand2, ChevronDown, Loader2, Bot, User, HelpCircle } from "lucide-react";
+import { Kanban, Settings, Wand2, ChevronDown, Loader2, Bot, User, HelpCircle, X, Plus, Play, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useBoardView,
   useMoveFeature,
   useAutoRoute,
+  usePatchBoardMeta,
+  useFeatureSpawnHistory,
   type FeatureWithMeta,
   type BoardColumnView,
 } from "@/hooks/use-board";
@@ -238,12 +240,43 @@ function KanbanColumn({ column, onCardClick }: KanbanColumnProps) {
 interface FeatureDetailPanelProps {
   feature: FeatureWithMeta;
   projectSlug: string;
+  sprint: number;
+  allFeatures: Map<string, FeatureWithMeta>;
   onClose: () => void;
 }
 
-function FeatureDetailPanel({ feature, projectSlug, onClose }: FeatureDetailPanelProps) {
+function FeatureDetailPanel({ feature, projectSlug, sprint, allFeatures, onClose }: FeatureDetailPanelProps) {
   const meta = feature.board_meta;
   const statusCfg = (STATUS_LABELS[feature.status] ?? STATUS_LABELS["pending"])!;
+  const patchMeta = usePatchBoardMeta(projectSlug);
+  const { data: spawnHistory } = useFeatureSpawnHistory(projectSlug, feature.id);
+  const [labelInput, setLabelInput] = useState("");
+
+  const doPatch = (patch: Record<string, unknown>) => {
+    patchMeta.mutate({ sprint, featureId: feature.id, patch });
+  };
+
+  const ASSIGNEE_OPTIONS = ["agent", "human", "pending"] as const;
+  const PRIORITY_OPTIONS = ["critical", "high", "medium", "low"] as const;
+
+  const canStartSpawn = meta.assignee === "agent" && feature.status === "pending";
+
+  const addLabel = () => {
+    const trimmed = labelInput.trim();
+    if (!trimmed || meta.labels.includes(trimmed)) return;
+    doPatch({ labels: [...meta.labels, trimmed] });
+    setLabelInput("");
+  };
+
+  const removeLabel = (label: string) => {
+    doPatch({ labels: meta.labels.filter((l) => l !== label) });
+  };
+
+  const SPAWN_STATUS_COLORS: Record<string, string> = {
+    completed: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300",
+    failed: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300",
+    running: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+  };
 
   return (
     <div className="fixed inset-y-0 right-0 z-50 flex">
@@ -260,14 +293,14 @@ function FeatureDetailPanel({ feature, projectSlug, onClose }: FeatureDetailPane
           </div>
           <button
             onClick={onClose}
-            className="text-muted-foreground hover:text-foreground text-lg px-2"
+            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted"
           >
-            &times;
+            <X className="size-4" />
           </button>
         </div>
 
         <div className="p-4 space-y-4">
-          {/* Status */}
+          {/* Status (readonly) */}
           <div>
             <span className="text-xs text-muted-foreground">Status</span>
             <div className={cn("text-sm font-medium mt-0.5", statusCfg.className)}>
@@ -281,59 +314,107 @@ function FeatureDetailPanel({ feature, projectSlug, onClose }: FeatureDetailPane
             </div>
           </div>
 
-          {/* Assignee */}
+          {/* Assignee (radio buttons with immediate PATCH) */}
           <div>
             <span className="text-xs text-muted-foreground">Assignee</span>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <AssigneeBadge assignee={meta.assignee} />
-              <span className="text-sm capitalize">{meta.assignee}</span>
+            <div className="flex items-center gap-2 mt-1">
+              {ASSIGNEE_OPTIONS.map((opt) => (
+                <label
+                  key={opt}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm cursor-pointer transition-colors",
+                    meta.assignee === opt
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "hover:bg-muted",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="assignee"
+                    value={opt}
+                    checked={meta.assignee === opt}
+                    onChange={() => doPatch({ assignee: opt })}
+                    className="sr-only"
+                  />
+                  {opt === "agent" && <Bot className="size-3.5" />}
+                  {opt === "human" && <User className="size-3.5" />}
+                  {opt === "pending" && <HelpCircle className="size-3.5" />}
+                  <span className="capitalize">{opt}</span>
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* Priority */}
+          {/* Priority (dropdown) */}
           <div>
             <span className="text-xs text-muted-foreground">Priority</span>
-            <div className="mt-0.5">
-              <PriorityBadge priority={meta.priority} />
+            <div className="mt-1">
+              <select
+                value={meta.priority}
+                onChange={(e) => doPatch({ priority: e.target.value })}
+                className="rounded-md border bg-background px-3 py-1.5 text-sm w-full"
+              >
+                {PRIORITY_OPTIONS.map((opt) => (
+                  <option key={opt} value={opt}>
+                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
-          {/* Labels */}
-          {meta.labels.length > 0 && (
-            <div>
-              <span className="text-xs text-muted-foreground">Labels</span>
-              <div className="flex flex-wrap gap-1 mt-0.5">
-                {meta.labels.map((l) => (
-                  <span
-                    key={l}
-                    className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+          {/* Labels (editable chips) */}
+          <div>
+            <span className="text-xs text-muted-foreground">Labels</span>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {meta.labels.map((l) => (
+                <span
+                  key={l}
+                  className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                >
+                  {l}
+                  <button
+                    onClick={() => removeLabel(l)}
+                    className="hover:text-foreground"
                   >
-                    {l}
-                  </span>
-                ))}
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))}
+              <div className="inline-flex items-center gap-1">
+                <input
+                  type="text"
+                  value={labelInput}
+                  onChange={(e) => setLabelInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addLabel()}
+                  placeholder="Add label..."
+                  className="rounded border bg-background px-2 py-0.5 text-xs w-24"
+                />
+                <button
+                  onClick={addLabel}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <Plus className="size-3.5" />
+                </button>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Cost */}
-          {(meta.estimated_cost_usd != null || meta.actual_cost_usd != null) && (
-            <div>
-              <span className="text-xs text-muted-foreground">Custo</span>
-              <p className="text-sm mt-0.5">
-                {meta.estimated_cost_usd != null && (
-                  <span>Estimado: ${meta.estimated_cost_usd.toFixed(2)}</span>
-                )}
-                {meta.estimated_cost_usd != null && meta.actual_cost_usd != null && " | "}
-                {meta.actual_cost_usd != null && (
-                  <span>Real: ${meta.actual_cost_usd.toFixed(2)}</span>
-                )}
-              </p>
-            </div>
-          )}
-
-          {/* AI Cost detail (accordion with spawn records) */}
           <div>
-            <span className="text-xs text-muted-foreground">Custo AI (Tokens)</span>
+            <span className="text-xs text-muted-foreground">Custo</span>
+            <p className="text-sm mt-0.5">
+              {meta.estimated_cost_usd != null && (
+                <span>Estimado: ${meta.estimated_cost_usd.toFixed(2)}</span>
+              )}
+              {meta.estimated_cost_usd != null && meta.actual_cost_usd != null && " | "}
+              {meta.actual_cost_usd != null && (
+                <span>Real: ${meta.actual_cost_usd.toFixed(2)}</span>
+              )}
+              {meta.estimated_cost_usd == null && meta.actual_cost_usd == null && (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </p>
             <div className="mt-1">
               <FeatureCostBadge
                 projectSlug={projectSlug}
@@ -342,35 +423,95 @@ function FeatureDetailPanel({ feature, projectSlug, onClose }: FeatureDetailPane
             </div>
           </div>
 
-          {/* Dependencies */}
-          {feature.dependencies.length > 0 && (
+          {/* Linked handoff */}
+          {meta.linked_handoff_id && (
             <div>
-              <span className="text-xs text-muted-foreground">Dependências</span>
-              <div className="flex flex-wrap gap-1 mt-0.5">
-                {feature.dependencies.map((dep) => (
-                  <span
-                    key={dep}
-                    className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-mono"
-                  >
-                    {dep}
-                  </span>
-                ))}
+              <span className="text-xs text-muted-foreground">Linked Handoff</span>
+              <div className="mt-0.5">
+                <Link
+                  to="/projects/$projectId/handoff"
+                  params={{ projectId: projectSlug }}
+                  className="inline-flex items-center gap-1 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  <ExternalLink className="size-3.5" />
+                  {meta.linked_handoff_id}
+                </Link>
               </div>
             </div>
           )}
 
-          {/* Tests */}
-          {feature.tests.length > 0 && (
+          {/* Dependencies with status badge */}
+          {feature.dependencies.length > 0 && (
             <div>
-              <span className="text-xs text-muted-foreground">Testes ({feature.tests.length})</span>
-              <ul className="mt-0.5 space-y-1">
-                {feature.tests.map((t, i) => (
-                  <li key={i} className="text-xs text-muted-foreground">
-                    • {t}
-                  </li>
-                ))}
-              </ul>
+              <span className="text-xs text-muted-foreground">Dependências</span>
+              <div className="flex flex-col gap-1 mt-1">
+                {feature.dependencies.map((depId) => {
+                  const dep = allFeatures.get(depId);
+                  const depStatus = dep?.status ?? "unknown";
+                  const depStatusCfg = STATUS_LABELS[depStatus] ?? { label: depStatus, className: "text-gray-500" };
+                  return (
+                    <div
+                      key={depId}
+                      className="inline-flex items-center gap-2 rounded border px-2 py-1 text-xs"
+                    >
+                      <span className="font-mono font-bold">{depId}</span>
+                      {dep && (
+                        <span className="truncate text-muted-foreground max-w-[160px]">
+                          {dep.name}
+                        </span>
+                      )}
+                      <span className={cn("ml-auto font-medium", depStatusCfg.className)}>
+                        {depStatusCfg.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )}
+
+          {/* Spawn history (last 3 from audit log) */}
+          <div>
+            <span className="text-xs text-muted-foreground">Spawn History</span>
+            {spawnHistory && spawnHistory.length > 0 ? (
+              <div className="flex flex-col gap-1.5 mt-1">
+                {spawnHistory.map((action) => (
+                  <div
+                    key={action.id}
+                    className="flex items-center gap-2 rounded border px-2 py-1.5 text-xs"
+                  >
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                        SPAWN_STATUS_COLORS[action.status] ?? "bg-gray-100 text-gray-600",
+                      )}
+                    >
+                      {action.status}
+                    </span>
+                    <span className="text-muted-foreground truncate">
+                      {action.summary ?? action.action_type}
+                    </span>
+                    {action.duration_ms != null && (
+                      <span className="ml-auto text-muted-foreground whitespace-nowrap">
+                        {(action.duration_ms / 1000).toFixed(1)}s
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-0.5">Nenhum spawn registrado</p>
+            )}
+          </div>
+
+          {/* Start spawn button */}
+          {canStartSpawn && (
+            <button
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground py-2 text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <Play className="size-4" />
+              Iniciar spawn
+            </button>
           )}
 
           {/* Description */}
@@ -583,8 +724,9 @@ export function AgenticBoardPage() {
           <button
             onClick={() =>
               navigate({
-                to: "/projects/$projectId/settings",
+                to: "/projects/$projectId/harness/board/config",
                 params: { projectId },
+                search: { sprint: String(currentSprint) },
               } as any)
             }
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
@@ -633,6 +775,8 @@ export function AgenticBoardPage() {
         <FeatureDetailPanel
           feature={detailFeature}
           projectSlug={projectId}
+          sprint={currentSprint}
+          allFeatures={featureMap}
           onClose={() => setDetailFeature(null)}
         />
       )}

@@ -121,3 +121,63 @@ export function useAutoRoute(projectSlug: string) {
     },
   });
 }
+
+export function usePatchBoardMeta(projectSlug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      sprint: number;
+      featureId: string;
+      patch: Partial<FeatureBoardMeta>;
+    }) =>
+      apiFetch<FeatureBoardMeta>(
+        `/hub/projects/${projectSlug}/sprints/${body.sprint}/features/${body.featureId}/board-meta`,
+        { method: "PATCH", body: JSON.stringify(body.patch) }
+      ),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: boardKeys.all(projectSlug) });
+    },
+  });
+}
+
+export function usePatchBoardConfig(projectSlug: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      sprint: number;
+      patch: { columns?: BoardColumn[]; routing_rules?: { condition: string; assignee: string }[] };
+    }) =>
+      apiFetch<BoardConfig>(
+        `/hub/projects/${projectSlug}/board-config?sprint=${body.sprint}`,
+        { method: "PATCH", body: JSON.stringify(body.patch) }
+      ),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: boardKeys.all(projectSlug) });
+    },
+  });
+}
+
+// --- Agent action types for spawn history ---
+
+export interface AgentActionSummary {
+  id: string;
+  action_type: string;
+  status: string;
+  feature_id?: string | null;
+  started_at: string;
+  completed_at?: string | null;
+  duration_ms?: number | null;
+  summary?: string;
+}
+
+export function useFeatureSpawnHistory(projectSlug: string, featureId: string) {
+  return useQuery({
+    queryKey: ["agent-actions", projectSlug, featureId],
+    queryFn: () =>
+      apiFetch<AgentActionSummary[]>(
+        `/hub/projects/${projectSlug}/agent-actions?feature_id=${featureId}&limit=3`
+      ),
+    enabled: !!featureId,
+    staleTime: 30_000,
+  });
+}

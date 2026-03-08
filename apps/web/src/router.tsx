@@ -28,6 +28,7 @@ import { CostDashboardPage } from "@/pages/cost-dashboard";
 import { HandoffListPage } from "@/pages/handoff-list";
 import { HandoffWizardPage } from "@/pages/handoff-wizard";
 import { AgenticBoardPage } from "@/pages/agentic-board";
+import { BoardConfigPage } from "@/pages/board-config";
 import { PipelineModelConfigPage } from "@/pages/pipeline-model-config";
 import { GraphConfigPage } from "@/pages/graph-config";
 import { QualityGatesSettingsPage } from "@/pages/quality-gates-settings";
@@ -252,6 +253,17 @@ const projectBoardRoute = createRoute({
   }),
 });
 
+// /projects/$projectId/harness/board/config (F-162)
+const boardConfigRoute2 = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/harness/board/config",
+  component: BoardConfigPage,
+  staticData: { breadcrumb: "Board Config" },
+  validateSearch: (search: Record<string, unknown>) => ({
+    sprint: (search.sprint as string) || undefined,
+  }),
+});
+
 // /projects/$projectId/settings
 const projectSettingsRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -321,6 +333,7 @@ const routeTree = rootRoute.addChildren([
         projectMetricsRoute,
         projectCostRoute,
         projectBoardRoute,
+        boardConfigRoute2,
         pipelineModelConfigRoute,
         graphConfigRoute,
         projectSettingsRoute,
