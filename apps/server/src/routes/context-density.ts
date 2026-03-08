@@ -7,6 +7,8 @@ import { spawnClaudeStream } from "../lib/claude-client.js";
 import {
   AnalyzeDensityBodySchema,
   type SourceDensityMetrics,
+  type ContextQualityReport,
+  type ContextQualityCache,
 } from "../schemas/source-density.js";
 import { type Source } from "../schemas/source.js";
 import { type Project } from "../schemas/project.js";
@@ -496,6 +498,211 @@ contextDensity.post(
     }
 
     return c.json({ analyzed: resultMetrics.length, metrics: resultMetrics });
+  }
+);
+
+// ---- quality report helpers ----
+
+const QUALITY_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function qualityCachePath(slug: string, profileId: string | null): string {
+  const key = profileId ?? "default";
+  return path.join(projectDir(slug), "context", `quality-cache-${key}.json`);
+}
+
+async function loadQualityCache(
+  slug: string,
+  profileId: string | null
+): Promise<ContextQualityCache | null> {
+  try {
+    return await readJSON<ContextQualityCache>(
+      qualityCachePath(slug, profileId)
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function saveQualityCache(
+  slug: string,
+  profileId: string | null,
+  report: ContextQualityReport
+): Promise<void> {
+  const cache: ContextQualityCache = {
+    report,
+    expires_at: new Date(Date.now() + QUALITY_CACHE_TTL_MS).toISOString(),
+  };
+  await ensureDir(path.join(projectDir(slug), "context"));
+  await writeJSON(qualityCachePath(slug, profileId), cache);
+}
+
+function isCacheValid(cache: ContextQualityCache): boolean {
+  return new Date(cache.expires_at).getTime() > Date.now();
+}
+
+/**
+ * Aggregate SourceDensityMetrics into a ContextQualityReport.
+ */
+function buildQualityReport(
+  projectId: string,
+  profileId: string | null,
+  metrics: SourceDensityMetrics[],
+  tokenBudget: number
+): ContextQualityReport {
+  const n = metrics.length;
+
+  if (n === 0) {
+    return {
+      project_id: projectId,
+      profile_id: profileId ?? null,
+      total_tokens: 0,
+      token_budget: tokenBudget,
+      budget_utilization: 0,
+      overall_density_score: 0,
+      redundancy_percentage: 0,
+      low_relevance_percentage: 0,
+      top_recommendations: [],
+      computed_at: new Date().toISOString(),
+    };
+  }
+
+  const totalTokens = metrics.reduce((sum, m) => sum + m.token_count, 0);
+  const budgetUtilization =
+    tokenBudget > 0 ? (totalTokens / tokenBudget) * 100 : 0;
+  const overallDensityScore =
+    metrics.reduce((sum, m) => sum + m.information_density, 0) / n;
+  const redundancyPercentage =
+    metrics.reduce((sum, m) => sum + m.redundancy_score, 0) / n;
+  const lowRelevanceCount = metrics.filter(
+    (m) => m.relevance_score < 40
+  ).length;
+  const lowRelevancePercentage = (lowRelevanceCount / n) * 100;
+
+  // Aggregate recommendations: group by type+reason, accumulate affected sources and impact_tokens
+  type RecKey = string;
+  const recMap = new Map<
+    RecKey,
+    {
+      action: string;
+      impact_tokens: number;
+      affected_sources: Set<string>;
+    }
+  >();
+
+  for (const m of metrics) {
+    for (const rec of m.recommendations) {
+      const key = `${rec.type}:${rec.reason.slice(0, 50)}`;
+      const existing = recMap.get(key);
+      const tokenImpact = m.token_count; // tokens freed if action taken
+
+      if (existing) {
+        existing.impact_tokens += tokenImpact;
+        existing.affected_sources.add(m.source_id);
+      } else {
+        recMap.set(key, {
+          action: `[${rec.type.toUpperCase()}] ${rec.reason}`,
+          impact_tokens: tokenImpact,
+          affected_sources: new Set([m.source_id]),
+        });
+      }
+    }
+  }
+
+  // Sort by impact_tokens desc, take top 5, assign priorities
+  const topRecommendations = Array.from(recMap.values())
+    .sort((a, b) => b.impact_tokens - a.impact_tokens)
+    .slice(0, 5)
+    .map((r, idx) => ({
+      priority: idx + 1,
+      action: r.action,
+      impact_tokens: r.impact_tokens,
+      affected_sources: Array.from(r.affected_sources),
+    }));
+
+  return {
+    project_id: projectId,
+    profile_id: profileId ?? null,
+    total_tokens: totalTokens,
+    token_budget: tokenBudget,
+    budget_utilization: Math.round(budgetUtilization * 100) / 100,
+    overall_density_score: Math.round(overallDensityScore * 100) / 100,
+    redundancy_percentage: Math.round(redundancyPercentage * 100) / 100,
+    low_relevance_percentage: Math.round(lowRelevancePercentage * 100) / 100,
+    top_recommendations: topRecommendations,
+    computed_at: new Date().toISOString(),
+  };
+}
+
+// GET /hub/projects/:projectId/context/quality
+// Optional query: ?profile_id=<uuid>
+contextDensity.get(
+  "/hub/projects/:projectId/context/quality",
+  async (c) => {
+    const slug = c.req.param("projectId");
+    const profileId = c.req.query("profile_id") ?? null;
+
+    const project = await loadProject(slug);
+    if (!project) return c.json({ error: "Project not found" }, 404);
+
+    // Validate profile if provided
+    let profile: ContextProfile | null = null;
+    if (profileId) {
+      profile = await loadProfile(slug, profileId);
+      if (!profile)
+        return c.json({ error: "Context profile not found" }, 404);
+    }
+
+    // Check cache
+    const cached = await loadQualityCache(slug, profileId);
+    if (cached && isCacheValid(cached)) {
+      return c.json(cached.report);
+    }
+
+    // Load and filter sources
+    let sources = await loadSources(slug);
+
+    if (profile) {
+      const included = new Set(profile.included_sources);
+      const excluded = new Set(profile.excluded_sources);
+      const categories = new Set(profile.included_categories);
+
+      sources = sources.filter((s) => {
+        if (excluded.has(s.id)) return false;
+        if (included.has(s.id)) return true;
+        if (categories.size > 0 && s.category && categories.has(s.category))
+          return true;
+        if (included.size === 0 && categories.size === 0) return true;
+        return false;
+      });
+    }
+
+    // Compute density metrics for all sources
+    const now = new Date().toISOString();
+    const metrics: SourceDensityMetrics[] = [];
+
+    for (const source of sources) {
+      const persisted = await loadDensityMetrics(slug, source.id);
+      if (persisted) {
+        metrics.push(persisted);
+      } else {
+        const heuristic = computeHeuristicMetrics(source, sources);
+        metrics.push({ ...heuristic, computed_at: now });
+      }
+    }
+
+    // Determine token budget
+    const tokenBudget = profile?.token_budget ?? 24000;
+
+    const report = buildQualityReport(
+      project.id,
+      profileId,
+      metrics,
+      tokenBudget
+    );
+
+    await saveQualityCache(slug, profileId, report);
+
+    return c.json(report);
   }
 );
 
