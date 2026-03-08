@@ -25,6 +25,7 @@ import { McpServerDetailPage } from "@/pages/mcp-server-detail";
 import { ACRListPage } from "@/pages/acr-list";
 import { ACRDetailPage } from "@/pages/acr-detail";
 import { CostDashboardPage } from "@/pages/cost-dashboard";
+import { HandoffListPage } from "@/pages/handoff-list";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -164,6 +165,14 @@ const acrDetailRoute = createRoute({
   staticData: { breadcrumb: "ACR Detail" },
 });
 
+// /projects/$projectId/handoff (F-156)
+const projectHandoffRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/handoff",
+  component: HandoffListPage,
+  staticData: { breadcrumb: "Handoff" },
+});
+
 // /projects/$projectId/pipeline
 const projectPipelineRoute = createRoute({
   getParentRoute: () => projectRoute,
@@ -250,6 +259,7 @@ const routeTree = rootRoute.addChildren([
         projectChatRoute,
         chatSessionRoute,
         projectArtifactsRoute,
+        projectHandoffRoute,
         projectACRsRoute,
         acrDetailRoute,
         projectPipelineRoute,
