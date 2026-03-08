@@ -37,6 +37,7 @@ import { qualityGateConfigs } from "./routes/quality-gate-configs.js";
 import { modelRouting } from "./routes/model-routing.js";
 import { testCoverageResults } from "./routes/test-coverage-results.js";
 import { contributionQualityResults } from "./routes/contribution-quality-results.js";
+import { learningMode } from "./routes/learning-mode.js";
 
 const app = new Hono();
 
@@ -83,5 +84,6 @@ app.route("/api/v1", qualityGateConfigs);
 app.route("/api/v1", modelRouting);
 app.route("/api/v1", testCoverageResults);
 app.route("/api/v1", contributionQualityResults);
+app.route("/api/v1", learningMode);
 
 export { app };
