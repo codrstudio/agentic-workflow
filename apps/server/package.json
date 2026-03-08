@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aw/engine": "file:../../../apps/engine",
     "@arc/server": "file:",
     "@hono/node-server": "^1.14.0",
     "hono": "^4.7.0",

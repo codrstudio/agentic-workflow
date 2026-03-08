@@ -3,8 +3,11 @@ import { streamSSE } from "hono/streaming";
 import { EventEmitter } from "node:events";
 import path from "node:path";
 import { readFile, readdir, stat } from "node:fs/promises";
+import { join } from "node:path";
 import { readJSON, listDirs } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
+import { bootstrap, WorkflowRunner, type WorkflowRunnerContext } from "@aw/engine";
+import { registry } from "../lib/run-registry.js";
 
 const harness = new Hono();
 
@@ -54,6 +57,237 @@ interface WaveInfo {
   steps: StepInfo[];
   status: "running" | "completed" | "failed" | "idle";
 }
+
+// ========== Run Management Endpoints ==========
+
+// GET /harness/health — health check with run count
+harness.get("/harness/health", async (c) => {
+  const runs = registry.list();
+  return c.json({
+    ok: true,
+    runs: runs.length,
+  });
+});
+
+// POST /harness/runs — start a new workflow run (non-blocking)
+harness.post("/harness/runs", async (c) => {
+  const body = await c.req.json<{
+    projectSlug: string;
+    workflowSlug: string;
+    planSlug?: string;
+  }>();
+
+  if (!body.projectSlug || !body.workflowSlug) {
+    return c.json(
+      { error: "projectSlug and workflowSlug are required" },
+      400
+    );
+  }
+
+  try {
+    // Create run record with pending status
+    const run = registry.create(
+      body.projectSlug,
+      body.workflowSlug,
+      body.planSlug
+    );
+
+    // Start runner in background (non-blocking)
+    (async () => {
+      try {
+        registry.update(run.id, { status: "running", started_at: new Date().toISOString() });
+
+        // Bootstrap the runner context
+        const result = await bootstrap(
+          config.workspacesDir,
+          body.projectSlug,
+          body.workflowSlug,
+          body.planSlug
+        );
+
+        // Build WorkflowRunnerContext from bootstrap result
+        const ctx: WorkflowRunnerContext = {
+          workflow: result.workflow,
+          plan: result.plan,
+          projectName: result.projectConfig.name,
+          projectSlug: result.projectConfig.slug,
+          workspaceDir: result.workspaceDir,
+          projectDir: result.projectDir,
+          repoDir: result.repoDir,
+          waveDir: result.waveDir,
+          worktreeDir: result.worktreeInfo.path,
+          sprintDir: result.sprintDir,
+          waveNumber: result.waveNumber,
+          sprintNumber: result.sprintNumber,
+          agentsDir: join(config.workspacesDir, body.projectSlug, 'agents'),
+          tasksDir: join(config.workspacesDir, body.projectSlug, 'tasks'),
+          workflowsDir: join(config.workspacesDir, body.projectSlug, 'workflows'),
+          params: result.projectConfig.params as Record<string, unknown> | undefined,
+          sourceBranch: result.resolvedRepoConfig?.source_branch,
+          targetBranch: result.resolvedRepoConfig?.target_branch,
+          autoMerge: result.resolvedRepoConfig?.auto_merge,
+          waveLimit: result.projectConfig.wave_limit,
+        };
+
+        const runner = new WorkflowRunner();
+
+        // Store context and runner in registry
+        registry.update(run.id, { ctx, runner });
+
+        // Execute workflow
+        await runner.execute(ctx);
+
+        // Mark as completed
+        registry.update(run.id, {
+          status: "completed",
+          finished_at: new Date().toISOString(),
+          exit_code: 0,
+        });
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : "Unknown error";
+        registry.update(run.id, {
+          status: "failed",
+          finished_at: new Date().toISOString(),
+          exit_code: 1,
+          reason,
+        });
+      }
+    })(); // Start background task
+
+    return c.json(
+      {
+        run_id: run.id,
+        projectSlug: run.projectSlug,
+        workflowSlug: run.workflowSlug,
+        status: run.status,
+        created_at: run.created_at,
+      },
+      201
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return c.json({ error: message }, 400);
+  }
+});
+
+// GET /harness/runs — list runs with optional project filter
+harness.get("/harness/runs", async (c) => {
+  const project = c.req.query("project");
+  const runs = registry.list(project);
+  return c.json(runs);
+});
+
+// GET /harness/runs/:runId — get run details
+harness.get("/harness/runs/:runId", async (c) => {
+  const runId = c.req.param("runId");
+  const run = registry.get(runId);
+
+  if (!run) {
+    return c.json({ error: "Run not found" }, 404);
+  }
+
+  return c.json({
+    id: run.id,
+    projectSlug: run.projectSlug,
+    workflowSlug: run.workflowSlug,
+    planSlug: run.planSlug,
+    status: run.status,
+    created_at: run.created_at,
+    started_at: run.started_at,
+    finished_at: run.finished_at,
+    exit_code: run.exit_code,
+    reason: run.reason,
+  });
+});
+
+// DELETE /harness/runs/:runId — stop a run
+harness.delete("/harness/runs/:runId", async (c) => {
+  const runId = c.req.param("runId");
+  const run = registry.get(runId);
+
+  if (!run) {
+    return c.json({ error: "Run not found" }, 404);
+  }
+
+  if (run.runner && run.status === "running") {
+    try {
+      run.runner.stop();
+      registry.update(runId, {
+        status: "stopped",
+        finished_at: new Date().toISOString(),
+        exit_code: 128,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to stop run";
+      return c.json({ error: message }, 500);
+    }
+  }
+
+  return c.json({ ok: true });
+});
+
+// GET /harness/runs/:runId/events — SSE stream of run events
+harness.get("/harness/runs/:runId/events", (c) => {
+  const runId = c.req.param("runId");
+  const run = registry.get(runId);
+
+  if (!run) {
+    return c.json({ error: "Run not found" }, 404);
+  }
+
+  return streamSSE(c, async (stream) => {
+    // Send initial connection event
+    await stream.writeSSE({
+      event: "connected",
+      data: JSON.stringify({
+        run_id: runId,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+
+    if (!run.runner) {
+      // Runner not initialized yet, send initial status
+      await stream.writeSSE({
+        event: "status",
+        data: JSON.stringify({
+          status: run.status,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+    } else {
+      // Setup listener for engine events from the notifier
+      const listener = (event: any) => {
+        stream.writeSSE({
+          event: event.type,
+          data: JSON.stringify(event),
+        }).catch(() => {
+          // Client disconnected
+        });
+      };
+
+      run.runner.notifier.on("engine:event", listener);
+
+      stream.onAbort(() => {
+        run.runner?.notifier.off("engine:event", listener);
+      });
+    }
+
+    // Heartbeat
+    while (true) {
+      try {
+        await stream.writeSSE({
+          event: "heartbeat",
+          data: JSON.stringify({ timestamp: new Date().toISOString() }),
+        });
+        await stream.sleep(30000);
+      } catch {
+        break;
+      }
+    }
+  });
+});
+
+// ========== Workspace Status & Log Endpoints (existing) ==========
 
 function workspaceDir(slug: string): string {
   return path.join(config.workspacesDir, slug);

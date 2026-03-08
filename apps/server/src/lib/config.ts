@@ -9,4 +9,5 @@ export const config = {
   dataDir: DATA_DIR,
   projectsDir: path.join(DATA_DIR, "projects"),
   workspacesDir: WORKSPACES_DIR,
+  serverPort: Number(process.env.SERVER_PORT) || 2101,
 } as const;
