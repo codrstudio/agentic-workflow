@@ -86,3 +86,53 @@ export const PatchSpecDocumentBody = z.object({
 });
 
 export type PatchSpecDocumentBody = z.infer<typeof PatchSpecDocumentBody>;
+
+// SpecReviewResult
+
+export const ReviewVerdictEnum = z.enum(["approve", "request_changes", "reject"]);
+export type ReviewVerdict = z.infer<typeof ReviewVerdictEnum>;
+
+export const CommentSeverityEnum = z.enum(["blocker", "suggestion", "praise"]);
+export type CommentSeverity = z.infer<typeof CommentSeverityEnum>;
+
+export const ReviewCommentSchema = z.object({
+  section_anchor: z.string(),
+  comment: z.string(),
+  severity: CommentSeverityEnum,
+});
+
+export const SpecReviewResultSchema = z.object({
+  id: z.string().uuid(),
+  project_id: z.string().uuid(),
+  spec_id: z.string().uuid(),
+  reviewer: z.string().min(1),
+  score: z.number().int().min(0).max(100),
+  verdict: ReviewVerdictEnum,
+  comments: z.array(ReviewCommentSchema).default([]),
+  created_at: z.string().datetime(),
+});
+
+export type SpecReviewResult = z.infer<typeof SpecReviewResultSchema>;
+
+export const CreateSpecReviewBody = z.object({
+  reviewer: z.string().min(1),
+  score: z.number().int().min(0).max(100),
+  verdict: ReviewVerdictEnum,
+  comments: z
+    .array(
+      z.object({
+        section_anchor: z.string(),
+        comment: z.string(),
+        severity: CommentSeverityEnum,
+      })
+    )
+    .optional(),
+});
+
+export type CreateSpecReviewBody = z.infer<typeof CreateSpecReviewBody>;
+
+export const TriggerReviewBody = z.object({
+  agents: z.array(z.string().min(1)).default(["reviewer"]),
+});
+
+export type TriggerReviewBody = z.infer<typeof TriggerReviewBody>;
