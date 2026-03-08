@@ -529,6 +529,9 @@ export class WorkflowRunner {
   ): Promise<{ exitCode: number; reason: string }> {
     switch (step.type) {
       case 'spawn-agent':
+        if (step.task === 'merge-worktree') {
+          return this.executeMergeWorktreeHybrid(stepIndex, ctx);
+        }
         return this.executeSpawnAgent(step.task, stepIndex, ctx);
 
       case 'spawn-agent-call':
@@ -635,6 +638,163 @@ export class WorkflowRunner {
     }
 
     return { exitCode: result.code, reason: result.code === 0 ? 'ok' : 'agent_failed' };
+  }
+
+  /**
+   * Hybrid merge: attempts deterministic git merge, falls back to agent with JSON schema,
+   * then verifies the SHA is in target branch log.
+   */
+  private async executeMergeWorktreeHybrid(
+    stepIndex: number,
+    ctx: WorkflowRunnerContext,
+  ): Promise<{ exitCode: number; reason: string }> {
+    const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: 'merge-worktree' }));
+    const branchName = `harness/wave-${ctx.waveNumber}`;
+    const targetBranch = ctx.targetBranch ?? 'main';
+    const progressPath = join(ctx.waveDir, 'workflow-progress.txt');
+
+    // LAYER 1: Deterministic merge attempt
+    let mergedSha: string | null = null;
+    let via: 'deterministic' | 'agent' = 'deterministic';
+
+    try {
+      execSync(`git -C "${ctx.repoDir}" checkout "${targetBranch}"`, { stdio: 'pipe' });
+      execSync(`git -C "${ctx.repoDir}" merge "${branchName}" --no-ff --no-edit`, { stdio: 'pipe' });
+      mergedSha = execSync(`git -C "${ctx.repoDir}" rev-parse HEAD`, { stdio: 'pipe' }).toString().trim();
+
+      // Write spawn.json for deterministic layer
+      const meta: SpawnMeta = {
+        task: 'merge-worktree',
+        agent: 'deterministic',
+        wave: ctx.waveNumber,
+        step: stepIndex,
+        parent_pid: process.pid,
+        pid: process.pid,
+        started_at: now(),
+        finished_at: now(),
+        exit_code: 0,
+        timed_out: false,
+      };
+      await this.spawner.writeSpawnMeta(stepDir, meta);
+    } catch (err) {
+      // Abort any in-progress merge
+      try {
+        execSync(`git -C "${ctx.repoDir}" merge --abort`, { stdio: 'pipe' });
+      } catch {
+        // Ignore abort errors
+      }
+
+      // LAYER 2: Fallback to agent with JSON schema
+      via = 'agent';
+      const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('merge-worktree', ctx);
+      const resolved = this.resolveSpawnModelEffort('merge-worktree', taskFrontmatter, frontmatter, ctx.plan);
+
+      this.emitEvent('agent:spawn', { task: 'merge-worktree', agent: agentName, mode: 'hybrid' });
+
+      const meta: SpawnMeta = {
+        task: 'merge-worktree',
+        agent: agentName,
+        wave: ctx.waveNumber,
+        step: stepIndex,
+        parent_pid: process.pid,
+        pid: 0,
+        started_at: now(),
+        timed_out: false,
+      };
+
+      await this.spawner.writeSpawnMeta(stepDir, meta);
+
+      const jsonSchema = {
+        type: 'object',
+        properties: {
+          success: { type: 'boolean' },
+          merged_sha: { type: 'string' },
+          error: { type: 'string' },
+        },
+        required: ['success'],
+      };
+
+      const result = await this.spawner.spawnAgent({
+        prompt,
+        cwd: ctx.worktreeDir,
+        outputDir: stepDir,
+        agentConfig: {
+          allowedTools: frontmatter.allowedTools as string | undefined,
+          max_turns: frontmatter.max_turns as number | undefined,
+          model: resolved.model,
+          effort: resolved.effort,
+        },
+        timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+        jsonSchema,
+        onSpawn: (pid) => {
+          meta.pid = pid;
+          this.spawner.writeSpawnMeta(stepDir, meta).catch(() => {});
+        },
+      });
+
+      meta.pid = result.pid;
+      meta.finished_at = now();
+      meta.exit_code = result.code;
+      meta.timed_out = result.timedOut;
+      await this.spawner.writeSpawnMeta(stepDir, meta);
+
+      this.emitEvent('agent:exit', {
+        task: 'merge-worktree',
+        exit_code: result.code,
+        timed_out: result.timedOut,
+      });
+
+      // Fail hard if agent failed
+      if (result.code !== 0) {
+        await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: agent_failed (exit ${result.code})`);
+        return { exitCode: 1, reason: 'merge_agent_failed' };
+      }
+
+      const response = result.response as { success?: boolean; merged_sha?: string; error?: string } | undefined;
+
+      if (!response?.success) {
+        await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: agent reported failure: ${response?.error || 'unknown'}`);
+        return { exitCode: 1, reason: `merge_failed: ${response?.error || 'agent reported failure'}` };
+      }
+
+      mergedSha = response.merged_sha ?? null;
+    }
+
+    // LAYER 3: Verification - ensure SHA is in target branch log
+    if (!mergedSha) {
+      await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: no SHA to verify`);
+      return { exitCode: 1, reason: 'merge_no_sha' };
+    }
+
+    try {
+      const log = execSync(`git -C "${ctx.repoDir}" log "${targetBranch}" --oneline -50`, { stdio: 'pipe' }).toString();
+      const shortSha = mergedSha.substring(0, 7);
+      if (!log.includes(shortSha)) {
+        await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: SHA ${mergedSha} not verified in ${targetBranch}`);
+        return { exitCode: 1, reason: `merge_not_verified: SHA ${mergedSha} not in ${targetBranch}` };
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree HARD FAIL: verify error: ${msg}`);
+      return { exitCode: 1, reason: 'merge_verify_failed' };
+    }
+
+    // CLEANUP: Remove worktree and branch
+    try {
+      execSync(`git -C "${ctx.repoDir}" worktree remove "${ctx.worktreeDir}" --force`, { stdio: 'pipe' });
+    } catch {
+      // Best effort
+    }
+
+    try {
+      execSync(`git -C "${ctx.repoDir}" branch -D "${branchName}"`, { stdio: 'pipe' });
+    } catch {
+      // Best effort
+    }
+
+    await this.state.appendLine(progressPath, `[${now().replace('T', ' ').replace('Z', '')}] merge-worktree via=${via} sha=${mergedSha}`);
+
+    return { exitCode: 0, reason: 'ok' };
   }
 
   private async executeSpawnAgentCall(
