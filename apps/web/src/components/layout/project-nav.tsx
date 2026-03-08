@@ -1,5 +1,5 @@
 import { Link, useParams } from "@tanstack/react-router";
-import { ArrowRightLeft, BarChart3, ClipboardCheck, FileText, GitBranch, Kanban, Layers, MessageSquare, Package, ScrollText, Settings, Shield } from "lucide-react";
+import { ArrowRightLeft, BarChart3, ClipboardCheck, FileText, GitBranch, Kanban, Layers, MessageSquare, Package, ScrollText, Settings, Shield, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProjectThroughputBadge } from "@/components/project-throughput-badge";
 
@@ -14,6 +14,7 @@ const tabs = [
   { label: "Reviews", to: "/projects/$projectId/reviews" as const, icon: ClipboardCheck },
   { label: "Metrics", to: "/projects/$projectId/metrics" as const, icon: BarChart3 },
   { label: "Throughput", to: "/projects/$projectId/throughput" as const, icon: Layers },
+  { label: "ROI", to: "/projects/$projectId/roi" as const, icon: TrendingUp },
   { label: "Containment", to: "/projects/$projectId/containment" as const, icon: Shield },
   { label: "Security", to: "/projects/$projectId/security" as const, icon: Shield },
   { label: "Settings", to: "/projects/$projectId/settings" as const, icon: Settings },

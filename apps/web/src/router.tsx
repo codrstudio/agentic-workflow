@@ -37,6 +37,7 @@ import { SecurityDashboardPage } from "@/pages/security-dashboard";
 import { SpecListPage } from "@/pages/spec-list";
 import { SpecDetailPage } from "@/pages/spec-detail";
 import { ThroughputDashboardPage } from "@/pages/throughput-dashboard";
+import { ROIDashboardPage } from "@/pages/roi-dashboard";
 import { ProjectNav } from "@/components/layout/project-nav";
 import { ResumeBanner } from "@/components/resume-banner";
 import { BreakReminder } from "@/components/break-reminder";
@@ -341,6 +342,14 @@ const projectThroughputRoute = createRoute({
   staticData: { breadcrumb: "Throughput" },
 });
 
+// /projects/$projectId/roi (F-196)
+const projectROIRoute = createRoute({
+  getParentRoute: () => projectRoute,
+  path: "/roi",
+  component: ROIDashboardPage,
+  staticData: { breadcrumb: "ROI" },
+});
+
 // /harness
 const harnessRoute = createRoute({
   getParentRoute: () => authenticatedLayout,
@@ -389,6 +398,7 @@ const routeTree = rootRoute.addChildren([
         projectSpecsRoute,
         specDetailRoute,
         projectThroughputRoute,
+        projectROIRoute,
       ]),
     ]),
     harnessRoute.addChildren([harnessDetailRoute]),
