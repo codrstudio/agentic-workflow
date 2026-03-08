@@ -2,6 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { ArrowRightLeft, BarChart3, ClipboardCheck, FileText, GitBranch, Kanban, Layers, MessageSquare, Package, ScrollText, Settings, Shield, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ProjectThroughputBadge } from "@/components/project-throughput-badge";
+import { CognitiveDebtAlertBadge } from "@/components/cognitive-debt-alert-badge";
 
 const tabs = [
   { label: "Sources", to: "/projects/$projectId/sources" as const, icon: FileText },
@@ -43,7 +44,8 @@ export function ProjectNav() {
           {tab.label}
         </Link>
       ))}
-      <div className="ml-auto pl-2 shrink-0">
+      <div className="ml-auto flex items-center gap-2 pl-2 shrink-0">
+        <CognitiveDebtAlertBadge projectId={projectId} />
         <ProjectThroughputBadge projectId={projectId} />
       </div>
     </nav>
