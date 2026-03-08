@@ -51,6 +51,7 @@ import { rescue } from "./routes/rescue.js";
 import { platform } from "./routes/platform.js";
 import { search } from "./routes/search.js";
 import { cognitiveDebt } from "./routes/cognitive-debt.js";
+import { pipeline } from "./routes/pipeline.js";
 
 const app = new Hono();
 
@@ -111,5 +112,6 @@ app.route("/api/v1", rescue);
 app.route("/api/v1", platform);
 app.route("/api/v1", search);
 app.route("/api/v1", cognitiveDebt);
+app.route("/api/v1", pipeline);
 
 export { app };
