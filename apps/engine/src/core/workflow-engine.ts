@@ -11,6 +11,7 @@ import { OperatorQueue } from './operator-queue.js';
 import { PlanResolver } from './plan-resolver.js';
 import { AcrInjector } from './acr-injector.js';
 import { TokenUsageReporter } from './token-usage-reporter.js';
+import { AgentActionReporter } from './agent-action-reporter.js';
 import { detectNextWave, resolveSprintForWave, setupWave } from './bootstrap.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
@@ -48,6 +49,7 @@ export class WorkflowRunner {
   readonly planResolver = new PlanResolver();
   readonly acrInjector = new AcrInjector();
   readonly tokenReporter = new TokenUsageReporter();
+  readonly actionReporter = new AgentActionReporter();
   readonly operatorQueue = new OperatorQueue(this.state, this.spawner, this.notifier, this.renderer, this.acrInjector);
 
   private stopRequested = false;
@@ -250,6 +252,16 @@ export class WorkflowRunner {
 
     await this.spawner.writeSpawnMeta(mergeDir, meta);
 
+    // Register AgentAction with hub
+    const mergeStartedAt = meta.started_at;
+    const mergeActionId = await this.actionReporter.reportStart({
+      projectSlug: ctx.projectSlug,
+      actionType: 'merge_spawn',
+      agentProfile: agentName,
+      taskName: 'merge-worktree',
+      spawnDir: mergeDir,
+    });
+
     // Fire and forget
     this.spawner.spawnAgent({
       prompt,
@@ -286,6 +298,17 @@ export class WorkflowRunner {
         phase: 'merge-worktree',
         resolvedModel: resolved.model,
       });
+
+      // Complete AgentAction
+      if (mergeActionId) {
+        await this.actionReporter.reportComplete({
+          projectSlug: ctx.projectSlug,
+          actionId: mergeActionId,
+          exitCode: result.code,
+          startedAt: mergeStartedAt,
+          outputDir: mergeDir,
+        });
+      }
 
       // After successful merge, update repo working directory to reflect latest state
       if (result.code === 0) {
@@ -325,6 +348,16 @@ export class WorkflowRunner {
 
     await this.spawner.writeSpawnMeta(mergeDir, meta);
 
+    // Register AgentAction with hub
+    const syncMergeStartedAt = meta.started_at;
+    const syncMergeActionId = await this.actionReporter.reportStart({
+      projectSlug: ctx.projectSlug,
+      actionType: 'merge_spawn',
+      agentProfile: agentName,
+      taskName: 'merge-worktree',
+      spawnDir: mergeDir,
+    });
+
     const result = await this.spawner.spawnAgent({
       prompt,
       cwd: ctx.worktreeDir,
@@ -362,6 +395,17 @@ export class WorkflowRunner {
       phase: 'merge-worktree',
       resolvedModel: resolved.model,
     });
+
+    // Complete AgentAction
+    if (syncMergeActionId) {
+      await this.actionReporter.reportComplete({
+        projectSlug: ctx.projectSlug,
+        actionId: syncMergeActionId,
+        exitCode: result.code,
+        startedAt: syncMergeStartedAt,
+        outputDir: mergeDir,
+      });
+    }
 
     // After successful merge, update repo to target branch
     if (result.code === 0) {
@@ -526,6 +570,16 @@ export class WorkflowRunner {
 
     await this.spawner.writeSpawnMeta(stepDir, meta);
 
+    // Register AgentAction with hub
+    const spawnStartedAt = meta.started_at;
+    const actionId = await this.actionReporter.reportStart({
+      projectSlug: ctx.projectSlug,
+      actionType: 'pipeline_phase',
+      agentProfile: agentName,
+      taskName: taskSlug,
+      spawnDir: stepDir,
+    });
+
     const result = await this.spawner.spawnAgent({
       prompt,
       cwd: ctx.worktreeDir,
@@ -564,6 +618,17 @@ export class WorkflowRunner {
       resolvedModel: resolved.model,
     });
 
+    // Complete AgentAction
+    if (actionId) {
+      await this.actionReporter.reportComplete({
+        projectSlug: ctx.projectSlug,
+        actionId,
+        exitCode: result.code,
+        startedAt: spawnStartedAt,
+        outputDir: stepDir,
+      });
+    }
+
     return { exitCode: result.code, reason: result.code === 0 ? 'ok' : 'agent_failed' };
   }
 
@@ -592,6 +657,16 @@ export class WorkflowRunner {
     };
 
     await this.spawner.writeSpawnMeta(stepDir, meta);
+
+    // Register AgentAction with hub
+    const callStartedAt = meta.started_at;
+    const callActionId = await this.actionReporter.reportStart({
+      projectSlug: ctx.projectSlug,
+      actionType: 'pipeline_phase',
+      agentProfile: agentName,
+      taskName: taskSlug,
+      spawnDir: stepDir,
+    });
 
     const result = await this.spawner.spawnAgent({
       prompt,
@@ -632,6 +707,17 @@ export class WorkflowRunner {
       phase: taskSlug,
       resolvedModel: resolved.model,
     });
+
+    // Complete AgentAction
+    if (callActionId) {
+      await this.actionReporter.reportComplete({
+        projectSlug: ctx.projectSlug,
+        actionId: callActionId,
+        exitCode: result.code,
+        startedAt: callStartedAt,
+        outputDir: stepDir,
+      });
+    }
 
     if (result.code !== 0) {
       return { exitCode: result.code, reason: 'agent_failed' };
@@ -675,7 +761,7 @@ export class WorkflowRunner {
       }
     }
 
-    const loop = new FeatureLoop(this.notifier, this.acrInjector, this.tokenReporter);
+    const loop = new FeatureLoop(this.notifier, this.acrInjector, this.tokenReporter, this.actionReporter);
     return loop.execute(taskSlug, {
       worktreeDir: ctx.worktreeDir,
       sprintDir: ctx.sprintDir,

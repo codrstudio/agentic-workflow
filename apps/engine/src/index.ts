@@ -11,6 +11,7 @@ export { TemplateRenderer } from './core/template-renderer.js';
 export { SSEAdapter } from './core/sse-adapter.js';
 export { OperatorQueue } from './core/operator-queue.js';
 export { TokenUsageReporter } from './core/token-usage-reporter.js';
+export { AgentActionReporter } from './core/agent-action-reporter.js';
 export { installCrashHandlers, setLogPath, logEvent, logInfo, logError, getLogPath } from './core/engine-logger.js';
 
 // Schemas

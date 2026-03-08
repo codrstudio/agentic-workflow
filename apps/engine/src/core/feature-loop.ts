@@ -9,6 +9,7 @@ import { TemplateRenderer } from './template-renderer.js';
 import { PlanResolver } from './plan-resolver.js';
 import type { AcrInjector } from './acr-injector.js';
 import type { TokenUsageReporter } from './token-usage-reporter.js';
+import type { AgentActionReporter } from './agent-action-reporter.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
@@ -51,7 +52,12 @@ export class FeatureLoop {
   private featuresDone = 0;
   private startedAt = now();
 
-  constructor(readonly notifier: Notifier, private readonly acrInjector?: AcrInjector, private readonly tokenReporter?: TokenUsageReporter) {}
+  constructor(
+    readonly notifier: Notifier,
+    private readonly acrInjector?: AcrInjector,
+    private readonly tokenReporter?: TokenUsageReporter,
+    private readonly actionReporter?: AgentActionReporter,
+  ) {}
 
   async execute(
     taskSlug: string,
@@ -196,6 +202,20 @@ export class FeatureLoop {
 
         await this.spawner.writeSpawnMeta(attemptDir, meta);
 
+        // Register AgentAction with hub
+        let featureActionId: string | null = null;
+        const featureStartedAt = meta.started_at;
+        if (this.actionReporter && ctx.projectSlug) {
+          featureActionId = await this.actionReporter.reportStart({
+            projectSlug: ctx.projectSlug,
+            actionType: 'feature_spawn',
+            agentProfile: agentName,
+            taskName: taskSlug,
+            featureId: feature.id,
+            spawnDir: attemptDir,
+          });
+        }
+
         // Resolve model/effort from plan with escalation support
         const resolved = this.resolveSpawnModelEffort(taskSlug, task.frontmatter, agentFrontmatter, ctx.plan, attempt);
 
@@ -231,6 +251,17 @@ export class FeatureLoop {
             phase: taskSlug,
             featureId: feature.id,
             resolvedModel: resolved.model,
+          });
+        }
+
+        // Complete AgentAction
+        if (featureActionId && ctx.projectSlug) {
+          await this.actionReporter!.reportComplete({
+            projectSlug: ctx.projectSlug,
+            actionId: featureActionId,
+            exitCode: result.code,
+            startedAt: featureStartedAt,
+            outputDir: attemptDir,
           });
         }
 
