@@ -8,6 +8,13 @@ import { readJSON, listDirs } from "../lib/fs-utils.js";
 import { config } from "../lib/config.js";
 import { bootstrap, WorkflowRunner, type WorkflowRunnerContext } from "@aw/engine";
 import { registry } from "../lib/run-registry.js";
+import {
+  StartRunRequestSchema,
+  HealthResponseSchema,
+  RunDetailSchema,
+  RunCreatedSchema,
+  ErrorResponseSchema,
+} from "../schemas/harness.js";
 
 const harness = new Hono();
 
@@ -63,34 +70,22 @@ interface WaveInfo {
 // GET /harness/health — health check with run count
 harness.get("/harness/health", async (c) => {
   const runs = registry.list();
-  return c.json({
+  const response = HealthResponseSchema.parse({
     ok: true,
     runs: runs.length,
   });
+  return c.json(response);
 });
 
 // POST /harness/runs — start a new workflow run (non-blocking)
 harness.post("/harness/runs", async (c) => {
-  const body = await c.req.json<{
-    projectSlug: string;
-    workflowSlug: string;
-    planSlug?: string;
-  }>();
-
-  if (!body.projectSlug || !body.workflowSlug) {
-    return c.json(
-      { error: "projectSlug and workflowSlug are required" },
-      400
-    );
-  }
-
   try {
+    const body = await c.req.json();
+    const validated = StartRunRequestSchema.parse(body);
+    const { projectSlug, workflowSlug, planSlug } = validated;
+
     // Create run record with pending status
-    const run = registry.create(
-      body.projectSlug,
-      body.workflowSlug,
-      body.planSlug
-    );
+    const run = registry.create(projectSlug, workflowSlug, planSlug);
 
     // Start runner in background (non-blocking)
     (async () => {
@@ -100,9 +95,9 @@ harness.post("/harness/runs", async (c) => {
         // Bootstrap the runner context
         const result = await bootstrap(
           config.workspacesDir,
-          body.projectSlug,
-          body.workflowSlug,
-          body.planSlug
+          projectSlug,
+          workflowSlug,
+          planSlug
         );
 
         // Build WorkflowRunnerContext from bootstrap result
@@ -119,9 +114,9 @@ harness.post("/harness/runs", async (c) => {
           sprintDir: result.sprintDir,
           waveNumber: result.waveNumber,
           sprintNumber: result.sprintNumber,
-          agentsDir: join(config.workspacesDir, body.projectSlug, 'agents'),
-          tasksDir: join(config.workspacesDir, body.projectSlug, 'tasks'),
-          workflowsDir: join(config.workspacesDir, body.projectSlug, 'workflows'),
+          agentsDir: join(config.workspacesDir, projectSlug, 'agents'),
+          tasksDir: join(config.workspacesDir, projectSlug, 'tasks'),
+          workflowsDir: join(config.workspacesDir, projectSlug, 'workflows'),
           params: result.projectConfig.params as Record<string, unknown> | undefined,
           sourceBranch: result.resolvedRepoConfig?.source_branch,
           targetBranch: result.resolvedRepoConfig?.target_branch,
@@ -154,19 +149,18 @@ harness.post("/harness/runs", async (c) => {
       }
     })(); // Start background task
 
-    return c.json(
-      {
-        run_id: run.id,
-        projectSlug: run.projectSlug,
-        workflowSlug: run.workflowSlug,
-        status: run.status,
-        created_at: run.created_at,
-      },
-      201
-    );
+    const response = RunCreatedSchema.parse({
+      run_id: run.id,
+      projectSlug: run.projectSlug,
+      workflowSlug: run.workflowSlug,
+      status: run.status,
+      created_at: run.created_at,
+    });
+    return c.json(response, 201);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    return c.json({ error: message }, 400);
+    const message = err instanceof Error ? err.message : "Validation error";
+    const response = ErrorResponseSchema.parse({ error: message });
+    return c.json(response, 400);
   }
 });
 
@@ -183,21 +177,23 @@ harness.get("/harness/runs/:runId", async (c) => {
   const run = registry.get(runId);
 
   if (!run) {
-    return c.json({ error: "Run not found" }, 404);
+    const response = ErrorResponseSchema.parse({ error: "Run not found" });
+    return c.json(response, 404);
   }
 
-  return c.json({
+  const response = RunDetailSchema.parse({
     id: run.id,
     projectSlug: run.projectSlug,
     workflowSlug: run.workflowSlug,
     planSlug: run.planSlug,
     status: run.status,
     created_at: run.created_at,
-    started_at: run.started_at,
-    finished_at: run.finished_at,
-    exit_code: run.exit_code,
+    started_at: run.started_at ?? null,
+    finished_at: run.finished_at ?? null,
+    exit_code: run.exit_code ?? null,
     reason: run.reason,
   });
+  return c.json(response);
 });
 
 // DELETE /harness/runs/:runId — stop a run
