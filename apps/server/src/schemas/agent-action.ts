@@ -63,6 +63,53 @@ export const PatchAgentActionBody = z.object({
   output_preview: z.string().nullable().optional(),
 });
 
+// --- Approve body ---
+
+export const ApproveAgentActionBody = z.object({
+  decision: z.enum(["approved", "rejected"]),
+  note: z.string().optional(),
+});
+
+// --- Morning Report Config ---
+
+export const MorningReportConfigSchema = z.object({
+  project_id: z.string(),
+  enabled: z.boolean().default(true),
+  lookback_hours: z.number().int().min(1).max(72).default(12),
+  include_types: z.array(AgentActionTypeEnum).default([
+    "feature_spawn", "review_spawn", "merge_spawn", "automation",
+  ]),
+  notify_on_session_start: z.boolean().default(true),
+  updated_at: z.string().datetime(),
+});
+
+export const PatchMorningReportConfigBody = z.object({
+  enabled: z.boolean().optional(),
+  lookback_hours: z.number().int().min(1).max(72).optional(),
+  include_types: z.array(AgentActionTypeEnum).optional(),
+  notify_on_session_start: z.boolean().optional(),
+});
+
+// --- Morning Report (computed) ---
+
+export const MorningReportSchema = z.object({
+  project_id: z.string(),
+  generated_at: z.string().datetime(),
+  period_from: z.string().datetime(),
+  period_to: z.string().datetime(),
+  actions: z.array(AgentActionSchema),
+  summary: z.object({
+    total: z.number().int(),
+    completed: z.number().int(),
+    failed: z.number().int(),
+    pending_approval: z.number().int(),
+    skipped: z.number().int(),
+  }),
+  has_pending_approvals: z.boolean(),
+});
+
 export type AgentAction = z.infer<typeof AgentActionSchema>;
 export type CreateAgentActionBodyType = z.infer<typeof CreateAgentActionBody>;
 export type PatchAgentActionBodyType = z.infer<typeof PatchAgentActionBody>;
+export type MorningReportConfig = z.infer<typeof MorningReportConfigSchema>;
+export type MorningReport = z.infer<typeof MorningReportSchema>;
