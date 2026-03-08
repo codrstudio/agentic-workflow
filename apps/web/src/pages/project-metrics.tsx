@@ -29,6 +29,7 @@ import { ComplexityDistributionChart } from "@/components/complexity-distributio
 import { TrustProgressionDashboard } from "@/components/trust-progression-dashboard";
 import { AIProductivityDashboard } from "@/components/ai-productivity-dashboard";
 import { ComplianceDashboard } from "@/components/compliance-dashboard";
+import { QualitySummaryTab } from "@/components/quality-summary-tab";
 import { cn } from "@/lib/utils";
 
 // --- Column definitions ---
@@ -71,7 +72,7 @@ const stepColumns: MetricsColumn<StepMetrics>[] = [
 
 // --- Sub-tabs ---
 
-type MetricsTab = "general" | "context" | "wellbeing" | "spec-depth" | "autonomia" | "produtividade-ai" | "compliance";
+type MetricsTab = "general" | "context" | "wellbeing" | "spec-depth" | "autonomia" | "produtividade-ai" | "compliance" | "qualidade";
 
 const TABS: { value: MetricsTab; label: string }[] = [
   { value: "general", label: "Geral" },
@@ -81,6 +82,7 @@ const TABS: { value: MetricsTab; label: string }[] = [
   { value: "autonomia", label: "Autonomia" },
   { value: "produtividade-ai", label: "Produtividade AI" },
   { value: "compliance", label: "Compliance" },
+  { value: "qualidade", label: "Qualidade" },
 ];
 
 // --- Main Page ---
@@ -299,6 +301,11 @@ export function ProjectMetricsPage() {
       {/* Compliance tab content */}
       {activeTab === "compliance" && (
         <ComplianceDashboard projectId={projectId} />
+      )}
+
+      {/* Qualidade tab content */}
+      {activeTab === "qualidade" && (
+        <QualitySummaryTab projectId={projectId} />
       )}
     </div>
   );
