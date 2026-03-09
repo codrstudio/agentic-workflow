@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { runs } from './runs.js';
+import { waves } from './waves.js';
 
 const app = new Hono();
 
@@ -76,5 +77,6 @@ app.get('/:slug', async (c) => {
 });
 
 app.route('/:slug/runs', runs);
+app.route('/:slug/waves', waves);
 
 export { app as projects };
