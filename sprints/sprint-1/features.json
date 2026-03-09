@@ -217,7 +217,7 @@
     "id": "F-011",
     "name": "Projects & Workflows API",
     "description": "Endpoints GET /api/v1/projects (lista projetos lendo context/projects/*/project.json), GET /api/v1/projects/:slug (detalhe com info de workspace), GET /api/v1/workflows (lista workflows lendo context/workflows/*.yaml). Raiz do monorepo via AW_ROOT ou process.cwd().",
-    "status": "pending",
+    "status": "passing",
     "priority": 11,
     "agent": "coder",
     "task": "vibe-code",
@@ -232,7 +232,8 @@
       "Dados lidos do filesystem (context/projects/, context/workflows/)",
       "Typecheck passa sem erros"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
+    "completed_at": "2026-03-09T19:21:54Z"
   },
   {
     "id": "F-012",
