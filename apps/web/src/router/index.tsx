@@ -11,6 +11,7 @@ import { ProjectsPage } from "@/pages/projects"
 import { ProjectDetailPage } from "@/pages/project-detail"
 import { WaveDetailPage } from "@/pages/wave-detail"
 import { ConsolePage } from "@/pages/console"
+import { StepDetailPage } from "@/pages/step-detail"
 import { AppShell } from "@/components/layout/app-shell"
 
 // Root route with context type
@@ -72,7 +73,7 @@ const waveDetailRoute = createRoute({
 const stepDetailRoute = createRoute({
   getParentRoute: () => authRoute,
   path: "/projects/$slug/waves/$waveNumber/steps/$stepIndex",
-  component: () => <div>Step Detail (stub)</div>,
+  component: StepDetailPage,
 })
 
 const consoleRoute = createRoute({

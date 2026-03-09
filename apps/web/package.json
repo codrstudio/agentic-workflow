@@ -13,11 +13,13 @@
   },
   "dependencies": {
     "@tanstack/react-router": "^1.166.3",
+    "@types/react-window": "^1.8.8",
     "@workspace/ui": "*",
     "framer-motion": "^12.35.2",
     "lucide-react": "^0.577.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-window": "^2.2.7",
     "vaul": "^1.1.2"
   },
   "devDependencies": {
