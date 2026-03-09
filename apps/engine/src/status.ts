@@ -187,6 +187,110 @@ async function readLastMessages(jsonlPath: string, n: number): Promise<AgentMess
   return messages.slice(-n);
 }
 
+interface EngineLogEntry {
+  type: string;
+  timestamp: string;
+  data?: Record<string, unknown>;
+}
+
+async function readLastEngineMessages(logPath: string, n: number): Promise<AgentMessage[]> {
+  let raw: string;
+  try {
+    raw = await readFile(logPath, 'utf-8');
+  } catch {
+    return [];
+  }
+
+  const messages: AgentMessage[] = [];
+  const lines = raw.split('\n').filter(l => l.trim());
+
+  for (const line of lines) {
+    try {
+      const entry = JSON.parse(line) as EngineLogEntry;
+      const type = entry.type;
+      const data = entry.data || {};
+
+      let message = '';
+
+      if (type === 'workflow:start') {
+        message = `workflow start: ${data.workflow}`;
+      } else if (type === 'workflow:step:start') {
+        const stepType = data.type as string;
+        const stepName = data.step as string;
+        message = `step: ${stepName} (${stepType})`;
+      } else if (type === 'workflow:step:end') {
+        const stepName = data.step as string;
+        const result = data.result as string;
+        if (result?.includes('error') || result?.includes('EPERM')) {
+          message = `step failed: ${stepName}`;
+        } else {
+          message = `step end: ${stepName}`;
+        }
+      } else if (type === 'workflow:step:complete') {
+        const exitCode = data.exit_code as number;
+        const stepName = data.step as string;
+        const status = exitCode === 0 ? 'OK' : `FAIL(${exitCode})`;
+        message = `step complete: ${stepName} → ${status}`;
+      } else if (type === 'workflow:end') {
+        const reason = data.reason as string;
+        message = `workflow end: ${reason}`;
+      } else if (type === 'agent:spawn') {
+        const task = data.task as string;
+        const agent = data.agent as string;
+        message = `agent spawn: ${task} (${agent})`;
+      } else if (type === 'agent:exit') {
+        const exitCode = data.exit_code as number;
+        const status = exitCode === 0 ? 'success' : `fail(${exitCode})`;
+        message = `agent exit: ${status}`;
+      } else if (type === 'loop:start') {
+        message = `loop: starting iteration ${data.iteration}`;
+      } else if (type === 'loop:end') {
+        const reason = data.reason as string;
+        if (reason === 'success') {
+          message = `loop: complete`;
+        } else if (reason === 'error') {
+          const errorMsg = (data.error as string)?.split('\n')[0]?.slice(0, 40) || 'unknown error';
+          message = `loop error: ${errorMsg}`;
+        } else {
+          message = `loop: ${reason}`;
+        }
+      } else if (type === 'feature:attempt:start') {
+        const featureId = data.feature_id as string;
+        message = `feature attempt: ${featureId}`;
+      } else if (type === 'feature:attempt:complete') {
+        const featureId = data.feature_id as string;
+        const status = data.status as string;
+        message = `feature result: ${featureId} → ${status}`;
+      } else if (type === 'merge:start') {
+        message = 'merge: starting';
+      } else if (type === 'merge:complete') {
+        const status = data.success ? 'success' : 'failed';
+        message = `merge: ${status}`;
+      } else if (type === 'worktree:create') {
+        message = 'worktree: created';
+      } else if (type === 'worktree:cleanup') {
+        message = 'worktree: cleaned up';
+      } else {
+        // Generic: show type and any key fields
+        const fields = Object.entries(data)
+          .filter(([k]) => !k.startsWith('_'))
+          .slice(0, 2)
+          .map(([, v]) => String(v).slice(0, 20))
+          .join(' / ');
+        message = `${type}${fields ? ': ' + fields : ''}`;
+      }
+
+      if (message) {
+        messages.push({ text: message });
+      }
+    } catch {
+      // skip malformed lines
+    }
+  }
+
+  return messages.slice(-n);
+}
+
 function truncate(text: string, max: number): string {
   // Take first line only, truncate if needed
   const firstLine = text.split('\n')[0] ?? text;
@@ -482,8 +586,9 @@ function printFeatures(features: Feature[], sprintNumber: number): void {
 function printLastMessages(messages: AgentMessage[], sourceLabel: string): void {
   if (messages.length === 0) return;
 
+  const label = sourceLabel === 'engine' ? 'last engine output' : `last agent output (${sourceLabel})`;
   console.log('');
-  console.log(`  ${chalk.gray(`last agent output (${sourceLabel})`)}`);
+  console.log(`  ${chalk.gray(label)}`);
 
   for (let i = 0; i < messages.length; i++) {
     const text = truncate(messages[i]!.text, 80);
@@ -612,7 +717,7 @@ async function main(): Promise<void> {
   // ── Section 2: Current wave detail ──
   await printWaveDetail(currentWave, currentData.steps, features);
 
-  // ── Section 3: Last agent messages + timing ──
+  // ── Section 3: Last agent messages + engine log + timing ──
   const activeStep = findActiveStep(currentData.steps);
   if (activeStep) {
     const spawnInfo = await findActiveSpawn(activeStep, currentWaveDir);
@@ -622,6 +727,13 @@ async function main(): Promise<void> {
     }
     const activity = await getActivityInfo(activeStep, spawnInfo?.jsonlPath ?? null, spawnInfo?.spawnJsonPath ?? null);
     printActivitySummary(activity, activeStep.loop);
+  }
+
+  // ── Print engine log (always, from current wave) ──
+  const engineLogPath = join(currentWaveDir, 'engine.log');
+  const engineMessages = await readLastEngineMessages(engineLogPath, 3);
+  if (engineMessages.length > 0) {
+    printLastMessages(engineMessages, 'engine');
   }
 
   // ── Section 4: Wave history ──
