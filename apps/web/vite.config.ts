@@ -5,6 +5,7 @@ import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 
 export default defineConfig({
+  base: "/web",
   plugins: [
     react(),
     tailwindcss(),
@@ -48,10 +49,10 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 2102,
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: "http://localhost:2101",
         changeOrigin: true,
       },
     },
