@@ -173,7 +173,7 @@
     "id": "F-009",
     "name": "BottomNav Mobile",
     "description": "BottomNav visível em viewport < 768px, oculto em desktop. Até 4 atalhos configuráveis do sidebar. Botão menu abre drawer (vaul) com todos os items + página Customizar para selecionar atalhos.",
-    "status": "pending",
+    "status": "passing",
     "priority": 9,
     "agent": "coder",
     "task": "vibe-code",
@@ -188,7 +188,8 @@
       "Página Customizar permite selecionar quais 4 atalhos aparecem",
       "Sidebar oculto em viewport < 768px"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
+    "completed_at": "2026-03-09T19:15:00.000Z"
   },
   {
     "id": "F-010",

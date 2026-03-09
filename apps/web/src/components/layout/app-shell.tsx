@@ -4,6 +4,7 @@ import { FolderKanban, Terminal, Activity, ChevronLeft, ChevronRight, Sun, Moon,
 import { cn } from "@workspace/ui/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "@/components/theme-provider"
+import { BottomNav } from "@/components/layout/bottom-nav"
 
 const NAV_ITEMS = [
   { to: "/projects", label: "Projetos", icon: FolderKanban },
@@ -36,11 +37,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-svh overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar — hidden on mobile (< 768px) */}
       <aside
         data-collapsed={collapsed}
         className={cn(
-          "relative flex flex-shrink-0 flex-col border-r border-border bg-background transition-[width] duration-200",
+          "relative hidden flex-shrink-0 flex-col border-r border-border bg-background transition-[width] duration-200 md:flex",
           collapsed ? "w-14" : "w-56"
         )}
       >
@@ -77,9 +78,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Content */}
-      <main className="flex flex-1 flex-col overflow-auto">
+      <main className="flex flex-1 flex-col overflow-auto pb-16 md:pb-0">
         {children}
       </main>
+
+      {/* BottomNav — visible only on mobile (< 768px) */}
+      <BottomNav />
     </div>
   )
 }
