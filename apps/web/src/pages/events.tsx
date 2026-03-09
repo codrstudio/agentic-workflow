@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Pause, Play } from "lucide-react"
+import { ChevronDown, ChevronUp, Pause, Play, X } from "lucide-react"
 import { useSSEContext, type SSEEvent } from "@/contexts/sse-context"
+import { apiFetch } from "@/lib/api"
 
 const MAX_EVENTS = 500
 
 type EventCategory = "workflow" | "feature" | "agent" | "loop" | "gutter" | "queue"
+
+const CATEGORIES: EventCategory[] = ["workflow", "feature", "agent", "loop", "gutter", "queue"]
 
 const CATEGORY_COLORS: Record<EventCategory, string> = {
   workflow: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
@@ -95,6 +98,17 @@ function getSummary(type: string, data: unknown): string {
   return ""
 }
 
+function getEventSlug(type: string, data: unknown): string | undefined {
+  if (!data || typeof data !== "object") return undefined
+  const d = data as Record<string, unknown>
+  // engine:event, run:* events carry a top-level slug
+  const slug = d.slug as string | undefined
+  if (slug) return slug
+  // agent:action:* carry project_slug
+  const ps = d.project_slug as string | undefined
+  return ps
+}
+
 function formatRelative(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000)
   if (diff < 5) return "agora"
@@ -122,9 +136,43 @@ interface FeedEvent extends SSEEvent {
   summary: string
 }
 
+interface Project {
+  name: string
+  slug: string
+}
+
 let _id = 0
 function nextId() {
   return String(++_id)
+}
+
+// Parse filter state from URL search params
+function parseFiltersFromURL(): { types: Set<EventCategory>; project: string; q: string } {
+  const params = new URLSearchParams(window.location.search)
+  const typesRaw = params.get("types") ?? ""
+  const types = new Set<EventCategory>(
+    typesRaw
+      .split(",")
+      .filter((t): t is EventCategory => CATEGORIES.includes(t as EventCategory))
+  )
+  return {
+    types,
+    project: params.get("project") ?? "",
+    q: params.get("q") ?? "",
+  }
+}
+
+// Sync filter state to URL without triggering router navigation
+function syncFiltersToURL(types: Set<EventCategory>, project: string, q: string) {
+  const params = new URLSearchParams()
+  if (types.size > 0) params.set("types", [...types].join(","))
+  if (project) params.set("project", project)
+  if (q) params.set("q", q)
+  const search = params.toString()
+  const newUrl = search
+    ? `${window.location.pathname}?${search}`
+    : window.location.pathname
+  window.history.replaceState(null, "", newUrl)
 }
 
 export function EventsPage() {
@@ -134,6 +182,37 @@ export function EventsPage() {
   const listRef = useRef<HTMLDivElement>(null)
   const pausedRef = useRef(paused)
   pausedRef.current = paused
+
+  // Filter state — initialized from URL
+  const [selectedTypes, setSelectedTypes] = useState<Set<EventCategory>>(
+    () => parseFiltersFromURL().types
+  )
+  const [projectFilter, setProjectFilter] = useState<string>(
+    () => parseFiltersFromURL().project
+  )
+  const [textFilter, setTextFilter] = useState<string>(
+    () => parseFiltersFromURL().q
+  )
+  const [filtersOpen, setFiltersOpen] = useState(
+    () => {
+      const { types, project, q } = parseFiltersFromURL()
+      return types.size > 0 || !!project || !!q
+    }
+  )
+  const [projects, setProjects] = useState<Project[]>([])
+
+  // Sync filters to URL whenever they change
+  useEffect(() => {
+    syncFiltersToURL(selectedTypes, projectFilter, textFilter)
+  }, [selectedTypes, projectFilter, textFilter])
+
+  // Fetch available projects for the select dropdown
+  useEffect(() => {
+    apiFetch("/api/v1/projects")
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: Project[]) => setProjects(data))
+      .catch(() => {/* silently ignore */})
+  }, [])
 
   const handleEvent = useCallback((ev: SSEEvent) => {
     const feedEv: FeedEvent = {
@@ -157,6 +236,45 @@ export function EventsPage() {
     return () => unsubs.forEach((u) => u())
   }, [subscribe, handleEvent])
 
+  // Apply filters (AND logic)
+  const filteredEvents = useMemo(() => {
+    return events.filter((ev) => {
+      // Type/category filter
+      if (selectedTypes.size > 0 && !selectedTypes.has(ev.category)) return false
+      // Project filter
+      if (projectFilter) {
+        const slug = getEventSlug(ev.type, ev.data)
+        if (slug && slug !== projectFilter) return false
+      }
+      // Text filter
+      if (textFilter) {
+        const q = textFilter.toLowerCase()
+        const inLabel = ev.label.toLowerCase().includes(q)
+        const inSummary = ev.summary.toLowerCase().includes(q)
+        if (!inLabel && !inSummary) return false
+      }
+      return true
+    })
+  }, [events, selectedTypes, projectFilter, textFilter])
+
+  const activeFilterCount =
+    selectedTypes.size + (projectFilter ? 1 : 0) + (textFilter ? 1 : 0)
+
+  function toggleType(cat: EventCategory) {
+    setSelectedTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(cat)) next.delete(cat)
+      else next.add(cat)
+      return next
+    })
+  }
+
+  function clearFilters() {
+    setSelectedTypes(new Set())
+    setProjectFilter("")
+    setTextFilter("")
+  }
+
   return (
     <div className="flex flex-col h-full p-4 gap-3 max-w-5xl mx-auto w-full">
       {/* Header */}
@@ -164,21 +282,26 @@ export function EventsPage() {
         <div>
           <h1 className="text-lg font-semibold">Feed de Eventos</h1>
           <p className="text-xs text-muted-foreground">
-            {events.length} evento{events.length !== 1 ? "s" : ""} · máx {MAX_EVENTS}
+            {filteredEvents.length}{filteredEvents.length !== events.length && ` / ${events.length}`} evento{events.length !== 1 ? "s" : ""}
+            {" "}· máx {MAX_EVENTS}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Legend */}
-          <div className="hidden sm:flex items-center gap-1.5 flex-wrap">
-            {(Object.keys(CATEGORY_COLORS) as EventCategory[]).map((cat) => (
-              <span
-                key={cat}
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_COLORS[cat]}`}
-              >
-                {cat}
+          {/* Filter toggle */}
+          <button
+            onClick={() => setFiltersOpen((o) => !o)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted"
+            aria-expanded={filtersOpen}
+          >
+            {filtersOpen ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+            Filtros
+            {activeFilterCount > 0 && (
+              <span className="inline-flex items-center justify-center size-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                {activeFilterCount}
               </span>
-            ))}
-          </div>
+            )}
+          </button>
+          {/* Pause toggle */}
           <button
             onClick={() => setPaused((p) => !p)}
             aria-label={paused ? "Retomar auto-scroll" : "Pausar auto-scroll"}
@@ -191,18 +314,113 @@ export function EventsPage() {
         </div>
       </div>
 
+      {/* Filter panel */}
+      <AnimatePresence initial={false}>
+        {filtersOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+              {/* Category checkboxes */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Tipo de evento</p>
+                <div className="flex flex-wrap gap-2">
+                  {CATEGORIES.map((cat) => (
+                    <label
+                      key={cat}
+                      className="inline-flex items-center gap-1.5 cursor-pointer select-none"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTypes.has(cat)}
+                        onChange={() => toggleType(cat)}
+                        className="rounded border-border size-3.5 accent-primary"
+                      />
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_COLORS[cat]}`}
+                      >
+                        {cat}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                {/* Project select */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Projeto</p>
+                  <select
+                    value={projectFilter}
+                    onChange={(e) => setProjectFilter(e.target.value)}
+                    className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Todos os projetos</option>
+                    {projects.map((p) => (
+                      <option key={p.slug} value={p.slug}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Text search */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">Busca textual</p>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={textFilter}
+                      onChange={(e) => setTextFilter(e.target.value)}
+                      placeholder="Filtrar por conteúdo…"
+                      className="w-full rounded-md border border-border bg-background px-2 py-1.5 pr-7 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    {textFilter && (
+                      <button
+                        onClick={() => setTextFilter("")}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label="Limpar busca"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Clear all */}
+              {activeFilterCount > 0 && (
+                <div className="flex justify-end">
+                  <button
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="size-3" />
+                    Limpar filtros
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Event list */}
       <div
         ref={listRef}
         className="flex-1 overflow-y-auto space-y-1.5 min-h-0"
       >
-        {events.length === 0 && (
+        {filteredEvents.length === 0 && (
           <p className="text-sm text-muted-foreground text-center py-16">
-            Aguardando eventos SSE…
+            {events.length === 0
+              ? "Aguardando eventos SSE…"
+              : "Nenhum evento corresponde aos filtros ativos."}
           </p>
         )}
         <AnimatePresence initial={false}>
-          {events.map((ev) => (
+          {filteredEvents.map((ev) => (
             <motion.div
               key={ev.id}
               initial={{ opacity: 0, y: -8 }}
@@ -211,7 +429,7 @@ export function EventsPage() {
               transition={{ duration: 0.15, ease: "easeOut" }}
               className="flex items-start gap-3 rounded-lg border border-border bg-card px-3 py-2 text-sm"
             >
-              {/* Type badge */}
+              {/* Category badge */}
               <span
                 className={`mt-0.5 inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ${CATEGORY_COLORS[ev.category]}`}
               >
