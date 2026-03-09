@@ -1,15 +1,21 @@
 {
   "name": "agentic-workflow",
   "private": true,
-  "workspaces": ["apps/*"],
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "build": "npm -w @aw/engine run build",
     "typecheck": "npm -w @aw/engine run typecheck",
     "dev": "npm -w @aw/engine run dev",
+    "dev:all": "concurrently \"npm run dev\" \"cd context/workspaces/arc/repo && npm -w @arc/server run dev\" \"cd context/workspaces/arc/repo && npm -w @arc/web run dev\"",
     "aw:run": "node apps/engine/dist/cli.js",
     "aw:status": "node apps/engine/dist/status.js",
     "aw:message": "node apps/engine/dist/message.js",
     "aw:watch": "node apps/engine/dist/watch-queue.js",
     "aw:console": "node apps/engine/dist/console.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
