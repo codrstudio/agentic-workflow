@@ -463,7 +463,7 @@
     "id": "F-022",
     "name": "Console UI",
     "description": "PÃ¡gina /console com select de projeto ativo, campo de texto com focus automÃ¡tico (Enter para enviar), botÃ£o enviar, lista de mensagens em ordem cronolÃ³gica reversa com badges de status (queued amarelo, processing azul, done verde), timestamps relativos. AtualizaÃ§Ã£o reativa via SSE.",
-    "status": "pending",
+    "status": "passing",
     "priority": 22,
     "agent": "coder",
     "task": "vibe-code",
@@ -472,6 +472,7 @@
       "F-007",
       "F-017"
     ],
+    "completed_at": "2026-03-09T23:00:00.000Z",
     "tests": [
       "/console renderiza com select de projeto no topo",
       "Campo de texto tem focus automÃ¡tico ao carregar",
