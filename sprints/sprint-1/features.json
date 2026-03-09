@@ -22,13 +22,14 @@
     "id": "F-002",
     "name": "Hono Server + Middleware",
     "description": "Criar app Hono com CORS (permite localhost:5173), JSON body parser, request logger. Entry point src/index.ts que inicia o servidor na porta PORT (default 3000).",
-    "status": "pending",
+    "status": "passing",
     "priority": 2,
     "agent": "coder",
     "task": "vibe-code",
     "dependencies": [
       "F-001"
     ],
+    "completed_at": "2026-03-09T19:10:00.000Z",
     "tests": [
       "apps/hub/src/index.ts exporta e inicia app Hono",
       "CORS configurado para localhost:5173",
@@ -43,7 +44,7 @@
     "id": "F-003",
     "name": "Health Check Endpoint",
     "description": "GET /api/v1/health retornando { status, uptime, timestamp }. Estrutura modular de rotas em src/routes/.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 3,
     "agent": "coder",
     "task": "vibe-code",

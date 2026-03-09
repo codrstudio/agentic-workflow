@@ -18,10 +18,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hono/node-server": "^1.14.1",
     "hono": "^4.7.4"
   },
   "devDependencies": {
-    "@hono/node-server": "^1.14.1",
     "@types/node": "^22.13.0",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3"
