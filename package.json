@@ -16,6 +16,8 @@
     "env:show": "dotenv -e .env -p SERVER_PORT && dotenv -e .env -p WEB_PORT && dotenv -e .env -p PREFIX"
   },
   "devDependencies": {
-    "dotenv-cli": "^7.4.2"
+    "concurrently": "^8.2.2",
+    "dotenv-cli": "^7.4.2",
+    "playwright": "^1.58.2"
   }
 }
