@@ -9,7 +9,6 @@ import { join } from 'node:path';
 export type TokenUsageContext =
   | 'pipeline_phase'
   | 'feature_spawn'
-  | 'review_agent'
   | 'merge_agent';
 
 export interface ReportTokenUsageParams {

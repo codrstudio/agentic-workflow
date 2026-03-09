@@ -133,6 +133,22 @@ Tags no `project.json` permitem:
 
 A organizacao por tags eh complementar ao `status` — tags sao multivaloradas e permanentes, status eh singular e muda com o tempo.
 
+## TASK.md
+
+Arquivo opcional na raiz do projeto. Nao tem estrutura obrigatoria — eh um documento de uso livre do redator do projeto.
+
+Sua finalidade eh instruir o agente sobre **o que fazer** nesta execucao especifica: descrever o objetivo da tarefa, contextualizar os artefatos disponiveis, apontar onde estao os materiais relevantes e explicar decisoes de design que o agente precisaria saber para nao tomar direcoes erradas.
+
+O `TASK.md` complementa os artefatos do projeto (concept, specs, PRPs) com informacao situacional — o "briefing de missao" antes de uma wave. Enquanto os artefatos descrevem **o que** sera construido, o `TASK.md` diz **como abordar** esta execucao em particular: quais fontes consultar, quais restricoes respeitar, quais partes do produto ja existem.
+
+Exemplos do que pode conter:
+
+- Descricao do sprint ou etapa atual
+- Mapa dos materiais de referencia disponíveis em `sources/` e o que cada um representa
+- Restricoes tecnicas ou decisoes de arquitetura ja tomadas
+- Instrucoes sobre o que **nao** fazer (evitar reescritas, manter compatibilidade, etc.)
+- Contexto sobre o estado atual do codigo/produto
+
 ## Convencoes
 
 - O slug deve ser lowercase, sem espacos (use hifens se necessario)

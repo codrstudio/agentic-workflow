@@ -1,5 +1,0 @@
-[
-  { "id": "F-001", "name": "Feature 1", "status": "passing" },
-  { "id": "F-002", "name": "Feature 2", "status": "passing" },
-  { "id": "F-003", "name": "Feature 3", "status": "pending" }
-]

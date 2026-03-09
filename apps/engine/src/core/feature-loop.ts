@@ -16,7 +16,7 @@ import type { EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
 import { ModelResolver } from './model-resolver.js';
 import { runCoverageGate, formatCoverageFailureContext, type CoverageGateConfig } from './coverage-gate.js';
-import { type ContributionQualityGateConfig, calculateOverallScore, formatQualityFailureContext, formatQualityRetryContext } from './quality-gate.js';
+import type { ContributionQualityGateConfig } from './quality-gate.js';
 
 export interface FeatureLoopContext {
   worktreeDir: string;
@@ -343,22 +343,7 @@ export class FeatureLoop {
             }
           }
 
-          // Run quality gate if enabled (after coverage gate)
-          let qualityGateFailed = false;
-          if (!coverageGateFailed && ctx.qualityGateConfig?.enabled) {
-            try {
-              const qualityResult = await this.evaluateQualityGate(
-                feature, agentName, ctx, updatedFeatures, featuresPath, retries,
-              );
-              if (qualityResult) {
-                qualityGateFailed = true;
-              }
-            } catch {
-              // Quality gate error — non-fatal
-            }
-          }
-
-          if (!coverageGateFailed && !qualityGateFailed) {
+          if (!coverageGateFailed) {
             this.featuresDone++;
             await this.emitEvent('feature:pass', ctx, {
               feature_id: feature.id,
@@ -463,83 +448,6 @@ export class FeatureLoop {
       return { model: agentFrontmatter.model as string };
     }
     return {};
-  }
-
-  private async evaluateQualityGate(
-    feature: Feature,
-    agentName: string,
-    ctx: FeatureLoopContext,
-    updatedFeatures: Feature[],
-    featuresPath: string,
-    retries: number,
-  ): Promise<boolean> {
-    const config = ctx.qualityGateConfig!;
-    const updatedFeature = updatedFeatures.find((f) => f.id === feature.id);
-    if (!updatedFeature) return false;
-
-    // Quality scoring is done by the review agent via prompt instruction.
-    // Here we simulate scoring based on feature state for the engine pipeline.
-    // In production, the review agent returns scores via --json-schema.
-    // For now, read quality result if posted by the review agent to the hub.
-    if (!ctx.hubBaseUrl || !ctx.projectSlug) return false;
-
-    // The review agent posts quality results to the hub.
-    // Check if a result was posted for this feature.
-    try {
-      const res = await fetch(
-        `${ctx.hubBaseUrl}/api/v1/hub/projects/${ctx.projectSlug}/contribution-quality-results?feature_id=${feature.id}&limit=1`,
-      );
-      if (!res.ok) return false;
-
-      const results = await res.json() as Array<{
-        overall_score: number;
-        passed: boolean;
-        auto_rejected: boolean;
-        scores: Record<string, number>;
-        flags: Array<{ type: string; severity: string; message: string; file?: string; line?: number }>;
-      }>;
-      const latest = results[0];
-      if (!latest) return false;
-
-      if (latest.auto_rejected) {
-        (updatedFeature as Record<string, unknown>).status = 'failing';
-        (updatedFeature as Record<string, unknown>).auto_rejected = true;
-        const qualityContext = formatQualityFailureContext(latest.scores, latest.overall_score, config, latest.flags);
-        (updatedFeature as Record<string, unknown>).quality_failure_context = qualityContext;
-        const newRetries = retries + 1;
-        (updatedFeature as Record<string, unknown>).retries = newRetries;
-        await this.state.saveFeatures(featuresPath, updatedFeatures);
-
-        await this.emitEvent('feature:fail', ctx, {
-          feature_id: feature.id,
-          feature_name: feature.name,
-          reason: 'quality_gate_auto_rejected',
-          overall_score: latest.overall_score,
-        });
-        return true;
-      }
-
-      if (!latest.passed) {
-        (updatedFeature as Record<string, unknown>).status = 'failing';
-        const qualityContext = formatQualityRetryContext(latest.scores, latest.overall_score, config, latest.flags);
-        (updatedFeature as Record<string, unknown>).quality_failure_context = qualityContext;
-        const newRetries = retries + 1;
-        (updatedFeature as Record<string, unknown>).retries = newRetries;
-        await this.state.saveFeatures(featuresPath, updatedFeatures);
-
-        await this.emitEvent('feature:fail', ctx, {
-          feature_id: feature.id,
-          feature_name: feature.name,
-          reason: 'quality_gate_failed',
-          overall_score: latest.overall_score,
-        });
-        return true;
-      }
-    } catch {
-      // Non-fatal: hub may not be available
-    }
-
-    return false;
   }
 
   private async emitEvent(

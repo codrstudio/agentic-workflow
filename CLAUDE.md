@@ -26,6 +26,11 @@ There are no test scripts configured. No linter is configured.
 - **Não macule a estrutura de pastas do projeto com arquivos temporários.**
 - **Arquivos temporários vão em .tmp/**
 
+## Normas
+
+- **PROIBIDO polling. Polling gasta trafego de rede demais a toa e nós temos custo por trafego.**
+- **Use SSE para realtime**
+
 ## Architecture
 
 ### Monorepo Structure

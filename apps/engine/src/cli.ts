@@ -217,6 +217,8 @@ async function main(): Promise<void> {
     }
   }
 
+  // Cleanup resources before exit
+  runner.cleanup();
   process.exit(execResult.exitCode);
 }
 

@@ -1,0 +1,38 @@
+name: vibe-full-app
+description: Workflow completo de produto — da análise à implementação
+
+steps:
+  - type: spawn-agent
+    task: pain-gain-analysis
+
+  - type: spawn-agent-call
+    task: go-no-go
+    schema:
+      type: object
+      properties:
+        stop:
+          type: boolean
+        reason:
+          type: string
+      required: [stop, reason]
+    stop_on: "r => r.stop"
+
+  - type: spawn-agent
+    task: derive-specs
+
+  - type: spawn-agent
+    task: derive-prps
+
+  - type: spawn-agent
+    task: plan-features
+
+  - type: ralph-wiggum-loop
+    task: vibe-code
+
+  - type: spawn-agent
+    task: merge-worktree
+
+  - type: stop-on-wave-limit
+
+  - type: spawn-workflow
+    workflow: vibe-app

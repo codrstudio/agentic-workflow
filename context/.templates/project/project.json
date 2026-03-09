@@ -1,0 +1,17 @@
+{
+  "name": "name",
+  "slug": "slug",
+  "description": "description",
+  "tags": ["tag"],
+  "repo": {
+    "url": "git-uri",
+    "source_branch": "main",
+    "target_branch": "harness",
+    "auto_merge": true
+  },
+  "source_folder": "sources",
+  "target_folder": "artifacts",
+  "created_at": "0000-00-00",
+  "status": "brainstorming",
+  "wave_limit": 2
+}

@@ -206,6 +206,15 @@ export class WorkflowRunner {
   }
 
   /**
+   * Cleanup resources (listeners, timers, connections).
+   * Call this before process.exit() to ensure clean shutdown.
+   */
+  cleanup(): void {
+    // Remove all listeners from notifier and other EventEmitters
+    this.notifier.removeAllListeners();
+  }
+
+  /**
    * Enqueue an operator message for processing at the next checkpoint.
    */
   async enqueue(ctx: WorkflowRunnerContext, message: string, source?: string): Promise<void> {
