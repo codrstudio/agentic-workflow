@@ -7,6 +7,12 @@ import { defineConfig } from "vite"
 export default defineConfig({
   server: {
     port: process.env.WEB_PORT ? Number(process.env.WEB_PORT) : undefined,
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
+    },
   },
   plugins: [react(), tailwindcss()],
   resolve: {

@@ -7,7 +7,9 @@
   ],
   "scripts": {
     "build": "npm -w @aw/engine run build",
+    "build:hub": "npm -w @aw/hub run build",
     "typecheck": "npm -w @aw/engine run typecheck",
+    "dev:hub": "npm -w @aw/hub run dev",
     "dev:server": "npm -w @arc/server run dev",
     "dev:web": "dotenv -e .env -- npm -w @arc/hub run dev",
     "dev:all": "dotenv -e .env -- concurrently \"npm -w @aw/engine run dev\" \"npm -w @arc/hub run dev\" \"npm -w @arc/server run dev\"",
@@ -23,5 +25,8 @@
     "concurrently": "^8.2.2",
     "dotenv-cli": "^7.4.2",
     "playwright": "^1.58.2"
+  },
+  "dependencies": {
+    "vaul": "^1.1.2"
   }
 }
