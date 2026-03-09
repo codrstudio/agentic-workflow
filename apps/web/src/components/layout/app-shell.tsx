@@ -1,7 +1,9 @@
 import * as React from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
-import { FolderKanban, Terminal, Activity, ChevronLeft, ChevronRight } from "lucide-react"
+import { FolderKanban, Terminal, Activity, ChevronLeft, ChevronRight, Sun, Moon, Monitor, LogOut } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
+import { useTheme } from "@/components/theme-provider"
 
 const NAV_ITEMS = [
   { to: "/projects", label: "Projetos", icon: FolderKanban },
@@ -69,6 +71,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NavItem key={to} to={to} label={label} icon={Icon} collapsed={collapsed} />
           ))}
         </nav>
+
+        {/* User menu */}
+        <UserMenu collapsed={collapsed} />
       </aside>
 
       {/* Content */}
@@ -109,5 +114,84 @@ function NavItem({
       <Icon className="size-4 flex-shrink-0" />
       {!collapsed && <span>{label}</span>}
     </Link>
+  )
+}
+
+const THEME_CYCLE: Record<"light" | "dark" | "system", "dark" | "light" | "system"> = {
+  light: "dark",
+  dark: "system",
+  system: "light",
+}
+
+const THEME_ICONS: Record<"light" | "dark" | "system", React.ComponentType<{ className?: string }>> = {
+  light: Sun,
+  dark: Moon,
+  system: Monitor,
+}
+
+const THEME_LABELS: Record<"light" | "dark" | "system", string> = {
+  light: "Tema: claro",
+  dark: "Tema: escuro",
+  system: "Tema: sistema",
+}
+
+function UserMenu({ collapsed }: { collapsed: boolean }) {
+  const { user, logout } = useAuth()
+  const { theme, setTheme } = useTheme()
+
+  const username = user.isAuthenticated ? user.username : ""
+  const initials = username.slice(0, 2).toUpperCase() || "?"
+  const ThemeIcon = THEME_ICONS[theme]
+  const nextTheme = THEME_CYCLE[theme]
+  const themeLabel = THEME_LABELS[theme]
+
+  return (
+    <div className={cn(
+      "flex flex-col gap-1 border-t border-border p-2",
+    )}>
+      {/* Avatar + username */}
+      <div
+        className={cn(
+          "flex items-center gap-2.5 rounded-md px-2 py-1.5",
+          collapsed ? "justify-center" : "",
+        )}
+        title={collapsed ? username : undefined}
+      >
+        <div className="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+          {initials}
+        </div>
+        {!collapsed && (
+          <span className="truncate text-sm font-medium text-foreground">{username}</span>
+        )}
+      </div>
+
+      {/* Theme toggle */}
+      <button
+        onClick={() => setTheme(nextTheme)}
+        title={themeLabel}
+        aria-label={themeLabel}
+        className={cn(
+          "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+          collapsed ? "justify-center" : "",
+        )}
+      >
+        <ThemeIcon className="size-4 flex-shrink-0" />
+        {!collapsed && <span>{themeLabel}</span>}
+      </button>
+
+      {/* Logout */}
+      <button
+        onClick={() => void logout()}
+        title={collapsed ? "Sair" : undefined}
+        aria-label="Sair"
+        className={cn(
+          "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+          collapsed ? "justify-center" : "",
+        )}
+      >
+        <LogOut className="size-4 flex-shrink-0" />
+        {!collapsed && <span>Sair</span>}
+      </button>
+    </div>
   )
 }
