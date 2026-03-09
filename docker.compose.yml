@@ -1,0 +1,81 @@
+name: aw-${ENVIRONMENT}
+
+# include:
+#   - docker-compose.platform.yml
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: arc-server
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      CONTEXT_FOLDER: /app/context
+      SERVER_HOST: 0.0.0.0
+    ports:
+      - "${SERVER_PORT}:2101"
+    volumes:
+      - ./context:/app/context:ro
+      - ./data:/app/data
+    networks:
+      internal:
+        aliases:
+          - server.internal
+      web_network:
+      shared-net:
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2101/api/v1/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: arc-web
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${WEB_PORT}:2102"
+    networks:
+      internal:
+        aliases:
+          - web.internal
+      web_network:
+      shared-net:
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2102/"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.5"
+          memory: 256M
+
+networks:
+  internal:
+    driver: bridge
+  web_network:
+    external: true
+  shared-net:
+    external: true
