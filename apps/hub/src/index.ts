@@ -6,6 +6,7 @@ import { health } from './routes/health.js';
 import { auth } from './routes/auth.js';
 import { projects } from './routes/projects.js';
 import { workflows } from './routes/workflows.js';
+import { sse } from './routes/sse.js';
 import { authMiddleware } from './middleware/auth.js';
 
 const app = new Hono();
@@ -26,6 +27,7 @@ app.route('/api/v1/health', health);
 app.route('/api/v1/auth', auth);
 app.route('/api/v1/projects', projects);
 app.route('/api/v1/workflows', workflows);
+app.route('/api/v1/sse', sse);
 
 const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
 

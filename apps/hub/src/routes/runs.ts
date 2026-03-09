@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
+import readline from 'node:readline';
+import { eventBus } from '../lib/event-bus.js';
 
 type RunStatus = 'running' | 'completed' | 'failed';
 
@@ -44,7 +46,7 @@ app.post('/', async (c) => {
   const child: ChildProcess = spawn('node', [cliPath, slug, workflow], {
     cwd: awRoot,
     env: { ...process.env },
-    stdio: ['ignore', 'ignore', 'ignore'],
+    stdio: ['ignore', 'pipe', 'ignore'],
     detached: false,
   });
 
@@ -54,6 +56,30 @@ app.post('/', async (c) => {
 
   const pid = child.pid;
   const runId = randomUUID();
+
+  // Capture engine stdout (JSONL events) and emit to SSE bus
+  if (child.stdout) {
+    const rl = readline.createInterface({ input: child.stdout });
+    rl.on('line', (line) => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        eventBus.broadcast({
+          type: 'engine:event',
+          data: { runId, slug, payload: parsed },
+          timestamp: new Date().toISOString(),
+        });
+      } catch {
+        // non-JSON output — emit as raw log line
+        eventBus.broadcast({
+          type: 'engine:log',
+          data: { runId, slug, line: trimmed },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    });
+  }
   const run: Run = {
     id: runId,
     slug,
@@ -64,12 +90,23 @@ app.post('/', async (c) => {
   };
   runs.set(runId, run);
 
+  eventBus.broadcast({
+    type: 'run:started',
+    data: { runId, slug, workflow, pid },
+    timestamp: new Date().toISOString(),
+  });
+
   child.on('exit', (code: number | null) => {
     const r = runs.get(runId);
     if (r) {
       r.status = code === 0 ? 'completed' : 'failed';
       if (code !== null) r.exitCode = code;
       r.completedAt = new Date().toISOString();
+      eventBus.broadcast({
+        type: code === 0 ? 'run:completed' : 'run:failed',
+        data: { runId, slug, exitCode: code },
+        timestamp: new Date().toISOString(),
+      });
     }
   });
 

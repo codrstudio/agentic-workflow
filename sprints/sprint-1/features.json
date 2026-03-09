@@ -1,587 +1,588 @@
 [
-  {
-    "id": "F-001",
-    "name": "Hub Package Scaffolding",
-    "description": "Criar apps/hub/ com package.json, tsconfig.json, tsup.config.ts. Registrar no root workspaces. Entry point vazio src/index.ts.",
-    "status": "passing",
-    "priority": 1,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [],
-    "completed_at": "2026-03-09T18:50:00.000Z",
-    "tests": [
-      "apps/hub/package.json existe com name @aw/hub",
-      "apps/hub/tsconfig.json existe",
-      "apps/hub/tsup.config.ts existe",
-      "root package.json workspaces inclui apps/hub",
-      "npm install roda sem erros no root"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md"
-  },
-  {
-    "id": "F-002",
-    "name": "Hono Server + Middleware",
-    "description": "Criar app Hono com CORS (permite localhost:5173), JSON body parser, request logger. Entry point src/index.ts que inicia o servidor na porta PORT (default 3000).",
-    "status": "passing",
-    "priority": 2,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-001"
-    ],
-    "completed_at": "2026-03-09T19:10:00.000Z",
-    "tests": [
-      "apps/hub/src/index.ts exporta e inicia app Hono",
-      "CORS configurado para localhost:5173",
-      "JSON body parser habilitado como middleware",
-      "Request logger middleware ativo",
-      "npm run build no hub compila sem erros",
-      "Servidor inicia na porta definida por PORT env (default 3000)"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md"
-  },
-  {
-    "id": "F-003",
-    "name": "Health Check Endpoint",
-    "description": "GET /api/v1/health retornando { status, uptime, timestamp }. Estrutura modular de rotas em src/routes/.",
-    "status": "passing",
-    "priority": 3,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-002"
-    ],
-    "tests": [
-      "GET /api/v1/health retorna 200 com JSON contendo status, uptime e timestamp",
-      "Rotas organizadas em apps/hub/src/routes/",
-      "Typecheck passa sem erros"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md",
-    "completed_at": "2026-03-09T18:36:30.000Z"
-  },
-  {
-    "id": "F-004",
-    "name": "Auth Backend",
-    "description": "Endpoints POST /api/v1/auth/login, GET /api/v1/auth/me, POST /api/v1/auth/logout. JWT em cookie httpOnly. Middleware de proteção de rotas. Variáveis SYSUSER/SYSPASS/SYSROLE.",
-    "status": "passing",
-    "priority": 4,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-003"
-    ],
-    "tests": [
-      "POST /api/v1/auth/login com credenciais SYSUSER/SYSPASS retorna 200 e Set-Cookie com JWT httpOnly",
-      "POST /api/v1/auth/login com credenciais erradas retorna 401",
-      "GET /api/v1/auth/me com cookie válido retorna user info (username, role)",
-      "POST /api/v1/auth/logout limpa cookie de sessão",
-      "Rotas /api/v1/* (exceto /auth/login e /health) retornam 401 sem cookie válido",
-      "Variáveis SYSUSER, SYSPASS, SYSROLE lidas de env"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md",
-    "completed_at": "2026-03-09T18:45:00Z"
-  },
-  {
-    "id": "F-005",
-    "name": "Auth Frontend",
-    "description": "Página /login com formulário username+senha. AuthProvider React com estado do usuário. Redirect para /login quando 401. Botão Sair integrado. Vite proxy config para /api.",
-    "status": "passing",
-    "priority": 5,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-004"
-    ],
-    "tests": [
-      "/login renderiza formulário com campos username e password",
-      "Submit com credenciais válidas redireciona para /projects",
-      "Submit com credenciais inválidas mostra mensagem de erro",
-      "AuthProvider expõe user state (username, role, isAuthenticated) via context",
-      "Resposta 401 de qualquer API redireciona para /login",
-      "Vite proxy configurado: /api → http://localhost:3000",
-      "Typecheck e build do web passam sem erros"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md",
-    "completed_at": "2026-03-09T18:46:27.955858+00:00"
-  },
-  {
-    "id": "F-006",
-    "name": "TanStack Router Setup",
-    "description": "Instalar e configurar TanStack Router. Definir todas as rotas (stubs vazios). Route guard que redireciona para /login se não autenticado.",
-    "status": "passing",
-    "priority": 6,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-005"
-    ],
-    "tests": [
-      "TanStack Router instalado e configurado como router principal",
-      "Rotas definidas: /, /login, /projects, /projects/:slug, /projects/:slug/waves/:waveNumber, /projects/:slug/waves/:waveNumber/steps/:stepIndex, /console, /events",
-      "/ redireciona para /projects",
-      "Rotas autenticadas redirecionam para /login se usuário não autenticado",
-      "/login acessível sem autenticação",
-      "Build do web compila sem erros"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
-    "completed_at": "2026-03-09T20:00:00Z"
-  },
-  {
-    "id": "F-007",
-    "name": "AppShell + Sidebar",
-    "description": "Componente AppShell com sidebar shadcn retrátil. Items de navegação com ícones (Projetos/FolderKanban, Console/Terminal, Eventos/Activity). Layout sem topbar. Conteúdo 100% largura disponível.",
-    "status": "passing",
-    "priority": 7,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-006"
-    ],
-    "tests": [
-      "AppShell renderiza sidebar + área de conteúdo",
-      "Sidebar exibe items: Projetos, Console, Eventos com ícones Lucide",
-      "Sidebar colapsa para modo icon-only e expande de volta",
-      "Não existe topbar no layout",
-      "Área de conteúdo ocupa 100% da largura disponível",
-      "Navegação entre páginas funciona via sidebar items"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
-    "completed_at": "2026-03-09T19:00:19.479Z"
-  },
-  {
-    "id": "F-008",
-    "name": "Sidebar User Menu + Theme Switch",
-    "description": "Menu do usuário na base do sidebar: avatar, username (do auth context), theme toggle (light/dark/system com persistência localStorage), botão Sair.",
-    "status": "passing",
-    "priority": 8,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-007"
-    ],
-    "completed_at": "2026-03-09T22:00:00.000Z",
-    "tests": [
-      "Base do sidebar exibe avatar e username do usuário autenticado",
-      "Theme toggle alterna entre light, dark e system",
-      "Tema selecionado persiste em localStorage entre reloads",
-      "Botão Sair faz logout e redireciona para /login",
-      "Tema aplica classes corretas (dark mode funciona visualmente)"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
-  },
-  {
-    "id": "F-009",
-    "name": "BottomNav Mobile",
-    "description": "BottomNav visível em viewport < 768px, oculto em desktop. Até 4 atalhos configuráveis do sidebar. Botão menu abre drawer (vaul) com todos os items + página Customizar para selecionar atalhos.",
-    "status": "passing",
-    "priority": 9,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-007"
-    ],
-    "tests": [
-      "BottomNav visível apenas em viewport < 768px",
-      "Exibe até 4 atalhos de navegação",
-      "Botão menu abre drawer com todos os items do sidebar",
-      "Drawer inclui opção Customizar",
-      "Página Customizar permite selecionar quais 4 atalhos aparecem",
-      "Sidebar oculto em viewport < 768px"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
-    "completed_at": "2026-03-09T19:15:00.000Z"
-  },
-  {
-    "id": "F-010",
-    "name": "Breadcrumb + Navegação Linkada",
-    "description": "Componente Breadcrumb reutilizável presente em todas as páginas exceto /projects. Desktop: horizontal completo. Mobile: último nível + '...' abre drawer. Componente LinkableText para F-XXX / step-XX clicáveis. Transições framer-motion entre páginas.",
-    "status": "passing",
-    "priority": 10,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-006"
-    ],
-    "tests": [
-      "Breadcrumb renderiza em todas as páginas exceto /projects",
-      "Desktop: breadcrumb horizontal completo com todos os níveis",
-      "Mobile: mostra último nível com botão '...' que abre drawer com níveis anteriores",
-      "LinkableText converte referências F-XXX em links clicáveis para a feature",
-      "LinkableText converte referências step-XX em links clicáveis para o step",
-      "Transições entre páginas usam framer-motion"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
-    "completed_at": "2026-03-09T23:30:00.000Z"
-  },
-  {
-    "id": "F-011",
-    "name": "Projects & Workflows API",
-    "description": "Endpoints GET /api/v1/projects (lista projetos lendo context/projects/*/project.json), GET /api/v1/projects/:slug (detalhe com info de workspace), GET /api/v1/workflows (lista workflows lendo context/workflows/*.yaml). Raiz do monorepo via AW_ROOT ou process.cwd().",
-    "status": "passing",
-    "priority": 11,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-003"
-    ],
-    "tests": [
-      "GET /api/v1/projects retorna array de projetos com name e slug",
-      "GET /api/v1/projects/:slug retorna detalhe do projeto incluindo info de workspace",
-      "GET /api/v1/projects/:slug-inexistente retorna 404",
-      "GET /api/v1/workflows retorna array de workflows disponíveis",
-      "Dados lidos do filesystem (context/projects/, context/workflows/)",
-      "Typecheck passa sem erros"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
-    "completed_at": "2026-03-09T19:21:54Z"
-  },
-  {
-    "id": "F-012",
-    "name": "Projects List Page",
-    "description": "Página /projects com cards clicáveis. Cada card mostra nome, slug, status. Click navega para /projects/:slug.",
-    "status": "passing",
-    "priority": 12,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-007",
-      "F-011"
-    ],
-    "tests": [
-      "/projects renderiza cards para cada projeto retornado pela API",
-      "Cada card exibe nome, slug e indicador de status",
-      "Click no card navega para /projects/:slug",
-      "Estado de loading exibido enquanto API carrega",
-      "Estado vazio exibido quando não há projetos"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
-    "completed_at": "2026-03-09T19:24:33Z"
-  },
-  {
-    "id": "F-013",
-    "name": "Project Execution API",
-    "description": "Endpoints POST /api/v1/projects/:slug/runs (spawna CLI da engine como child process), GET .../runs (lista execuções ativas/recentes), DELETE .../runs/:runId (SIGTERM ao processo). Estado em memória (Map). Monitora exit do child process.",
-    "status": "passing",
-    "priority": 13,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-011"
-    ],
-    "completed_at": "2026-03-09T23:59:00.000Z",
-    "tests": [
-      "POST /api/v1/projects/:slug/runs aceita workflow slug e spawna processo da engine",
-      "Resposta inclui runId e PID do processo spawnado",
-      "GET /api/v1/projects/:slug/runs retorna lista de runs com status (running/completed/failed)",
-      "DELETE /api/v1/projects/:slug/runs/:runId envia SIGTERM ao processo",
-      "Evento exit do child process atualiza status da run em memória",
-      "Typecheck passa sem erros"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
-  },
-  {
-    "id": "F-014",
-    "name": "Project Detail + Execution UI",
-    "description": "Página /projects/:slug com info do projeto, formulário de execução (select workflow populated da API, input opcional de plano, botão Executar), lista de runs ativas com PID, status e botão Parar.",
-    "status": "passing",
-    "priority": 14,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-012",
-      "F-013"
-    ],
-    "tests": [
-      "/projects/:slug renderiza informações do projeto (nome, slug)",
-      "Select de workflow populado com workflows da API",
-      "Botão Executar dispara POST para /runs e atualiza lista",
-      "Lista de runs ativas mostra PID, status e duração",
-      "Botão Parar envia DELETE para /runs/:runId",
-      "Estado de loading/erro tratado na UI"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
-    "completed_at": "2026-03-09T19:33:07Z"
-  },
-  {
-    "id": "F-015",
-    "name": "SSE Endpoint + Event Bus",
-    "description": "GET /api/v1/sse com streaming SSE (headers text/event-stream). EventEmitter interno no hub para broadcast. Keepalive 30s. Integração com child process da engine para captura de eventos stdout.",
-    "status": "pending",
-    "priority": 15,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-003",
-      "F-013"
-    ],
-    "tests": [
-      "GET /api/v1/sse retorna response com Content-Type text/event-stream",
-      "Conexão SSE mantida aberta com keepalive a cada 30s",
-      "EventEmitter interno permite broadcast de eventos a todos os clientes conectados",
-      "Eventos da engine (child process) são capturados e repassados via SSE",
-      "Múltiplos clientes SSE podem conectar simultaneamente",
-      "Desconexão do cliente limpa listeners sem memory leak"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
-  },
-  {
-    "id": "F-016",
-    "name": "Agent Actions Endpoints",
-    "description": "POST /api/v1/hub/projects/:slug/agent-actions (armazena action em memória + emite SSE agent:action:start). PATCH .../agent-actions/:id (atualiza + emite SSE agent:action:end). Compatível com AgentActionReporter da engine.",
-    "status": "blocked",
-    "priority": 16,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-015"
-    ],
-    "tests": [
-      "POST /api/v1/hub/projects/:slug/agent-actions armazena action e retorna ID",
-      "POST emite evento SSE agent:action:start",
-      "PATCH /api/v1/hub/projects/:slug/agent-actions/:id atualiza action",
-      "PATCH emite evento SSE agent:action:end",
-      "Actions armazenadas em memória com campos: id, status, task, agent, feature, timing",
-      "Formato compatível com AgentActionReporter da engine"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
-  },
-  {
-    "id": "F-017",
-    "name": "useSSE Hook + Connection Indicator",
-    "description": "Hook React useSSE() com conexão a /api/v1/sse, reconexão com backoff exponencial, ring buffer de últimos N eventos, API de subscribe por tipo de evento. Componente indicador visual de status SSE (connected/reconnecting/disconnected) no layout.",
-    "status": "blocked",
-    "priority": 17,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-015",
-      "F-007"
-    ],
-    "tests": [
-      "useSSE() conecta ao /api/v1/sse e recebe eventos",
-      "Reconexão automática com backoff exponencial ao perder conexão",
-      "Ring buffer armazena últimos N eventos (configurável)",
-      "subscribe(eventType, callback) filtra eventos por tipo",
-      "Indicador de conexão SSE visível no layout (connected verde, reconnecting amarelo, disconnected vermelho)",
-      "Build do web compila sem erros"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
-  },
-  {
-    "id": "F-018",
-    "name": "Waves & Steps API",
-    "description": "Endpoints GET /api/v1/projects/:slug/waves (lista waves com steps), GET .../waves/:waveNumber (wave detalhada), GET .../waves/:waveNumber/loop (estado do feature loop). Leitura de spawn.json, loop.json, features.json do filesystem.",
-    "status": "pending",
-    "priority": 18,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-011"
-    ],
-    "tests": [
-      "GET /api/v1/projects/:slug/waves retorna array de waves com steps resumidos",
-      "GET .../waves/:waveNumber retorna wave detalhada com lista de steps e status derivado",
-      "GET .../waves/:waveNumber/loop retorna estado do feature loop (features, contadores)",
-      "Status derivado de spawn.json: exit_code 0 → completed, exit_code != 0 → failed, sem exit_code → running, dir inexistente → pending",
-      "Dados lidos de spawn.json, loop.json, features.json no filesystem"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
-  },
-  {
-    "id": "F-019",
-    "name": "Wave Timeline UI",
-    "description": "Página /projects/:slug/waves/:waveNumber com timeline vertical de steps. Cada step: ícone de status, nome da task, tipo, duração. Steps clicáveis navegam para detalhe. Progress bar da wave. Seção de waves na página do projeto com cards/rows.",
-    "status": "blocked",
-    "priority": 19,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-014",
-      "F-018"
-    ],
-    "tests": [
-      "/projects/:slug/waves/:waveNumber renderiza timeline vertical de steps",
-      "Cada step exibe ícone de status, nome da task, tipo e duração",
-      "Click no step navega para /projects/:slug/waves/:waveNumber/steps/:stepIndex",
-      "Progress bar reflete proporção de steps completados",
-      "Página /projects/:slug exibe seção com waves disponíveis",
-      "Estado de loading exibido enquanto API carrega"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
-  },
-  {
-    "id": "F-020",
-    "name": "Feature Loop Dashboard",
-    "description": "Componente FeatureLoopDashboard com progress ring/bar, lista de features com badges de status (passing/failing/skipped/pending/blocked), feature atual destacada, contadores pass/fail/skip. Atualização reativa via SSE. Layout responsivo mobile.",
-    "status": "blocked",
-    "priority": 20,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-019",
-      "F-017"
-    ],
-    "tests": [
-      "FeatureLoopDashboard renderiza progress ring/bar com percentual",
-      "Lista de features com badges coloridos por status",
-      "Feature atual (in_progress) destacada visualmente",
-      "Contadores exibem totais de passing, failing e skipped",
-      "Componente atualiza reativamente quando eventos SSE de feature chegam",
-      "Layout responsivo: legível em mobile sem scroll horizontal"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
-  },
-  {
-    "id": "F-021",
-    "name": "Operator Messages API",
-    "description": "POST /api/v1/projects/:slug/messages (enfileira mensagem no operator-queue.jsonl replicando lógica do OperatorQueue.enqueue()). GET /api/v1/projects/:slug/messages (lista mensagens com status). Emissão de evento SSE ao enfileirar.",
-    "status": "blocked",
-    "priority": 21,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-003",
-      "F-015"
-    ],
-    "tests": [
-      "POST /api/v1/projects/:slug/messages aceita body com content e enfileira em operator-queue.jsonl",
-      "GET /api/v1/projects/:slug/messages retorna array de mensagens com status (queued/processing/done)",
-      "Evento SSE emitido quando mensagem é enfileirada",
-      "Formato da mensagem no jsonl compatível com OperatorQueue da engine",
-      "Typecheck passa sem erros"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md"
-  },
-  {
-    "id": "F-022",
-    "name": "Console UI",
-    "description": "Página /console com select de projeto ativo, campo de texto com focus automático (Enter para enviar), botão enviar, lista de mensagens em ordem cronológica reversa com badges de status (queued amarelo, processing azul, done verde), timestamps relativos. Atualização reativa via SSE.",
-    "status": "blocked",
-    "priority": 22,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-021",
-      "F-007",
-      "F-017"
-    ],
-    "tests": [
-      "/console renderiza com select de projeto no topo",
-      "Campo de texto tem focus automático ao carregar",
-      "Enter no campo envia mensagem (POST para API)",
-      "Lista de mensagens em ordem cronológica reversa",
-      "Badges de status: queued (amarelo), processing (azul), done (verde)",
-      "Timestamps relativos exibidos (ex: 'há 2 min')",
-      "Novas mensagens e mudanças de status atualizam via SSE"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md"
-  },
-  {
-    "id": "F-023",
-    "name": "Step Detail & Log API",
-    "description": "Endpoints GET /api/v1/projects/:slug/waves/:waveNumber/steps/:stepIndex (metadados do spawn.json) e GET .../steps/:stepIndex/log (linhas parseadas com paginação offset/limit). Parser de spawn.jsonl classificando por tipo (system, assistant, tool_use, tool_result, user).",
-    "status": "blocked",
-    "priority": 23,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-018"
-    ],
-    "tests": [
-      "GET .../steps/:stepIndex retorna metadata do spawn.json (task, agent, timing, exit_code)",
-      "GET .../steps/:stepIndex/log retorna array de linhas parseadas",
-      "Paginação via query params offset e limit funciona",
-      "Cada linha classificada por tipo: system, assistant, tool_use, tool_result, user",
-      "Step inexistente retorna 404",
-      "Typecheck passa sem erros"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md"
-  },
-  {
-    "id": "F-024",
-    "name": "Log Viewer UI",
-    "description": "Página /projects/:slug/waves/:waveNumber/steps/:stepIndex com header de metadata (task, agent, timing, exit code, badge success/failure). LogViewer virtualizado (react-window ou similar) para 1000+ linhas. Highlight por tipo: assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde. Botão scroll-to-bottom. Busca textual client-side.",
-    "status": "blocked",
-    "priority": 24,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-023",
-      "F-019"
-    ],
-    "tests": [
-      "Página renderiza header com task, agent, timing e exit code",
-      "Badge de success/failure baseado no exit code",
-      "LogViewer usa virtualização para performance com 1000+ linhas",
-      "Mensagens coloridas por tipo (assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde)",
-      "Botão scroll-to-bottom funciona",
-      "Campo de busca filtra linhas do log por texto"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md"
-  },
-  {
-    "id": "F-025",
-    "name": "Event Feed Page",
-    "description": "Página /events com feed de EngineEvents em tempo real via useSSE. Lista cronológica reversa. Cada evento: timestamp (relativo + absoluto no hover), tipo (badge colorido por categoria: workflow azul, feature verde, agent roxo, loop laranja, gutter vermelho, queue amarelo), dados resumidos. Auto-scroll com toggle pause. Limite 500 eventos em memória.",
-    "status": "blocked",
-    "priority": 25,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-017",
-      "F-007"
-    ],
-    "tests": [
-      "/events renderiza feed de eventos em tempo real via SSE",
-      "Eventos listados em ordem cronológica reversa",
-      "Cada evento exibe timestamp relativo (absoluto no hover) e badge de tipo",
-      "Badges coloridos por categoria (workflow, feature, agent, loop, gutter, queue)",
-      "Auto-scroll ativo por padrão com toggle para pausar",
-      "Máximo 500 eventos retidos em memória (mais antigos descartados)"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
-  },
-  {
-    "id": "F-026",
-    "name": "Event Filters",
-    "description": "Filtros para a página /events: multi-select por tipo de evento (checkboxes), select por projeto, busca textual. Filtros persistem em query params da URL para sharing/bookmarking.",
-    "status": "blocked",
-    "priority": 26,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-025"
-    ],
-    "tests": [
-      "Multi-select de tipo de evento filtra feed por tipos selecionados",
-      "Select de projeto filtra eventos de um projeto específico",
-      "Campo de busca textual filtra eventos por conteúdo",
-      "Filtros ativos refletidos nos query params da URL",
-      "Recarregar página com query params restaura filtros",
-      "Filtros combinam entre si (AND)"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
-  },
-  {
-    "id": "F-027",
-    "name": "Agent Actions List",
-    "description": "Endpoint GET /api/v1/projects/:slug/agent-actions (lista actions em memória). Componente AgentActionsList na página /projects/:slug com tabela: status badge, task, agent, feature, duração, preview. Actions running com indicador animado. Click expande preview do output. Ordenação por data (mais recente primeiro).",
-    "status": "blocked",
-    "priority": 27,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-016",
-      "F-014"
-    ],
-    "tests": [
-      "GET /api/v1/projects/:slug/agent-actions retorna array de actions",
-      "AgentActionsList renderiza na página do projeto",
-      "Tabela exibe colunas: status, task, agent, feature, duração",
-      "Actions com status running exibem indicador animado",
-      "Click em action expande preview do output",
-      "Lista ordenada por data (mais recente primeiro)"
-    ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
-  }
+    {
+        "id": "F-001",
+        "name": "Hub Package Scaffolding",
+        "description": "Criar apps/hub/ com package.json, tsconfig.json, tsup.config.ts. Registrar no root workspaces. Entry point vazio src/index.ts.",
+        "status": "passing",
+        "priority": 1,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [],
+        "completed_at": "2026-03-09T18:50:00.000Z",
+        "tests": [
+            "apps/hub/package.json existe com name @aw/hub",
+            "apps/hub/tsconfig.json existe",
+            "apps/hub/tsup.config.ts existe",
+            "root package.json workspaces inclui apps/hub",
+            "npm install roda sem erros no root"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md"
+    },
+    {
+        "id": "F-002",
+        "name": "Hono Server + Middleware",
+        "description": "Criar app Hono com CORS (permite localhost:5173), JSON body parser, request logger. Entry point src/index.ts que inicia o servidor na porta PORT (default 3000).",
+        "status": "passing",
+        "priority": 2,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-001"
+        ],
+        "completed_at": "2026-03-09T19:10:00.000Z",
+        "tests": [
+            "apps/hub/src/index.ts exporta e inicia app Hono",
+            "CORS configurado para localhost:5173",
+            "JSON body parser habilitado como middleware",
+            "Request logger middleware ativo",
+            "npm run build no hub compila sem erros",
+            "Servidor inicia na porta definida por PORT env (default 3000)"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md"
+    },
+    {
+        "id": "F-003",
+        "name": "Health Check Endpoint",
+        "description": "GET /api/v1/health retornando { status, uptime, timestamp }. Estrutura modular de rotas em src/routes/.",
+        "status": "passing",
+        "priority": 3,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-002"
+        ],
+        "tests": [
+            "GET /api/v1/health retorna 200 com JSON contendo status, uptime e timestamp",
+            "Rotas organizadas em apps/hub/src/routes/",
+            "Typecheck passa sem erros"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md",
+        "completed_at": "2026-03-09T18:36:30.000Z"
+    },
+    {
+        "id": "F-004",
+        "name": "Auth Backend",
+        "description": "Endpoints POST /api/v1/auth/login, GET /api/v1/auth/me, POST /api/v1/auth/logout. JWT em cookie httpOnly. Middleware de prote\u00c3\u00a7\u00c3\u00a3o de rotas. Vari\u00c3\u00a1veis SYSUSER/SYSPASS/SYSROLE.",
+        "status": "passing",
+        "priority": 4,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-003"
+        ],
+        "tests": [
+            "POST /api/v1/auth/login com credenciais SYSUSER/SYSPASS retorna 200 e Set-Cookie com JWT httpOnly",
+            "POST /api/v1/auth/login com credenciais erradas retorna 401",
+            "GET /api/v1/auth/me com cookie v\u00c3\u00a1lido retorna user info (username, role)",
+            "POST /api/v1/auth/logout limpa cookie de sess\u00c3\u00a3o",
+            "Rotas /api/v1/* (exceto /auth/login e /health) retornam 401 sem cookie v\u00c3\u00a1lido",
+            "Vari\u00c3\u00a1veis SYSUSER, SYSPASS, SYSROLE lidas de env"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md",
+        "completed_at": "2026-03-09T18:45:00Z"
+    },
+    {
+        "id": "F-005",
+        "name": "Auth Frontend",
+        "description": "P\u00c3\u00a1gina /login com formul\u00c3\u00a1rio username+senha. AuthProvider React com estado do usu\u00c3\u00a1rio. Redirect para /login quando 401. Bot\u00c3\u00a3o Sair integrado. Vite proxy config para /api.",
+        "status": "passing",
+        "priority": 5,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-004"
+        ],
+        "tests": [
+            "/login renderiza formul\u00c3\u00a1rio com campos username e password",
+            "Submit com credenciais v\u00c3\u00a1lidas redireciona para /projects",
+            "Submit com credenciais inv\u00c3\u00a1lidas mostra mensagem de erro",
+            "AuthProvider exp\u00c3\u00b5e user state (username, role, isAuthenticated) via context",
+            "Resposta 401 de qualquer API redireciona para /login",
+            "Vite proxy configurado: /api \u00e2\u2020\u2019 http://localhost:3000",
+            "Typecheck e build do web passam sem erros"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md",
+        "completed_at": "2026-03-09T18:46:27.955858+00:00"
+    },
+    {
+        "id": "F-006",
+        "name": "TanStack Router Setup",
+        "description": "Instalar e configurar TanStack Router. Definir todas as rotas (stubs vazios). Route guard que redireciona para /login se n\u00c3\u00a3o autenticado.",
+        "status": "passing",
+        "priority": 6,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-005"
+        ],
+        "tests": [
+            "TanStack Router instalado e configurado como router principal",
+            "Rotas definidas: /, /login, /projects, /projects/:slug, /projects/:slug/waves/:waveNumber, /projects/:slug/waves/:waveNumber/steps/:stepIndex, /console, /events",
+            "/ redireciona para /projects",
+            "Rotas autenticadas redirecionam para /login se usu\u00c3\u00a1rio n\u00c3\u00a3o autenticado",
+            "/login acess\u00c3\u00advel sem autentica\u00c3\u00a7\u00c3\u00a3o",
+            "Build do web compila sem erros"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
+        "completed_at": "2026-03-09T20:00:00Z"
+    },
+    {
+        "id": "F-007",
+        "name": "AppShell + Sidebar",
+        "description": "Componente AppShell com sidebar shadcn retr\u00c3\u00a1til. Items de navega\u00c3\u00a7\u00c3\u00a3o com \u00c3\u00adcones (Projetos/FolderKanban, Console/Terminal, Eventos/Activity). Layout sem topbar. Conte\u00c3\u00bado 100% largura dispon\u00c3\u00advel.",
+        "status": "passing",
+        "priority": 7,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-006"
+        ],
+        "tests": [
+            "AppShell renderiza sidebar + \u00c3\u00a1rea de conte\u00c3\u00bado",
+            "Sidebar exibe items: Projetos, Console, Eventos com \u00c3\u00adcones Lucide",
+            "Sidebar colapsa para modo icon-only e expande de volta",
+            "N\u00c3\u00a3o existe topbar no layout",
+            "\u00c3\udc81rea de conte\u00c3\u00bado ocupa 100% da largura dispon\u00c3\u00advel",
+            "Navega\u00c3\u00a7\u00c3\u00a3o entre p\u00c3\u00a1ginas funciona via sidebar items"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
+        "completed_at": "2026-03-09T19:00:19.479Z"
+    },
+    {
+        "id": "F-008",
+        "name": "Sidebar User Menu + Theme Switch",
+        "description": "Menu do usu\u00c3\u00a1rio na base do sidebar: avatar, username (do auth context), theme toggle (light/dark/system com persist\u00c3\u00aancia localStorage), bot\u00c3\u00a3o Sair.",
+        "status": "passing",
+        "priority": 8,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-007"
+        ],
+        "completed_at": "2026-03-09T22:00:00.000Z",
+        "tests": [
+            "Base do sidebar exibe avatar e username do usu\u00c3\u00a1rio autenticado",
+            "Theme toggle alterna entre light, dark e system",
+            "Tema selecionado persiste em localStorage entre reloads",
+            "Bot\u00c3\u00a3o Sair faz logout e redireciona para /login",
+            "Tema aplica classes corretas (dark mode funciona visualmente)"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
+    },
+    {
+        "id": "F-009",
+        "name": "BottomNav Mobile",
+        "description": "BottomNav vis\u00c3\u00advel em viewport < 768px, oculto em desktop. At\u00c3\u00a9 4 atalhos configur\u00c3\u00a1veis do sidebar. Bot\u00c3\u00a3o menu abre drawer (vaul) com todos os items + p\u00c3\u00a1gina Customizar para selecionar atalhos.",
+        "status": "passing",
+        "priority": 9,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-007"
+        ],
+        "tests": [
+            "BottomNav vis\u00c3\u00advel apenas em viewport < 768px",
+            "Exibe at\u00c3\u00a9 4 atalhos de navega\u00c3\u00a7\u00c3\u00a3o",
+            "Bot\u00c3\u00a3o menu abre drawer com todos os items do sidebar",
+            "Drawer inclui op\u00c3\u00a7\u00c3\u00a3o Customizar",
+            "P\u00c3\u00a1gina Customizar permite selecionar quais 4 atalhos aparecem",
+            "Sidebar oculto em viewport < 768px"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
+        "completed_at": "2026-03-09T19:15:00.000Z"
+    },
+    {
+        "id": "F-010",
+        "name": "Breadcrumb + Navega\u00c3\u00a7\u00c3\u00a3o Linkada",
+        "description": "Componente Breadcrumb reutiliz\u00c3\u00a1vel presente em todas as p\u00c3\u00a1ginas exceto /projects. Desktop: horizontal completo. Mobile: \u00c3\u00baltimo n\u00c3\u00advel + '...' abre drawer. Componente LinkableText para F-XXX / step-XX clic\u00c3\u00a1veis. Transi\u00c3\u00a7\u00c3\u00b5es framer-motion entre p\u00c3\u00a1ginas.",
+        "status": "passing",
+        "priority": 10,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-006"
+        ],
+        "tests": [
+            "Breadcrumb renderiza em todas as p\u00c3\u00a1ginas exceto /projects",
+            "Desktop: breadcrumb horizontal completo com todos os n\u00c3\u00adveis",
+            "Mobile: mostra \u00c3\u00baltimo n\u00c3\u00advel com bot\u00c3\u00a3o '...' que abre drawer com n\u00c3\u00adveis anteriores",
+            "LinkableText converte refer\u00c3\u00aancias F-XXX em links clic\u00c3\u00a1veis para a feature",
+            "LinkableText converte refer\u00c3\u00aancias step-XX em links clic\u00c3\u00a1veis para o step",
+            "Transi\u00c3\u00a7\u00c3\u00b5es entre p\u00c3\u00a1ginas usam framer-motion"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
+        "completed_at": "2026-03-09T23:30:00.000Z"
+    },
+    {
+        "id": "F-011",
+        "name": "Projects & Workflows API",
+        "description": "Endpoints GET /api/v1/projects (lista projetos lendo context/projects/*/project.json), GET /api/v1/projects/:slug (detalhe com info de workspace), GET /api/v1/workflows (lista workflows lendo context/workflows/*.yaml). Raiz do monorepo via AW_ROOT ou process.cwd().",
+        "status": "passing",
+        "priority": 11,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-003"
+        ],
+        "tests": [
+            "GET /api/v1/projects retorna array de projetos com name e slug",
+            "GET /api/v1/projects/:slug retorna detalhe do projeto incluindo info de workspace",
+            "GET /api/v1/projects/:slug-inexistente retorna 404",
+            "GET /api/v1/workflows retorna array de workflows dispon\u00c3\u00adveis",
+            "Dados lidos do filesystem (context/projects/, context/workflows/)",
+            "Typecheck passa sem erros"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
+        "completed_at": "2026-03-09T19:21:54Z"
+    },
+    {
+        "id": "F-012",
+        "name": "Projects List Page",
+        "description": "P\u00c3\u00a1gina /projects com cards clic\u00c3\u00a1veis. Cada card mostra nome, slug, status. Click navega para /projects/:slug.",
+        "status": "passing",
+        "priority": 12,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-007",
+            "F-011"
+        ],
+        "tests": [
+            "/projects renderiza cards para cada projeto retornado pela API",
+            "Cada card exibe nome, slug e indicador de status",
+            "Click no card navega para /projects/:slug",
+            "Estado de loading exibido enquanto API carrega",
+            "Estado vazio exibido quando n\u00c3\u00a3o h\u00c3\u00a1 projetos"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
+        "completed_at": "2026-03-09T19:24:33Z"
+    },
+    {
+        "id": "F-013",
+        "name": "Project Execution API",
+        "description": "Endpoints POST /api/v1/projects/:slug/runs (spawna CLI da engine como child process), GET .../runs (lista execu\u00c3\u00a7\u00c3\u00b5es ativas/recentes), DELETE .../runs/:runId (SIGTERM ao processo). Estado em mem\u00c3\u00b3ria (Map). Monitora exit do child process.",
+        "status": "passing",
+        "priority": 13,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-011"
+        ],
+        "completed_at": "2026-03-09T23:59:00.000Z",
+        "tests": [
+            "POST /api/v1/projects/:slug/runs aceita workflow slug e spawna processo da engine",
+            "Resposta inclui runId e PID do processo spawnado",
+            "GET /api/v1/projects/:slug/runs retorna lista de runs com status (running/completed/failed)",
+            "DELETE /api/v1/projects/:slug/runs/:runId envia SIGTERM ao processo",
+            "Evento exit do child process atualiza status da run em mem\u00c3\u00b3ria",
+            "Typecheck passa sem erros"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
+    },
+    {
+        "id": "F-014",
+        "name": "Project Detail + Execution UI",
+        "description": "P\u00c3\u00a1gina /projects/:slug com info do projeto, formul\u00c3\u00a1rio de execu\u00c3\u00a7\u00c3\u00a3o (select workflow populated da API, input opcional de plano, bot\u00c3\u00a3o Executar), lista de runs ativas com PID, status e bot\u00c3\u00a3o Parar.",
+        "status": "passing",
+        "priority": 14,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-012",
+            "F-013"
+        ],
+        "tests": [
+            "/projects/:slug renderiza informa\u00c3\u00a7\u00c3\u00b5es do projeto (nome, slug)",
+            "Select de workflow populado com workflows da API",
+            "Bot\u00c3\u00a3o Executar dispara POST para /runs e atualiza lista",
+            "Lista de runs ativas mostra PID, status e dura\u00c3\u00a7\u00c3\u00a3o",
+            "Bot\u00c3\u00a3o Parar envia DELETE para /runs/:runId",
+            "Estado de loading/erro tratado na UI"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
+        "completed_at": "2026-03-09T19:33:07Z"
+    },
+    {
+        "id": "F-015",
+        "name": "SSE Endpoint + Event Bus",
+        "description": "GET /api/v1/sse com streaming SSE (headers text/event-stream). EventEmitter interno no hub para broadcast. Keepalive 30s. Integra\u00c3\u00a7\u00c3\u00a3o com child process da engine para captura de eventos stdout.",
+        "status": "passing",
+        "priority": 15,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-003",
+            "F-013"
+        ],
+        "tests": [
+            "GET /api/v1/sse retorna response com Content-Type text/event-stream",
+            "Conex\u00c3\u00a3o SSE mantida aberta com keepalive a cada 30s",
+            "EventEmitter interno permite broadcast de eventos a todos os clientes conectados",
+            "Eventos da engine (child process) s\u00c3\u00a3o capturados e repassados via SSE",
+            "M\u00c3\u00baltiplos clientes SSE podem conectar simultaneamente",
+            "Desconex\u00c3\u00a3o do cliente limpa listeners sem memory leak"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md",
+        "completed_at": "2026-03-09T19:45:00.000Z"
+    },
+    {
+        "id": "F-016",
+        "name": "Agent Actions Endpoints",
+        "description": "POST /api/v1/hub/projects/:slug/agent-actions (armazena action em mem\u00c3\u00b3ria + emite SSE agent:action:start). PATCH .../agent-actions/:id (atualiza + emite SSE agent:action:end). Compat\u00c3\u00advel com AgentActionReporter da engine.",
+        "status": "blocked",
+        "priority": 16,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-015"
+        ],
+        "tests": [
+            "POST /api/v1/hub/projects/:slug/agent-actions armazena action e retorna ID",
+            "POST emite evento SSE agent:action:start",
+            "PATCH /api/v1/hub/projects/:slug/agent-actions/:id atualiza action",
+            "PATCH emite evento SSE agent:action:end",
+            "Actions armazenadas em mem\u00c3\u00b3ria com campos: id, status, task, agent, feature, timing",
+            "Formato compat\u00c3\u00advel com AgentActionReporter da engine"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
+    },
+    {
+        "id": "F-017",
+        "name": "useSSE Hook + Connection Indicator",
+        "description": "Hook React useSSE() com conex\u00c3\u00a3o a /api/v1/sse, reconex\u00c3\u00a3o com backoff exponencial, ring buffer de \u00c3\u00baltimos N eventos, API de subscribe por tipo de evento. Componente indicador visual de status SSE (connected/reconnecting/disconnected) no layout.",
+        "status": "blocked",
+        "priority": 17,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-015",
+            "F-007"
+        ],
+        "tests": [
+            "useSSE() conecta ao /api/v1/sse e recebe eventos",
+            "Reconex\u00c3\u00a3o autom\u00c3\u00a1tica com backoff exponencial ao perder conex\u00c3\u00a3o",
+            "Ring buffer armazena \u00c3\u00baltimos N eventos (configur\u00c3\u00a1vel)",
+            "subscribe(eventType, callback) filtra eventos por tipo",
+            "Indicador de conex\u00c3\u00a3o SSE vis\u00c3\u00advel no layout (connected verde, reconnecting amarelo, disconnected vermelho)",
+            "Build do web compila sem erros"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
+    },
+    {
+        "id": "F-018",
+        "name": "Waves & Steps API",
+        "description": "Endpoints GET /api/v1/projects/:slug/waves (lista waves com steps), GET .../waves/:waveNumber (wave detalhada), GET .../waves/:waveNumber/loop (estado do feature loop). Leitura de spawn.json, loop.json, features.json do filesystem.",
+        "status": "pending",
+        "priority": 18,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-011"
+        ],
+        "tests": [
+            "GET /api/v1/projects/:slug/waves retorna array de waves com steps resumidos",
+            "GET .../waves/:waveNumber retorna wave detalhada com lista de steps e status derivado",
+            "GET .../waves/:waveNumber/loop retorna estado do feature loop (features, contadores)",
+            "Status derivado de spawn.json: exit_code 0 \u00e2\u2020\u2019 completed, exit_code != 0 \u00e2\u2020\u2019 failed, sem exit_code \u00e2\u2020\u2019 running, dir inexistente \u00e2\u2020\u2019 pending",
+            "Dados lidos de spawn.json, loop.json, features.json no filesystem"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
+    },
+    {
+        "id": "F-019",
+        "name": "Wave Timeline UI",
+        "description": "P\u00c3\u00a1gina /projects/:slug/waves/:waveNumber com timeline vertical de steps. Cada step: \u00c3\u00adcone de status, nome da task, tipo, dura\u00c3\u00a7\u00c3\u00a3o. Steps clic\u00c3\u00a1veis navegam para detalhe. Progress bar da wave. Se\u00c3\u00a7\u00c3\u00a3o de waves na p\u00c3\u00a1gina do projeto com cards/rows.",
+        "status": "blocked",
+        "priority": 19,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-014",
+            "F-018"
+        ],
+        "tests": [
+            "/projects/:slug/waves/:waveNumber renderiza timeline vertical de steps",
+            "Cada step exibe \u00c3\u00adcone de status, nome da task, tipo e dura\u00c3\u00a7\u00c3\u00a3o",
+            "Click no step navega para /projects/:slug/waves/:waveNumber/steps/:stepIndex",
+            "Progress bar reflete propor\u00c3\u00a7\u00c3\u00a3o de steps completados",
+            "P\u00c3\u00a1gina /projects/:slug exibe se\u00c3\u00a7\u00c3\u00a3o com waves dispon\u00c3\u00adveis",
+            "Estado de loading exibido enquanto API carrega"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
+    },
+    {
+        "id": "F-020",
+        "name": "Feature Loop Dashboard",
+        "description": "Componente FeatureLoopDashboard com progress ring/bar, lista de features com badges de status (passing/failing/skipped/pending/blocked), feature atual destacada, contadores pass/fail/skip. Atualiza\u00c3\u00a7\u00c3\u00a3o reativa via SSE. Layout responsivo mobile.",
+        "status": "blocked",
+        "priority": 20,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-019",
+            "F-017"
+        ],
+        "tests": [
+            "FeatureLoopDashboard renderiza progress ring/bar com percentual",
+            "Lista de features com badges coloridos por status",
+            "Feature atual (in_progress) destacada visualmente",
+            "Contadores exibem totais de passing, failing e skipped",
+            "Componente atualiza reativamente quando eventos SSE de feature chegam",
+            "Layout responsivo: leg\u00c3\u00advel em mobile sem scroll horizontal"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
+    },
+    {
+        "id": "F-021",
+        "name": "Operator Messages API",
+        "description": "POST /api/v1/projects/:slug/messages (enfileira mensagem no operator-queue.jsonl replicando l\u00c3\u00b3gica do OperatorQueue.enqueue()). GET /api/v1/projects/:slug/messages (lista mensagens com status). Emiss\u00c3\u00a3o de evento SSE ao enfileirar.",
+        "status": "blocked",
+        "priority": 21,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-003",
+            "F-015"
+        ],
+        "tests": [
+            "POST /api/v1/projects/:slug/messages aceita body com content e enfileira em operator-queue.jsonl",
+            "GET /api/v1/projects/:slug/messages retorna array de mensagens com status (queued/processing/done)",
+            "Evento SSE emitido quando mensagem \u00c3\u00a9 enfileirada",
+            "Formato da mensagem no jsonl compat\u00c3\u00advel com OperatorQueue da engine",
+            "Typecheck passa sem erros"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md"
+    },
+    {
+        "id": "F-022",
+        "name": "Console UI",
+        "description": "P\u00c3\u00a1gina /console com select de projeto ativo, campo de texto com focus autom\u00c3\u00a1tico (Enter para enviar), bot\u00c3\u00a3o enviar, lista de mensagens em ordem cronol\u00c3\u00b3gica reversa com badges de status (queued amarelo, processing azul, done verde), timestamps relativos. Atualiza\u00c3\u00a7\u00c3\u00a3o reativa via SSE.",
+        "status": "blocked",
+        "priority": 22,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-021",
+            "F-007",
+            "F-017"
+        ],
+        "tests": [
+            "/console renderiza com select de projeto no topo",
+            "Campo de texto tem focus autom\u00c3\u00a1tico ao carregar",
+            "Enter no campo envia mensagem (POST para API)",
+            "Lista de mensagens em ordem cronol\u00c3\u00b3gica reversa",
+            "Badges de status: queued (amarelo), processing (azul), done (verde)",
+            "Timestamps relativos exibidos (ex: 'h\u00c3\u00a1 2 min')",
+            "Novas mensagens e mudan\u00c3\u00a7as de status atualizam via SSE"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md"
+    },
+    {
+        "id": "F-023",
+        "name": "Step Detail & Log API",
+        "description": "Endpoints GET /api/v1/projects/:slug/waves/:waveNumber/steps/:stepIndex (metadados do spawn.json) e GET .../steps/:stepIndex/log (linhas parseadas com pagina\u00c3\u00a7\u00c3\u00a3o offset/limit). Parser de spawn.jsonl classificando por tipo (system, assistant, tool_use, tool_result, user).",
+        "status": "blocked",
+        "priority": 23,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-018"
+        ],
+        "tests": [
+            "GET .../steps/:stepIndex retorna metadata do spawn.json (task, agent, timing, exit_code)",
+            "GET .../steps/:stepIndex/log retorna array de linhas parseadas",
+            "Pagina\u00c3\u00a7\u00c3\u00a3o via query params offset e limit funciona",
+            "Cada linha classificada por tipo: system, assistant, tool_use, tool_result, user",
+            "Step inexistente retorna 404",
+            "Typecheck passa sem erros"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md"
+    },
+    {
+        "id": "F-024",
+        "name": "Log Viewer UI",
+        "description": "P\u00c3\u00a1gina /projects/:slug/waves/:waveNumber/steps/:stepIndex com header de metadata (task, agent, timing, exit code, badge success/failure). LogViewer virtualizado (react-window ou similar) para 1000+ linhas. Highlight por tipo: assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde. Bot\u00c3\u00a3o scroll-to-bottom. Busca textual client-side.",
+        "status": "blocked",
+        "priority": 24,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-023",
+            "F-019"
+        ],
+        "tests": [
+            "P\u00c3\u00a1gina renderiza header com task, agent, timing e exit code",
+            "Badge de success/failure baseado no exit code",
+            "LogViewer usa virtualiza\u00c3\u00a7\u00c3\u00a3o para performance com 1000+ linhas",
+            "Mensagens coloridas por tipo (assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde)",
+            "Bot\u00c3\u00a3o scroll-to-bottom funciona",
+            "Campo de busca filtra linhas do log por texto"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md"
+    },
+    {
+        "id": "F-025",
+        "name": "Event Feed Page",
+        "description": "P\u00c3\u00a1gina /events com feed de EngineEvents em tempo real via useSSE. Lista cronol\u00c3\u00b3gica reversa. Cada evento: timestamp (relativo + absoluto no hover), tipo (badge colorido por categoria: workflow azul, feature verde, agent roxo, loop laranja, gutter vermelho, queue amarelo), dados resumidos. Auto-scroll com toggle pause. Limite 500 eventos em mem\u00c3\u00b3ria.",
+        "status": "blocked",
+        "priority": 25,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-017",
+            "F-007"
+        ],
+        "tests": [
+            "/events renderiza feed de eventos em tempo real via SSE",
+            "Eventos listados em ordem cronol\u00c3\u00b3gica reversa",
+            "Cada evento exibe timestamp relativo (absoluto no hover) e badge de tipo",
+            "Badges coloridos por categoria (workflow, feature, agent, loop, gutter, queue)",
+            "Auto-scroll ativo por padr\u00c3\u00a3o com toggle para pausar",
+            "M\u00c3\u00a1ximo 500 eventos retidos em mem\u00c3\u00b3ria (mais antigos descartados)"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
+    },
+    {
+        "id": "F-026",
+        "name": "Event Filters",
+        "description": "Filtros para a p\u00c3\u00a1gina /events: multi-select por tipo de evento (checkboxes), select por projeto, busca textual. Filtros persistem em query params da URL para sharing/bookmarking.",
+        "status": "blocked",
+        "priority": 26,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-025"
+        ],
+        "tests": [
+            "Multi-select de tipo de evento filtra feed por tipos selecionados",
+            "Select de projeto filtra eventos de um projeto espec\u00c3\u00adfico",
+            "Campo de busca textual filtra eventos por conte\u00c3\u00bado",
+            "Filtros ativos refletidos nos query params da URL",
+            "Recarregar p\u00c3\u00a1gina com query params restaura filtros",
+            "Filtros combinam entre si (AND)"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
+    },
+    {
+        "id": "F-027",
+        "name": "Agent Actions List",
+        "description": "Endpoint GET /api/v1/projects/:slug/agent-actions (lista actions em mem\u00c3\u00b3ria). Componente AgentActionsList na p\u00c3\u00a1gina /projects/:slug com tabela: status badge, task, agent, feature, dura\u00c3\u00a7\u00c3\u00a3o, preview. Actions running com indicador animado. Click expande preview do output. Ordena\u00c3\u00a7\u00c3\u00a3o por data (mais recente primeiro).",
+        "status": "blocked",
+        "priority": 27,
+        "agent": "coder",
+        "task": "vibe-code",
+        "dependencies": [
+            "F-016",
+            "F-014"
+        ],
+        "tests": [
+            "GET /api/v1/projects/:slug/agent-actions retorna array de actions",
+            "AgentActionsList renderiza na p\u00c3\u00a1gina do projeto",
+            "Tabela exibe colunas: status, task, agent, feature, dura\u00c3\u00a7\u00c3\u00a3o",
+            "Actions com status running exibem indicador animado",
+            "Click em action expande preview do output",
+            "Lista ordenada por data (mais recente primeiro)"
+        ],
+        "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
+    }
 ]
