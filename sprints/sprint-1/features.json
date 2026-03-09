@@ -261,13 +261,14 @@
     "id": "F-013",
     "name": "Project Execution API",
     "description": "Endpoints POST /api/v1/projects/:slug/runs (spawna CLI da engine como child process), GET .../runs (lista execuções ativas/recentes), DELETE .../runs/:runId (SIGTERM ao processo). Estado em memória (Map). Monitora exit do child process.",
-    "status": "pending",
+    "status": "passing",
     "priority": 13,
     "agent": "coder",
     "task": "vibe-code",
     "dependencies": [
       "F-011"
     ],
+    "completed_at": "2026-03-09T23:59:00.000Z",
     "tests": [
       "POST /api/v1/projects/:slug/runs aceita workflow slug e spawna processo da engine",
       "Resposta inclui runId e PID do processo spawnado",
@@ -282,7 +283,7 @@
     "id": "F-014",
     "name": "Project Detail + Execution UI",
     "description": "Página /projects/:slug com info do projeto, formulário de execução (select workflow populated da API, input opcional de plano, botão Executar), lista de runs ativas com PID, status e botão Parar.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 14,
     "agent": "coder",
     "task": "vibe-code",

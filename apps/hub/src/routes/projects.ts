@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { runs } from './runs.js';
 
 const app = new Hono();
 
@@ -73,5 +74,7 @@ app.get('/:slug', async (c) => {
     workspace: workspaceData,
   });
 });
+
+app.route('/:slug/runs', runs);
 
 export { app as projects };
