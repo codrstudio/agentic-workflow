@@ -16,7 +16,7 @@ const MOCK_USER: AuthUser = {
 interface AuthState {
   user: AuthUser | null;
   isAuthenticated: boolean;
-  login: () => void;
+  login: (email?: string, password?: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -25,7 +25,13 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isAuthenticated: false,
-      login: () => set({ isAuthenticated: true, user: MOCK_USER }),
+      login: async (email?: string, password?: string) => {
+        // Mock validation: if email/password provided, both must be non-empty
+        if ((email !== undefined || password !== undefined) && (!email?.trim() || !password?.trim())) {
+          throw new Error("Credenciais inválidas.");
+        }
+        set({ isAuthenticated: true, user: MOCK_USER });
+      },
       logout: () => set({ isAuthenticated: false, user: null }),
     }),
     {
