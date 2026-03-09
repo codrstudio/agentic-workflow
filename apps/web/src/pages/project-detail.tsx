@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
-import { useParams } from "@tanstack/react-router"
+import { useParams, Link } from "@tanstack/react-router"
+import { CheckCircle2, XCircle, Loader2, Circle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
 
@@ -28,6 +29,23 @@ interface Run {
   exitCode?: number
 }
 
+type WaveStatus = "pending" | "running" | "completed" | "failed"
+
+interface Wave {
+  wave_number: number
+  status: WaveStatus
+  steps_total: number
+  steps_completed: number
+  steps_failed: number
+}
+
+function WaveStatusIcon({ status }: { status: WaveStatus }) {
+  if (status === "completed") return <CheckCircle2 className="w-4 h-4 text-green-500" />
+  if (status === "failed") return <XCircle className="w-4 h-4 text-red-500" />
+  if (status === "running") return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+  return <Circle className="w-4 h-4 text-muted-foreground/40" />
+}
+
 function formatDuration(startedAt: string, completedAt?: string): string {
   const start = new Date(startedAt).getTime()
   const end = completedAt ? new Date(completedAt).getTime() : Date.now()
@@ -44,6 +62,7 @@ export function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [runs, setRuns] = useState<Run[]>([])
+  const [waves, setWaves] = useState<Wave[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -59,11 +78,15 @@ export function ProjectDetailPage() {
       apiFetch(`/api/v1/projects/${slug}`).then((r) => r.json() as Promise<Project>),
       apiFetch("/api/v1/workflows").then((r) => r.json() as Promise<Workflow[]>),
       apiFetch(`/api/v1/projects/${slug}/runs`).then((r) => r.json() as Promise<Run[]>),
+      apiFetch(`/api/v1/projects/${slug}/waves`)
+        .then((r) => (r.ok ? (r.json() as Promise<Wave[]>) : Promise.resolve([])))
+        .catch(() => [] as Wave[]),
     ])
-      .then(([projectData, workflowData, runsData]) => {
+      .then(([projectData, workflowData, runsData, wavesData]) => {
         setProject(projectData)
         setWorkflows(workflowData)
         setRuns(runsData)
+        setWaves(wavesData)
         if (workflowData.length > 0 && workflowData[0]) {
           setSelectedWorkflow(workflowData[0].slug)
         }
@@ -151,6 +174,50 @@ export function ProjectDetailPage() {
         <p className="text-muted-foreground text-xs font-mono mb-2">{project.slug}</p>
         {project.description && (
           <p className="text-sm text-muted-foreground">{project.description}</p>
+        )}
+      </section>
+
+      {/* Waves section */}
+      <section>
+        <h2 className="text-sm font-semibold mb-3">Waves</h2>
+        {waves.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma wave encontrada.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {waves.map((wave) => {
+              const progress =
+                wave.steps_total > 0
+                  ? Math.round((wave.steps_completed / wave.steps_total) * 100)
+                  : 0
+              return (
+                <Link
+                  key={wave.wave_number}
+                  to="/projects/$slug/waves/$waveNumber"
+                  params={{ slug, waveNumber: String(wave.wave_number) }}
+                  className="group bg-card border rounded-lg px-4 py-3 flex items-center gap-3 hover:bg-muted/50 transition-colors"
+                >
+                  <WaveStatusIcon status={wave.status} />
+                  <div className="flex flex-col gap-1 flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium">Wave {wave.wave_number}</span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {wave.steps_completed}/{wave.steps_total} steps
+                        {wave.steps_failed > 0 && (
+                          <span className="text-red-500 ml-1">· {wave.steps_failed} erro</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-300"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
         )}
       </section>
 
