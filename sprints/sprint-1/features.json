@@ -85,7 +85,7 @@
     "id": "F-005",
     "name": "Auth Frontend",
     "description": "Página /login com formulário username+senha. AuthProvider React com estado do usuário. Redirect para /login quando 401. Botão Sair integrado. Vite proxy config para /api.",
-    "status": "pending",
+    "status": "passing",
     "priority": 5,
     "agent": "coder",
     "task": "vibe-code",
@@ -101,7 +101,8 @@
       "Vite proxy configurado: /api → http://localhost:3000",
       "Typecheck e build do web passam sem erros"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md",
+    "completed_at": "2026-03-09T18:46:27.955858+00:00"
   },
   {
     "id": "F-006",
