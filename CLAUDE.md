@@ -145,3 +145,8 @@ Each spawned `claude` process is a direct child of the engine process. Steps exe
 - Target: ES2022, module: ESNext, bundler resolution
 - Strict mode with `noUncheckedIndexedAccess`
 - Node >= 20 required
+
+## Project Hygiene
+
+- **Temporary files go in `.tmp/`** — scripts, test outputs, browser sessions, etc. Never clutter the root. Add `.tmp/` to `.gitignore`.
+
