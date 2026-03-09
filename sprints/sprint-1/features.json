@@ -418,7 +418,7 @@
     "id": "F-020",
     "name": "Feature Loop Dashboard",
     "description": "Componente FeatureLoopDashboard com progress ring/bar, lista de features com badges de status (passing/failing/skipped/pending/blocked), feature atual destacada, contadores pass/fail/skip. AtualizaÃ§Ã£o reativa via SSE. Layout responsivo mobile.",
-    "status": "pending",
+    "status": "passing",
     "priority": 20,
     "agent": "coder",
     "task": "vibe-code",
@@ -434,7 +434,8 @@
       "Componente atualiza reativamente quando eventos SSE de feature chegam",
       "Layout responsivo: legÃ­vel em mobile sem scroll horizontal"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md",
+    "completed_at": "2026-03-09T20:49:16.813Z"
   },
   {
     "id": "F-021",
@@ -506,7 +507,7 @@
     "id": "F-024",
     "name": "Log Viewer UI",
     "description": "PÃ¡gina /projects/:slug/waves/:waveNumber/steps/:stepIndex com header de metadata (task, agent, timing, exit code, badge success/failure). LogViewer virtualizado (react-window ou similar) para 1000+ linhas. Highlight por tipo: assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde. BotÃ£o scroll-to-bottom. Busca textual client-side.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 24,
     "agent": "coder",
     "task": "vibe-code",

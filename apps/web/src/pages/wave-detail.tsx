@@ -9,6 +9,7 @@ import {
   ChevronRight,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
+import { FeatureLoopDashboard } from "@/components/wave/feature-loop-dashboard"
 
 type StepStatus = "pending" | "running" | "completed" | "failed"
 
@@ -200,6 +201,14 @@ export function WaveDetailPage() {
               </Link>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Feature Loop Dashboard — shown when the wave has a ralph-wiggum-loop step */}
+      {steps.some((s) => s.type === "ralph-wiggum-loop") && (
+        <div>
+          <h2 className="text-base font-semibold mb-3">Feature Loop</h2>
+          <FeatureLoopDashboard slug={slug} waveNumber={waveNumber} />
         </div>
       )}
     </div>
