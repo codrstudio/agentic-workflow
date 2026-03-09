@@ -186,7 +186,7 @@ function ROITrendChart({ snapshots }: { snapshots: ROISnapshot[] }) {
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="week" tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} unit="x" />
-        <RechartsTooltip formatter={(v: number) => [`${v}x`, "ROI Ratio"]} />
+        <RechartsTooltip formatter={((v: number) => [`${v}x`, "ROI Ratio"]) as any} />
         <Line
           type="monotone"
           dataKey="roi"
@@ -238,7 +238,7 @@ function CostPerFeatureTrendChart({ snapshots }: { snapshots: ROISnapshot[] }) {
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="week" tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `$${v}`} />
-        <RechartsTooltip formatter={(v: number) => [`$${v}`, "Custo/Feature"]} />
+        <RechartsTooltip formatter={((v: number) => [`$${v}`, "Custo/Feature"]) as any} />
         <Line
           type="monotone"
           dataKey="cost"

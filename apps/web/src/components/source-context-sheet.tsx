@@ -548,7 +548,7 @@ export function SourceContextSheet({
       onProfileChange(profile.id);
       // Include profile sources + always include pinned and auto_include
       const pinnedIds = sources.filter((s) => s.pinned || s.auto_include).map((s) => s.id);
-      const merged = [...new Set([...profile.source_ids, ...pinnedIds])];
+      const merged = [...new Set([...profile.included_sources, ...pinnedIds])];
       onSelectionChange(merged);
     }
   };

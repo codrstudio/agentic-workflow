@@ -131,7 +131,7 @@ export function ChatSessionPage() {
       const defaultProfile = profiles?.find((p) => p.is_default);
       if (defaultProfile) {
         setSelectedProfileId(defaultProfile.id);
-        const merged = [...new Set([...defaultProfile.source_ids, ...autoIds])];
+        const merged = [...new Set([...defaultProfile.included_sources, ...autoIds])];
         setSelectedSourceIds(merged);
       } else if (autoIds.length > 0) {
         setSelectedSourceIds(autoIds);

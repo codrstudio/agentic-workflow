@@ -421,10 +421,10 @@ function CostPerDayChart({
               tickFormatter={(v: number) => formatUsd(v)}
             />
             <Tooltip
-              formatter={(value: number, name: string) => [
+              formatter={((value: any, name: any) => [
                 formatUsd(value),
                 formatModelName(name),
-              ]}
+              ]) as any}
             />
             <Legend formatter={(value: string) => formatModelName(value)} />
             {models.map((model) => (
@@ -478,7 +478,7 @@ function CostByPhaseChart({ data }: { data: CostSummaryResponse }) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number) => [formatUsd(value), "Custo"]}
+              formatter={((value: number) => [formatUsd(value), "Custo"]) as any}
             />
             <Legend />
           </PieChart>

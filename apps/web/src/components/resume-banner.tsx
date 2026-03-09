@@ -263,7 +263,7 @@ export function ResumeBanner({ projectSlug }: ResumeBannerProps) {
         const lastSourceSet = new Set(lastSession.source_ids);
         let bestOverlap = 0;
         for (const profile of profiles) {
-          const overlap = profile.source_ids.filter((id) => lastSourceSet.has(id)).length;
+          const overlap = profile.included_sources.filter((id) => lastSourceSet.has(id)).length;
           if (overlap > bestOverlap) {
             bestOverlap = overlap;
             resumeProfileId = profile.id;
@@ -274,7 +274,7 @@ export function ResumeBanner({ projectSlug }: ResumeBannerProps) {
 
     // Merge most-used sources with profile sources
     const profileSourceIds = resumeProfileId
-      ? profiles?.find((p) => p.id === resumeProfileId)?.source_ids ?? []
+      ? profiles?.find((p) => p.id === resumeProfileId)?.included_sources ?? []
       : [];
     const mergedSourceIds = [...new Set([...mostUsedSourceIds, ...profileSourceIds])];
 

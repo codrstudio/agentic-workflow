@@ -5,7 +5,7 @@ import { useSources, useUpdateSource, type Source, type SourceCategory } from "@
 import { useSourceDensity } from "@/hooks/use-context-density";
 import { SourceCard, SourceGridSkeleton } from "@/components/source-card";
 import { CodebaseGraphSourceCard } from "@/components/codebase-graph-source-card";
-import { SourceViewerSheet } from "@/components/source-viewer-sheet";
+// import { SourceViewerSheet } from "@/components/source-viewer-sheet";
 import { SourceSettingsSheet } from "@/components/source-settings-sheet";
 import { AddSourceDialog } from "@/components/add-source-dialog";
 import { EmptyState } from "@/components/empty-state";
@@ -52,7 +52,7 @@ export function ProjectSourcesPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const densityMap = useMemo(() => {
-    if (!densityMetrics) return new Map<string, (typeof densityMetrics)[0]>();
+    if (!densityMetrics) return new Map();
     return new Map(densityMetrics.map((d) => [d.source_id, d]));
   }, [densityMetrics]);
 
@@ -235,15 +235,15 @@ export function ProjectSourcesPage() {
         </button>
       )}
 
-      {/* Source viewer/editor sheet */}
-      <SourceViewerSheet
+      {/* Source viewer/editor sheet - TODO: implement SourceViewerSheet component */}
+      {/* <SourceViewerSheet
         sourceId={selectedSourceId}
         open={viewerOpen}
         onOpenChange={(open) => {
           setViewerOpen(open);
           if (!open) setSelectedSourceId(null);
         }}
-      />
+      /> */}
 
       {/* Add source dialog */}
       <AddSourceDialog

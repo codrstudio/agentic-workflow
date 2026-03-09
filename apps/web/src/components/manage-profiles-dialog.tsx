@@ -73,7 +73,7 @@ export function ManageProfilesDialog({
   const [editingProfile, setEditingProfile] = useState<ContextProfile | null>(null);
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
-  const [formSourceIds, setFormSourceIds] = useState<string[]>([]);
+  const [formIncludedSources, setFormIncludedSources] = useState<string[]>([]);
   const [formIsDefault, setFormIsDefault] = useState(false);
 
   const createProfile = useCreateProfile(projectSlug);
@@ -93,7 +93,7 @@ export function ManageProfilesDialog({
     setEditingProfile(null);
     setFormName("");
     setFormDescription("");
-    setFormSourceIds([]);
+    setFormIncludedSources([]);
     setFormIsDefault(false);
     setView("form");
   };
@@ -102,13 +102,13 @@ export function ManageProfilesDialog({
     setEditingProfile(profile);
     setFormName(profile.name);
     setFormDescription(profile.description ?? "");
-    setFormSourceIds([...profile.source_ids]);
+    setFormIncludedSources([...profile.included_sources]);
     setFormIsDefault(profile.is_default);
     setView("form");
   };
 
   const toggleSourceInForm = (id: string) => {
-    setFormSourceIds((prev) =>
+    setFormIncludedSources((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
     );
   };
@@ -121,14 +121,14 @@ export function ManageProfilesDialog({
         id: editingProfile.id,
         name: formName.trim(),
         description: formDescription.trim() || undefined,
-        source_ids: formSourceIds,
+        included_sources: formIncludedSources,
         is_default: formIsDefault,
       });
     } else {
       await createProfile.mutateAsync({
         name: formName.trim(),
         description: formDescription.trim() || undefined,
-        source_ids: formSourceIds,
+        included_sources: formIncludedSources,
         is_default: formIsDefault,
       });
     }
@@ -180,7 +180,7 @@ export function ManageProfilesDialog({
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {profile.source_ids.length} source{profile.source_ids.length !== 1 ? "s" : ""}
+                    {profile.included_sources.length} source{profile.included_sources.length !== 1 ? "s" : ""}
                     {profile.description ? ` — ${profile.description}` : ""}
                   </p>
                 </div>
@@ -248,7 +248,7 @@ export function ManageProfilesDialog({
                       className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-muted/50"
                     >
                       <Checkbox
-                        checked={formSourceIds.includes(source.id)}
+                        checked={formIncludedSources.includes(source.id)}
                         onCheckedChange={() => toggleSourceInForm(source.id)}
                       />
                       <span className="text-sm truncate">{source.name}</span>

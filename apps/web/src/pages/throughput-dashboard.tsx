@@ -212,7 +212,7 @@ function CycleTimeTrendChart({ cycles }: { cycles: FeatureCycleRecord[] }) {
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="week" tick={{ fontSize: 11 }} />
         <YAxis tick={{ fontSize: 11 }} unit="h" />
-        <RechartsTooltip formatter={(v: number) => [`${v}h`, "Avg Cycle Time"]} />
+        <RechartsTooltip formatter={((v: number) => [`${v}h`, "Avg Cycle Time"]) as any} />
         <Line type="monotone" dataKey="avg" name="Avg Cycle Time" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
       </LineChart>
     </ResponsiveContainer>
@@ -409,7 +409,7 @@ function DelegationDashboard({ slug, periodDays }: { slug: string; periodDays: n
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} unit="%" />
-                <RechartsTooltip formatter={(v: number) => [`${v}%`, "Rework Rate"]} />
+                <RechartsTooltip formatter={((v: number) => [`${v}%`, "Rework Rate"]) as any} />
                 <Bar dataKey="rework" name="Rework Rate" radius={[3, 3, 0, 0]}>
                   {reworkData.map((entry, index) => (
                     <Cell key={index} fill={entry.color} />
