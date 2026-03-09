@@ -14,10 +14,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 installCrashHandlers();
 
 function usage(): void {
-  console.error('Usage: aw:run <project-slug> <workflow-slug>');
+  console.error('Usage: aw:run <project-slug> <workflow-slug> [options]');
   console.error('');
-  console.error('Example:');
+  console.error('Options:');
+  console.error('  --plan <plan-slug>   Use a specific plan (default: first plan in workflow)');
+  console.error('');
+  console.error('Examples:');
   console.error('  npm run aw:run -- arc vibe-app');
+  console.error('  npm run aw:run -- arc vibe-app --plan my-plan');
   process.exit(1);
 }
 

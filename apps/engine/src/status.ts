@@ -1,5 +1,6 @@
 import { resolve, dirname, join } from 'node:path';
 import { readdir, readFile, stat } from 'node:fs/promises';
+import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { loadProjectConfig } from './core/bootstrap.js';
@@ -327,6 +328,14 @@ function formatRelativeMs(ms: number): string {
 }
 
 function isProcessAlive(pid: number): boolean {
+  if (process.platform === 'win32') {
+    try {
+      const out = execSync(`tasklist /fi "PID eq ${pid}" /fo csv /nh 2>nul`, { encoding: 'utf-8', timeout: 3000 });
+      return out.includes(`"${pid}"`);
+    } catch {
+      return false;
+    }
+  }
   try {
     process.kill(pid, 0);
     return true;
