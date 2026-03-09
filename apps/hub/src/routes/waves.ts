@@ -335,4 +335,158 @@ app.get('/:waveNumber/loop', async (c) => {
   });
 });
 
+type LogLineType = 'system' | 'assistant' | 'tool_use' | 'tool_result' | 'user';
+
+interface ParsedLogLine {
+  index: number;
+  type: LogLineType;
+  raw: unknown;
+}
+
+function classifyLine(obj: Record<string, unknown>): LogLineType {
+  const t = obj['type'];
+  if (t === 'assistant') {
+    const msg = obj['message'] as Record<string, unknown> | undefined;
+    const content = Array.isArray(msg?.['content']) ? (msg!['content'] as Array<Record<string, unknown>>) : [];
+    if (content.some((c) => c['type'] === 'tool_use')) return 'tool_use';
+    return 'assistant';
+  }
+  if (t === 'user') {
+    const msg = obj['message'] as Record<string, unknown> | undefined;
+    const content = Array.isArray(msg?.['content']) ? (msg!['content'] as Array<Record<string, unknown>>) : [];
+    if (content.some((c) => c['type'] === 'tool_result')) return 'tool_result';
+    return 'user';
+  }
+  if (t === 'system') return 'system';
+  return 'system';
+}
+
+async function parseSpawnJsonl(jsonlPath: string): Promise<ParsedLogLine[]> {
+  let content: string;
+  try {
+    content = await fs.readFile(jsonlPath, 'utf-8');
+  } catch {
+    return [];
+  }
+  const lines = content.split('\n').filter((l) => l.trim());
+  const result: ParsedLogLine[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    try {
+      const obj = JSON.parse(lines[i]!) as Record<string, unknown>;
+      result.push({ index: i, type: classifyLine(obj), raw: obj });
+    } catch {
+      // skip non-JSON lines
+    }
+  }
+  return result;
+}
+
+async function findStepDir(waveDir: string, stepIndex: number): Promise<string | null> {
+  const stepDirs = await listStepDirs(waveDir);
+  const match = stepDirs.find((d) => {
+    const parsed = parseStepDir(d);
+    return parsed?.index === stepIndex;
+  });
+  return match ?? null;
+}
+
+// GET /api/v1/projects/:slug/waves/:waveNumber/steps/:stepIndex
+app.get('/:waveNumber/steps/:stepIndex', async (c) => {
+  const slug = c.req.param('slug');
+  if (!slug) return c.json({ error: 'Project slug required' }, 400);
+  const waveNumber = parseInt(c.req.param('waveNumber') ?? '', 10);
+  const stepIndex = parseInt(c.req.param('stepIndex') ?? '', 10);
+
+  if (isNaN(waveNumber) || isNaN(stepIndex)) {
+    return c.json({ error: 'Invalid wave number or step index' }, 400);
+  }
+
+  const awRoot = getAwRoot();
+  const waveDir = path.join(awRoot, 'context', 'workspaces', slug, `wave-${waveNumber}`);
+
+  try {
+    await fs.access(waveDir);
+  } catch {
+    return c.json({ error: 'Wave not found' }, 404);
+  }
+
+  const stepDirName = await findStepDir(waveDir, stepIndex);
+  if (!stepDirName) return c.json({ error: 'Step not found' }, 404);
+
+  const stepDir = path.join(waveDir, stepDirName);
+  const spawnFile = path.join(stepDir, 'spawn.json');
+
+  let spawn: SpawnJson | null = null;
+  try {
+    spawn = await readJson(spawnFile) as SpawnJson;
+  } catch {
+    return c.json({ error: 'Step metadata not available yet' }, 404);
+  }
+
+  const status = deriveStatus(spawn, true);
+  let duration_ms: number | undefined;
+  if (spawn.started_at && spawn.finished_at) {
+    duration_ms = new Date(spawn.finished_at).getTime() - new Date(spawn.started_at).getTime();
+  }
+
+  return c.json({
+    index: stepIndex,
+    dir: stepDirName,
+    task: spawn.task,
+    agent: spawn.agent,
+    wave: spawn.wave,
+    step: spawn.step,
+    pid: spawn.pid,
+    parent_pid: spawn.parent_pid,
+    started_at: spawn.started_at,
+    finished_at: spawn.finished_at,
+    exit_code: spawn.exit_code,
+    timed_out: spawn.timed_out,
+    model_used: spawn.model_used,
+    status,
+    duration_ms,
+  });
+});
+
+// GET /api/v1/projects/:slug/waves/:waveNumber/steps/:stepIndex/log
+app.get('/:waveNumber/steps/:stepIndex/log', async (c) => {
+  const slug = c.req.param('slug');
+  if (!slug) return c.json({ error: 'Project slug required' }, 400);
+  const waveNumber = parseInt(c.req.param('waveNumber') ?? '', 10);
+  const stepIndex = parseInt(c.req.param('stepIndex') ?? '', 10);
+
+  if (isNaN(waveNumber) || isNaN(stepIndex)) {
+    return c.json({ error: 'Invalid wave number or step index' }, 400);
+  }
+
+  const offset = Math.max(0, parseInt(c.req.query('offset') ?? '0', 10) || 0);
+  const limit = Math.min(500, Math.max(1, parseInt(c.req.query('limit') ?? '100', 10) || 100));
+
+  const awRoot = getAwRoot();
+  const waveDir = path.join(awRoot, 'context', 'workspaces', slug, `wave-${waveNumber}`);
+
+  try {
+    await fs.access(waveDir);
+  } catch {
+    return c.json({ error: 'Wave not found' }, 404);
+  }
+
+  const stepDirName = await findStepDir(waveDir, stepIndex);
+  if (!stepDirName) return c.json({ error: 'Step not found' }, 404);
+
+  const stepDir = path.join(waveDir, stepDirName);
+  const jsonlFile = path.join(stepDir, 'spawn.jsonl');
+
+  const allLines = await parseSpawnJsonl(jsonlFile);
+  const total = allLines.length;
+  const page = allLines.slice(offset, offset + limit);
+
+  return c.json({
+    total,
+    offset,
+    limit,
+    lines: page,
+  });
+});
+
 export { app as waves };

@@ -62,7 +62,7 @@
   {
     "id": "F-004",
     "name": "Auth Backend",
-    "description": "Endpoints POST /api/v1/auth/login, GET /api/v1/auth/me, POST /api/v1/auth/logout. JWT em cookie httpOnly. Middleware de proteÃ§Ã£o de rotas. VariÃ¡veis SYSUSER/SYSPASS/SYSROLE.",
+    "description": "Endpoints POST /api/v1/auth/login, GET /api/v1/auth/me, POST /api/v1/auth/logout. JWT em cookie httpOnly. Middleware de prote\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o de rotas. Vari\u00c3\u0192\u00c2\u00a1veis SYSUSER/SYSPASS/SYSROLE.",
     "status": "passing",
     "priority": 4,
     "agent": "coder",
@@ -73,10 +73,10 @@
     "tests": [
       "POST /api/v1/auth/login com credenciais SYSUSER/SYSPASS retorna 200 e Set-Cookie com JWT httpOnly",
       "POST /api/v1/auth/login com credenciais erradas retorna 401",
-      "GET /api/v1/auth/me com cookie vÃ¡lido retorna user info (username, role)",
-      "POST /api/v1/auth/logout limpa cookie de sessÃ£o",
-      "Rotas /api/v1/* (exceto /auth/login e /health) retornam 401 sem cookie vÃ¡lido",
-      "VariÃ¡veis SYSUSER, SYSPASS, SYSROLE lidas de env"
+      "GET /api/v1/auth/me com cookie v\u00c3\u0192\u00c2\u00a1lido retorna user info (username, role)",
+      "POST /api/v1/auth/logout limpa cookie de sess\u00c3\u0192\u00c2\u00a3o",
+      "Rotas /api/v1/* (exceto /auth/login e /health) retornam 401 sem cookie v\u00c3\u0192\u00c2\u00a1lido",
+      "Vari\u00c3\u0192\u00c2\u00a1veis SYSUSER, SYSPASS, SYSROLE lidas de env"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md",
     "completed_at": "2026-03-09T18:45:00Z"
@@ -84,7 +84,7 @@
   {
     "id": "F-005",
     "name": "Auth Frontend",
-    "description": "PÃ¡gina /login com formulÃ¡rio username+senha. AuthProvider React com estado do usuÃ¡rio. Redirect para /login quando 401. BotÃ£o Sair integrado. Vite proxy config para /api.",
+    "description": "P\u00c3\u0192\u00c2\u00a1gina /login com formul\u00c3\u0192\u00c2\u00a1rio username+senha. AuthProvider React com estado do usu\u00c3\u0192\u00c2\u00a1rio. Redirect para /login quando 401. Bot\u00c3\u0192\u00c2\u00a3o Sair integrado. Vite proxy config para /api.",
     "status": "passing",
     "priority": 5,
     "agent": "coder",
@@ -93,12 +93,12 @@
       "F-004"
     ],
     "tests": [
-      "/login renderiza formulÃ¡rio com campos username e password",
-      "Submit com credenciais vÃ¡lidas redireciona para /projects",
-      "Submit com credenciais invÃ¡lidas mostra mensagem de erro",
-      "AuthProvider expÃµe user state (username, role, isAuthenticated) via context",
+      "/login renderiza formul\u00c3\u0192\u00c2\u00a1rio com campos username e password",
+      "Submit com credenciais v\u00c3\u0192\u00c2\u00a1lidas redireciona para /projects",
+      "Submit com credenciais inv\u00c3\u0192\u00c2\u00a1lidas mostra mensagem de erro",
+      "AuthProvider exp\u00c3\u0192\u00c2\u00b5e user state (username, role, isAuthenticated) via context",
       "Resposta 401 de qualquer API redireciona para /login",
-      "Vite proxy configurado: /api â†’ http://localhost:3000",
+      "Vite proxy configurado: /api \u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122 http://localhost:3000",
       "Typecheck e build do web passam sem erros"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md",
@@ -107,7 +107,7 @@
   {
     "id": "F-006",
     "name": "TanStack Router Setup",
-    "description": "Instalar e configurar TanStack Router. Definir todas as rotas (stubs vazios). Route guard que redireciona para /login se nÃ£o autenticado.",
+    "description": "Instalar e configurar TanStack Router. Definir todas as rotas (stubs vazios). Route guard que redireciona para /login se n\u00c3\u0192\u00c2\u00a3o autenticado.",
     "status": "passing",
     "priority": 6,
     "agent": "coder",
@@ -119,8 +119,8 @@
       "TanStack Router instalado e configurado como router principal",
       "Rotas definidas: /, /login, /projects, /projects/:slug, /projects/:slug/waves/:waveNumber, /projects/:slug/waves/:waveNumber/steps/:stepIndex, /console, /events",
       "/ redireciona para /projects",
-      "Rotas autenticadas redirecionam para /login se usuÃ¡rio nÃ£o autenticado",
-      "/login acessÃ­vel sem autenticaÃ§Ã£o",
+      "Rotas autenticadas redirecionam para /login se usu\u00c3\u0192\u00c2\u00a1rio n\u00c3\u0192\u00c2\u00a3o autenticado",
+      "/login acess\u00c3\u0192\u00c2\u00advel sem autentica\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o",
       "Build do web compila sem erros"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
@@ -129,7 +129,7 @@
   {
     "id": "F-007",
     "name": "AppShell + Sidebar",
-    "description": "Componente AppShell com sidebar shadcn retrÃ¡til. Items de navegaÃ§Ã£o com Ã­cones (Projetos/FolderKanban, Console/Terminal, Eventos/Activity). Layout sem topbar. ConteÃºdo 100% largura disponÃ­vel.",
+    "description": "Componente AppShell com sidebar shadcn retr\u00c3\u0192\u00c2\u00a1til. Items de navega\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o com \u00c3\u0192\u00c2\u00adcones (Projetos/FolderKanban, Console/Terminal, Eventos/Activity). Layout sem topbar. Conte\u00c3\u0192\u00c2\u00bado 100% largura dispon\u00c3\u0192\u00c2\u00advel.",
     "status": "passing",
     "priority": 7,
     "agent": "coder",
@@ -138,12 +138,12 @@
       "F-006"
     ],
     "tests": [
-      "AppShell renderiza sidebar + Ã¡rea de conteÃºdo",
-      "Sidebar exibe items: Projetos, Console, Eventos com Ã­cones Lucide",
+      "AppShell renderiza sidebar + \u00c3\u0192\u00c2\u00a1rea de conte\u00c3\u0192\u00c2\u00bado",
+      "Sidebar exibe items: Projetos, Console, Eventos com \u00c3\u0192\u00c2\u00adcones Lucide",
       "Sidebar colapsa para modo icon-only e expande de volta",
-      "NÃ£o existe topbar no layout",
-      "Ã\udc81rea de conteÃºdo ocupa 100% da largura disponÃ­vel",
-      "NavegaÃ§Ã£o entre pÃ¡ginas funciona via sidebar items"
+      "N\u00c3\u0192\u00c2\u00a3o existe topbar no layout",
+      "\u00c3\u0192\udc81rea de conte\u00c3\u0192\u00c2\u00bado ocupa 100% da largura dispon\u00c3\u0192\u00c2\u00advel",
+      "Navega\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o entre p\u00c3\u0192\u00c2\u00a1ginas funciona via sidebar items"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
     "completed_at": "2026-03-09T19:00:19.479Z"
@@ -151,7 +151,7 @@
   {
     "id": "F-008",
     "name": "Sidebar User Menu + Theme Switch",
-    "description": "Menu do usuÃ¡rio na base do sidebar: avatar, username (do auth context), theme toggle (light/dark/system com persistÃªncia localStorage), botÃ£o Sair.",
+    "description": "Menu do usu\u00c3\u0192\u00c2\u00a1rio na base do sidebar: avatar, username (do auth context), theme toggle (light/dark/system com persist\u00c3\u0192\u00c2\u00aancia localStorage), bot\u00c3\u0192\u00c2\u00a3o Sair.",
     "status": "passing",
     "priority": 8,
     "agent": "coder",
@@ -161,10 +161,10 @@
     ],
     "completed_at": "2026-03-09T22:00:00.000Z",
     "tests": [
-      "Base do sidebar exibe avatar e username do usuÃ¡rio autenticado",
+      "Base do sidebar exibe avatar e username do usu\u00c3\u0192\u00c2\u00a1rio autenticado",
       "Theme toggle alterna entre light, dark e system",
       "Tema selecionado persiste em localStorage entre reloads",
-      "BotÃ£o Sair faz logout e redireciona para /login",
+      "Bot\u00c3\u0192\u00c2\u00a3o Sair faz logout e redireciona para /login",
       "Tema aplica classes corretas (dark mode funciona visualmente)"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
@@ -172,7 +172,7 @@
   {
     "id": "F-009",
     "name": "BottomNav Mobile",
-    "description": "BottomNav visÃ­vel em viewport < 768px, oculto em desktop. AtÃ© 4 atalhos configurÃ¡veis do sidebar. BotÃ£o menu abre drawer (vaul) com todos os items + pÃ¡gina Customizar para selecionar atalhos.",
+    "description": "BottomNav vis\u00c3\u0192\u00c2\u00advel em viewport < 768px, oculto em desktop. At\u00c3\u0192\u00c2\u00a9 4 atalhos configur\u00c3\u0192\u00c2\u00a1veis do sidebar. Bot\u00c3\u0192\u00c2\u00a3o menu abre drawer (vaul) com todos os items + p\u00c3\u0192\u00c2\u00a1gina Customizar para selecionar atalhos.",
     "status": "passing",
     "priority": 9,
     "agent": "coder",
@@ -181,11 +181,11 @@
       "F-007"
     ],
     "tests": [
-      "BottomNav visÃ­vel apenas em viewport < 768px",
-      "Exibe atÃ© 4 atalhos de navegaÃ§Ã£o",
-      "BotÃ£o menu abre drawer com todos os items do sidebar",
-      "Drawer inclui opÃ§Ã£o Customizar",
-      "PÃ¡gina Customizar permite selecionar quais 4 atalhos aparecem",
+      "BottomNav vis\u00c3\u0192\u00c2\u00advel apenas em viewport < 768px",
+      "Exibe at\u00c3\u0192\u00c2\u00a9 4 atalhos de navega\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o",
+      "Bot\u00c3\u0192\u00c2\u00a3o menu abre drawer com todos os items do sidebar",
+      "Drawer inclui op\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o Customizar",
+      "P\u00c3\u0192\u00c2\u00a1gina Customizar permite selecionar quais 4 atalhos aparecem",
       "Sidebar oculto em viewport < 768px"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
@@ -193,8 +193,8 @@
   },
   {
     "id": "F-010",
-    "name": "Breadcrumb + NavegaÃ§Ã£o Linkada",
-    "description": "Componente Breadcrumb reutilizÃ¡vel presente em todas as pÃ¡ginas exceto /projects. Desktop: horizontal completo. Mobile: Ãºltimo nÃ­vel + '...' abre drawer. Componente LinkableText para F-XXX / step-XX clicÃ¡veis. TransiÃ§Ãµes framer-motion entre pÃ¡ginas.",
+    "name": "Breadcrumb + Navega\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o Linkada",
+    "description": "Componente Breadcrumb reutiliz\u00c3\u0192\u00c2\u00a1vel presente em todas as p\u00c3\u0192\u00c2\u00a1ginas exceto /projects. Desktop: horizontal completo. Mobile: \u00c3\u0192\u00c2\u00baltimo n\u00c3\u0192\u00c2\u00advel + '...' abre drawer. Componente LinkableText para F-XXX / step-XX clic\u00c3\u0192\u00c2\u00a1veis. Transi\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00b5es framer-motion entre p\u00c3\u0192\u00c2\u00a1ginas.",
     "status": "passing",
     "priority": 10,
     "agent": "coder",
@@ -203,12 +203,12 @@
       "F-006"
     ],
     "tests": [
-      "Breadcrumb renderiza em todas as pÃ¡ginas exceto /projects",
-      "Desktop: breadcrumb horizontal completo com todos os nÃ­veis",
-      "Mobile: mostra Ãºltimo nÃ­vel com botÃ£o '...' que abre drawer com nÃ­veis anteriores",
-      "LinkableText converte referÃªncias F-XXX em links clicÃ¡veis para a feature",
-      "LinkableText converte referÃªncias step-XX em links clicÃ¡veis para o step",
-      "TransiÃ§Ãµes entre pÃ¡ginas usam framer-motion"
+      "Breadcrumb renderiza em todas as p\u00c3\u0192\u00c2\u00a1ginas exceto /projects",
+      "Desktop: breadcrumb horizontal completo com todos os n\u00c3\u0192\u00c2\u00adveis",
+      "Mobile: mostra \u00c3\u0192\u00c2\u00baltimo n\u00c3\u0192\u00c2\u00advel com bot\u00c3\u0192\u00c2\u00a3o '...' que abre drawer com n\u00c3\u0192\u00c2\u00adveis anteriores",
+      "LinkableText converte refer\u00c3\u0192\u00c2\u00aancias F-XXX em links clic\u00c3\u0192\u00c2\u00a1veis para a feature",
+      "LinkableText converte refer\u00c3\u0192\u00c2\u00aancias step-XX em links clic\u00c3\u0192\u00c2\u00a1veis para o step",
+      "Transi\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00b5es entre p\u00c3\u0192\u00c2\u00a1ginas usam framer-motion"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
     "completed_at": "2026-03-09T23:30:00.000Z"
@@ -228,7 +228,7 @@
       "GET /api/v1/projects retorna array de projetos com name e slug",
       "GET /api/v1/projects/:slug retorna detalhe do projeto incluindo info de workspace",
       "GET /api/v1/projects/:slug-inexistente retorna 404",
-      "GET /api/v1/workflows retorna array de workflows disponÃ­veis",
+      "GET /api/v1/workflows retorna array de workflows dispon\u00c3\u0192\u00c2\u00adveis",
       "Dados lidos do filesystem (context/projects/, context/workflows/)",
       "Typecheck passa sem erros"
     ],
@@ -238,7 +238,7 @@
   {
     "id": "F-012",
     "name": "Projects List Page",
-    "description": "PÃ¡gina /projects com cards clicÃ¡veis. Cada card mostra nome, slug, status. Click navega para /projects/:slug.",
+    "description": "P\u00c3\u0192\u00c2\u00a1gina /projects com cards clic\u00c3\u0192\u00c2\u00a1veis. Cada card mostra nome, slug, status. Click navega para /projects/:slug.",
     "status": "passing",
     "priority": 12,
     "agent": "coder",
@@ -252,7 +252,7 @@
       "Cada card exibe nome, slug e indicador de status",
       "Click no card navega para /projects/:slug",
       "Estado de loading exibido enquanto API carrega",
-      "Estado vazio exibido quando nÃ£o hÃ¡ projetos"
+      "Estado vazio exibido quando n\u00c3\u0192\u00c2\u00a3o h\u00c3\u0192\u00c2\u00a1 projetos"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
     "completed_at": "2026-03-09T19:24:33Z"
@@ -260,7 +260,7 @@
   {
     "id": "F-013",
     "name": "Project Execution API",
-    "description": "Endpoints POST /api/v1/projects/:slug/runs (spawna CLI da engine como child process), GET .../runs (lista execuÃ§Ãµes ativas/recentes), DELETE .../runs/:runId (SIGTERM ao processo). Estado em memÃ³ria (Map). Monitora exit do child process.",
+    "description": "Endpoints POST /api/v1/projects/:slug/runs (spawna CLI da engine como child process), GET .../runs (lista execu\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00b5es ativas/recentes), DELETE .../runs/:runId (SIGTERM ao processo). Estado em mem\u00c3\u0192\u00c2\u00b3ria (Map). Monitora exit do child process.",
     "status": "passing",
     "priority": 13,
     "agent": "coder",
@@ -274,7 +274,7 @@
       "Resposta inclui runId e PID do processo spawnado",
       "GET /api/v1/projects/:slug/runs retorna lista de runs com status (running/completed/failed)",
       "DELETE /api/v1/projects/:slug/runs/:runId envia SIGTERM ao processo",
-      "Evento exit do child process atualiza status da run em memÃ³ria",
+      "Evento exit do child process atualiza status da run em mem\u00c3\u0192\u00c2\u00b3ria",
       "Typecheck passa sem erros"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
@@ -282,7 +282,7 @@
   {
     "id": "F-014",
     "name": "Project Detail + Execution UI",
-    "description": "PÃ¡gina /projects/:slug com info do projeto, formulÃ¡rio de execuÃ§Ã£o (select workflow populated da API, input opcional de plano, botÃ£o Executar), lista de runs ativas com PID, status e botÃ£o Parar.",
+    "description": "P\u00c3\u0192\u00c2\u00a1gina /projects/:slug com info do projeto, formul\u00c3\u0192\u00c2\u00a1rio de execu\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o (select workflow populated da API, input opcional de plano, bot\u00c3\u0192\u00c2\u00a3o Executar), lista de runs ativas com PID, status e bot\u00c3\u0192\u00c2\u00a3o Parar.",
     "status": "passing",
     "priority": 14,
     "agent": "coder",
@@ -292,11 +292,11 @@
       "F-013"
     ],
     "tests": [
-      "/projects/:slug renderiza informaÃ§Ãµes do projeto (nome, slug)",
+      "/projects/:slug renderiza informa\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00b5es do projeto (nome, slug)",
       "Select de workflow populado com workflows da API",
-      "BotÃ£o Executar dispara POST para /runs e atualiza lista",
-      "Lista de runs ativas mostra PID, status e duraÃ§Ã£o",
-      "BotÃ£o Parar envia DELETE para /runs/:runId",
+      "Bot\u00c3\u0192\u00c2\u00a3o Executar dispara POST para /runs e atualiza lista",
+      "Lista de runs ativas mostra PID, status e dura\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o",
+      "Bot\u00c3\u0192\u00c2\u00a3o Parar envia DELETE para /runs/:runId",
       "Estado de loading/erro tratado na UI"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
@@ -305,7 +305,7 @@
   {
     "id": "F-015",
     "name": "SSE Endpoint + Event Bus",
-    "description": "GET /api/v1/sse com streaming SSE (headers text/event-stream). EventEmitter interno no hub para broadcast. Keepalive 30s. IntegraÃ§Ã£o com child process da engine para captura de eventos stdout.",
+    "description": "GET /api/v1/sse com streaming SSE (headers text/event-stream). EventEmitter interno no hub para broadcast. Keepalive 30s. Integra\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o com child process da engine para captura de eventos stdout.",
     "status": "passing",
     "priority": 15,
     "agent": "coder",
@@ -316,11 +316,11 @@
     ],
     "tests": [
       "GET /api/v1/sse retorna response com Content-Type text/event-stream",
-      "ConexÃ£o SSE mantida aberta com keepalive a cada 30s",
+      "Conex\u00c3\u0192\u00c2\u00a3o SSE mantida aberta com keepalive a cada 30s",
       "EventEmitter interno permite broadcast de eventos a todos os clientes conectados",
-      "Eventos da engine (child process) sÃ£o capturados e repassados via SSE",
-      "MÃºltiplos clientes SSE podem conectar simultaneamente",
-      "DesconexÃ£o do cliente limpa listeners sem memory leak"
+      "Eventos da engine (child process) s\u00c3\u0192\u00c2\u00a3o capturados e repassados via SSE",
+      "M\u00c3\u0192\u00c2\u00baltiplos clientes SSE podem conectar simultaneamente",
+      "Desconex\u00c3\u0192\u00c2\u00a3o do cliente limpa listeners sem memory leak"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md",
     "completed_at": "2026-03-09T19:45:00.000Z"
@@ -328,7 +328,7 @@
   {
     "id": "F-016",
     "name": "Agent Actions Endpoints",
-    "description": "POST /api/v1/hub/projects/:slug/agent-actions (armazena action em memÃ³ria + emite SSE agent:action:start). PATCH .../agent-actions/:id (atualiza + emite SSE agent:action:end). CompatÃ­vel com AgentActionReporter da engine.",
+    "description": "POST /api/v1/hub/projects/:slug/agent-actions (armazena action em mem\u00c3\u0192\u00c2\u00b3ria + emite SSE agent:action:start). PATCH .../agent-actions/:id (atualiza + emite SSE agent:action:end). Compat\u00c3\u0192\u00c2\u00advel com AgentActionReporter da engine.",
     "status": "passing",
     "priority": 16,
     "agent": "coder",
@@ -341,8 +341,8 @@
       "POST emite evento SSE agent:action:start",
       "PATCH /api/v1/hub/projects/:slug/agent-actions/:id atualiza action",
       "PATCH emite evento SSE agent:action:end",
-      "Actions armazenadas em memÃ³ria com campos: id, status, task, agent, feature, timing",
-      "Formato compatÃ­vel com AgentActionReporter da engine"
+      "Actions armazenadas em mem\u00c3\u0192\u00c2\u00b3ria com campos: id, status, task, agent, feature, timing",
+      "Formato compat\u00c3\u0192\u00c2\u00advel com AgentActionReporter da engine"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md",
     "completed_at": "2026-03-09T20:10:00.000Z"
@@ -350,7 +350,7 @@
   {
     "id": "F-017",
     "name": "useSSE Hook + Connection Indicator",
-    "description": "Hook React useSSE() com conexÃ£o a /api/v1/sse, reconexÃ£o com backoff exponencial, ring buffer de Ãºltimos N eventos, API de subscribe por tipo de evento. Componente indicador visual de status SSE (connected/reconnecting/disconnected) no layout.",
+    "description": "Hook React useSSE() com conex\u00c3\u0192\u00c2\u00a3o a /api/v1/sse, reconex\u00c3\u0192\u00c2\u00a3o com backoff exponencial, ring buffer de \u00c3\u0192\u00c2\u00baltimos N eventos, API de subscribe por tipo de evento. Componente indicador visual de status SSE (connected/reconnecting/disconnected) no layout.",
     "status": "passing",
     "priority": 17,
     "agent": "coder",
@@ -361,10 +361,10 @@
     ],
     "tests": [
       "useSSE() conecta ao /api/v1/sse e recebe eventos",
-      "ReconexÃ£o automÃ¡tica com backoff exponencial ao perder conexÃ£o",
-      "Ring buffer armazena Ãºltimos N eventos (configurÃ¡vel)",
+      "Reconex\u00c3\u0192\u00c2\u00a3o autom\u00c3\u0192\u00c2\u00a1tica com backoff exponencial ao perder conex\u00c3\u0192\u00c2\u00a3o",
+      "Ring buffer armazena \u00c3\u0192\u00c2\u00baltimos N eventos (configur\u00c3\u0192\u00c2\u00a1vel)",
       "subscribe(eventType, callback) filtra eventos por tipo",
-      "Indicador de conexÃ£o SSE visÃ­vel no layout (connected verde, reconnecting amarelo, disconnected vermelho)",
+      "Indicador de conex\u00c3\u0192\u00c2\u00a3o SSE vis\u00c3\u0192\u00c2\u00advel no layout (connected verde, reconnecting amarelo, disconnected vermelho)",
       "Build do web compila sem erros"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md",
@@ -385,7 +385,7 @@
       "GET /api/v1/projects/:slug/waves retorna array de waves com steps resumidos",
       "GET .../waves/:waveNumber retorna wave detalhada com lista de steps e status derivado",
       "GET .../waves/:waveNumber/loop retorna estado do feature loop (features, contadores)",
-      "Status derivado de spawn.json: exit_code 0 â†’ completed, exit_code != 0 â†’ failed, sem exit_code â†’ running, dir inexistente â†’ pending",
+      "Status derivado de spawn.json: exit_code 0 \u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122 completed, exit_code != 0 \u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122 failed, sem exit_code \u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122 running, dir inexistente \u00c3\u00a2\u00e2\u20ac\u00a0\u00e2\u20ac\u2122 pending",
       "Dados lidos de spawn.json, loop.json, features.json no filesystem"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md",
@@ -394,7 +394,7 @@
   {
     "id": "F-019",
     "name": "Wave Timeline UI",
-    "description": "PÃ¡gina /projects/:slug/waves/:waveNumber com timeline vertical de steps. Cada step: Ã­cone de status, nome da task, tipo, duraÃ§Ã£o. Steps clicÃ¡veis navegam para detalhe. Progress bar da wave. SeÃ§Ã£o de waves na pÃ¡gina do projeto com cards/rows.",
+    "description": "P\u00c3\u0192\u00c2\u00a1gina /projects/:slug/waves/:waveNumber com timeline vertical de steps. Cada step: \u00c3\u0192\u00c2\u00adcone de status, nome da task, tipo, dura\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o. Steps clic\u00c3\u0192\u00c2\u00a1veis navegam para detalhe. Progress bar da wave. Se\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o de waves na p\u00c3\u0192\u00c2\u00a1gina do projeto com cards/rows.",
     "status": "passing",
     "completed_at": "2026-03-09T22:30:00.000Z",
     "priority": 19,
@@ -406,10 +406,10 @@
     ],
     "tests": [
       "/projects/:slug/waves/:waveNumber renderiza timeline vertical de steps",
-      "Cada step exibe Ã­cone de status, nome da task, tipo e duraÃ§Ã£o",
+      "Cada step exibe \u00c3\u0192\u00c2\u00adcone de status, nome da task, tipo e dura\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o",
       "Click no step navega para /projects/:slug/waves/:waveNumber/steps/:stepIndex",
-      "Progress bar reflete proporÃ§Ã£o de steps completados",
-      "PÃ¡gina /projects/:slug exibe seÃ§Ã£o com waves disponÃ­veis",
+      "Progress bar reflete propor\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o de steps completados",
+      "P\u00c3\u0192\u00c2\u00a1gina /projects/:slug exibe se\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o com waves dispon\u00c3\u0192\u00c2\u00adveis",
       "Estado de loading exibido enquanto API carrega"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
@@ -417,7 +417,7 @@
   {
     "id": "F-020",
     "name": "Feature Loop Dashboard",
-    "description": "Componente FeatureLoopDashboard com progress ring/bar, lista de features com badges de status (passing/failing/skipped/pending/blocked), feature atual destacada, contadores pass/fail/skip. AtualizaÃ§Ã£o reativa via SSE. Layout responsivo mobile.",
+    "description": "Componente FeatureLoopDashboard com progress ring/bar, lista de features com badges de status (passing/failing/skipped/pending/blocked), feature atual destacada, contadores pass/fail/skip. Atualiza\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o reativa via SSE. Layout responsivo mobile.",
     "status": "passing",
     "priority": 20,
     "agent": "coder",
@@ -432,7 +432,7 @@
       "Feature atual (in_progress) destacada visualmente",
       "Contadores exibem totais de passing, failing e skipped",
       "Componente atualiza reativamente quando eventos SSE de feature chegam",
-      "Layout responsivo: legÃ­vel em mobile sem scroll horizontal"
+      "Layout responsivo: leg\u00c3\u0192\u00c2\u00advel em mobile sem scroll horizontal"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md",
     "completed_at": "2026-03-09T20:49:16.813Z"
@@ -440,7 +440,7 @@
   {
     "id": "F-021",
     "name": "Operator Messages API",
-    "description": "POST /api/v1/projects/:slug/messages (enfileira mensagem no operator-queue.jsonl replicando lÃ³gica do OperatorQueue.enqueue()). GET /api/v1/projects/:slug/messages (lista mensagens com status). EmissÃ£o de evento SSE ao enfileirar.",
+    "description": "POST /api/v1/projects/:slug/messages (enfileira mensagem no operator-queue.jsonl replicando l\u00c3\u0192\u00c2\u00b3gica do OperatorQueue.enqueue()). GET /api/v1/projects/:slug/messages (lista mensagens com status). Emiss\u00c3\u0192\u00c2\u00a3o de evento SSE ao enfileirar.",
     "status": "passing",
     "priority": 21,
     "agent": "coder",
@@ -452,8 +452,8 @@
     "tests": [
       "POST /api/v1/projects/:slug/messages aceita body com content e enfileira em operator-queue.jsonl",
       "GET /api/v1/projects/:slug/messages retorna array de mensagens com status (queued/processing/done)",
-      "Evento SSE emitido quando mensagem Ã© enfileirada",
-      "Formato da mensagem no jsonl compatÃ­vel com OperatorQueue da engine",
+      "Evento SSE emitido quando mensagem \u00c3\u0192\u00c2\u00a9 enfileirada",
+      "Formato da mensagem no jsonl compat\u00c3\u0192\u00c2\u00advel com OperatorQueue da engine",
       "Typecheck passa sem erros"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md",
@@ -462,7 +462,7 @@
   {
     "id": "F-022",
     "name": "Console UI",
-    "description": "PÃ¡gina /console com select de projeto ativo, campo de texto com focus automÃ¡tico (Enter para enviar), botÃ£o enviar, lista de mensagens em ordem cronolÃ³gica reversa com badges de status (queued amarelo, processing azul, done verde), timestamps relativos. AtualizaÃ§Ã£o reativa via SSE.",
+    "description": "P\u00c3\u0192\u00c2\u00a1gina /console com select de projeto ativo, campo de texto com focus autom\u00c3\u0192\u00c2\u00a1tico (Enter para enviar), bot\u00c3\u0192\u00c2\u00a3o enviar, lista de mensagens em ordem cronol\u00c3\u0192\u00c2\u00b3gica reversa com badges de status (queued amarelo, processing azul, done verde), timestamps relativos. Atualiza\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o reativa via SSE.",
     "status": "passing",
     "priority": 22,
     "agent": "coder",
@@ -475,20 +475,20 @@
     "completed_at": "2026-03-09T23:00:00.000Z",
     "tests": [
       "/console renderiza com select de projeto no topo",
-      "Campo de texto tem focus automÃ¡tico ao carregar",
+      "Campo de texto tem focus autom\u00c3\u0192\u00c2\u00a1tico ao carregar",
       "Enter no campo envia mensagem (POST para API)",
-      "Lista de mensagens em ordem cronolÃ³gica reversa",
+      "Lista de mensagens em ordem cronol\u00c3\u0192\u00c2\u00b3gica reversa",
       "Badges de status: queued (amarelo), processing (azul), done (verde)",
-      "Timestamps relativos exibidos (ex: 'hÃ¡ 2 min')",
-      "Novas mensagens e mudanÃ§as de status atualizam via SSE"
+      "Timestamps relativos exibidos (ex: 'h\u00c3\u0192\u00c2\u00a1 2 min')",
+      "Novas mensagens e mudan\u00c3\u0192\u00c2\u00a7as de status atualizam via SSE"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md"
   },
   {
     "id": "F-023",
     "name": "Step Detail & Log API",
-    "description": "Endpoints GET /api/v1/projects/:slug/waves/:waveNumber/steps/:stepIndex (metadados do spawn.json) e GET .../steps/:stepIndex/log (linhas parseadas com paginaÃ§Ã£o offset/limit). Parser de spawn.jsonl classificando por tipo (system, assistant, tool_use, tool_result, user).",
-    "status": "pending",
+    "description": "Endpoints GET /api/v1/projects/:slug/waves/:waveNumber/steps/:stepIndex (metadados do spawn.json) e GET .../steps/:stepIndex/log (linhas parseadas com pagina\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o offset/limit). Parser de spawn.jsonl classificando por tipo (system, assistant, tool_use, tool_result, user).",
+    "status": "passing",
     "priority": 23,
     "agent": "coder",
     "task": "vibe-code",
@@ -498,18 +498,19 @@
     "tests": [
       "GET .../steps/:stepIndex retorna metadata do spawn.json (task, agent, timing, exit_code)",
       "GET .../steps/:stepIndex/log retorna array de linhas parseadas",
-      "PaginaÃ§Ã£o via query params offset e limit funciona",
+      "Pagina\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o via query params offset e limit funciona",
       "Cada linha classificada por tipo: system, assistant, tool_use, tool_result, user",
       "Step inexistente retorna 404",
       "Typecheck passa sem erros"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md",
+    "completed_at": "2026-03-09T21:04:38Z"
   },
   {
     "id": "F-024",
     "name": "Log Viewer UI",
-    "description": "PÃ¡gina /projects/:slug/waves/:waveNumber/steps/:stepIndex com header de metadata (task, agent, timing, exit code, badge success/failure). LogViewer virtualizado (react-window ou similar) para 1000+ linhas. Highlight por tipo: assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde. BotÃ£o scroll-to-bottom. Busca textual client-side.",
-    "status": "blocked",
+    "description": "P\u00c3\u0192\u00c2\u00a1gina /projects/:slug/waves/:waveNumber/steps/:stepIndex com header de metadata (task, agent, timing, exit code, badge success/failure). LogViewer virtualizado (react-window ou similar) para 1000+ linhas. Highlight por tipo: assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde. Bot\u00c3\u0192\u00c2\u00a3o scroll-to-bottom. Busca textual client-side.",
+    "status": "pending",
     "priority": 24,
     "agent": "coder",
     "task": "vibe-code",
@@ -518,11 +519,11 @@
       "F-019"
     ],
     "tests": [
-      "PÃ¡gina renderiza header com task, agent, timing e exit code",
+      "P\u00c3\u0192\u00c2\u00a1gina renderiza header com task, agent, timing e exit code",
       "Badge de success/failure baseado no exit code",
-      "LogViewer usa virtualizaÃ§Ã£o para performance com 1000+ linhas",
+      "LogViewer usa virtualiza\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o para performance com 1000+ linhas",
       "Mensagens coloridas por tipo (assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde)",
-      "BotÃ£o scroll-to-bottom funciona",
+      "Bot\u00c3\u0192\u00c2\u00a3o scroll-to-bottom funciona",
       "Campo de busca filtra linhas do log por texto"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md"
@@ -530,7 +531,7 @@
   {
     "id": "F-025",
     "name": "Event Feed Page",
-    "description": "PÃ¡gina /events com feed de EngineEvents em tempo real via useSSE. Lista cronolÃ³gica reversa. Cada evento: timestamp (relativo + absoluto no hover), tipo (badge colorido por categoria: workflow azul, feature verde, agent roxo, loop laranja, gutter vermelho, queue amarelo), dados resumidos. Auto-scroll com toggle pause. Limite 500 eventos em memÃ³ria.",
+    "description": "P\u00c3\u0192\u00c2\u00a1gina /events com feed de EngineEvents em tempo real via useSSE. Lista cronol\u00c3\u0192\u00c2\u00b3gica reversa. Cada evento: timestamp (relativo + absoluto no hover), tipo (badge colorido por categoria: workflow azul, feature verde, agent roxo, loop laranja, gutter vermelho, queue amarelo), dados resumidos. Auto-scroll com toggle pause. Limite 500 eventos em mem\u00c3\u0192\u00c2\u00b3ria.",
     "status": "pending",
     "priority": 25,
     "agent": "coder",
@@ -541,18 +542,18 @@
     ],
     "tests": [
       "/events renderiza feed de eventos em tempo real via SSE",
-      "Eventos listados em ordem cronolÃ³gica reversa",
+      "Eventos listados em ordem cronol\u00c3\u0192\u00c2\u00b3gica reversa",
       "Cada evento exibe timestamp relativo (absoluto no hover) e badge de tipo",
       "Badges coloridos por categoria (workflow, feature, agent, loop, gutter, queue)",
-      "Auto-scroll ativo por padrÃ£o com toggle para pausar",
-      "MÃ¡ximo 500 eventos retidos em memÃ³ria (mais antigos descartados)"
+      "Auto-scroll ativo por padr\u00c3\u0192\u00c2\u00a3o com toggle para pausar",
+      "M\u00c3\u0192\u00c2\u00a1ximo 500 eventos retidos em mem\u00c3\u0192\u00c2\u00b3ria (mais antigos descartados)"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
   },
   {
     "id": "F-026",
     "name": "Event Filters",
-    "description": "Filtros para a pÃ¡gina /events: multi-select por tipo de evento (checkboxes), select por projeto, busca textual. Filtros persistem em query params da URL para sharing/bookmarking.",
+    "description": "Filtros para a p\u00c3\u0192\u00c2\u00a1gina /events: multi-select por tipo de evento (checkboxes), select por projeto, busca textual. Filtros persistem em query params da URL para sharing/bookmarking.",
     "status": "blocked",
     "priority": 26,
     "agent": "coder",
@@ -562,10 +563,10 @@
     ],
     "tests": [
       "Multi-select de tipo de evento filtra feed por tipos selecionados",
-      "Select de projeto filtra eventos de um projeto especÃ­fico",
-      "Campo de busca textual filtra eventos por conteÃºdo",
+      "Select de projeto filtra eventos de um projeto espec\u00c3\u0192\u00c2\u00adfico",
+      "Campo de busca textual filtra eventos por conte\u00c3\u0192\u00c2\u00bado",
       "Filtros ativos refletidos nos query params da URL",
-      "Recarregar pÃ¡gina com query params restaura filtros",
+      "Recarregar p\u00c3\u0192\u00c2\u00a1gina com query params restaura filtros",
       "Filtros combinam entre si (AND)"
     ],
     "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
@@ -573,7 +574,7 @@
   {
     "id": "F-027",
     "name": "Agent Actions List",
-    "description": "Endpoint GET /api/v1/projects/:slug/agent-actions (lista actions em memÃ³ria). Componente AgentActionsList na pÃ¡gina /projects/:slug com tabela: status badge, task, agent, feature, duraÃ§Ã£o, preview. Actions running com indicador animado. Click expande preview do output. OrdenaÃ§Ã£o por data (mais recente primeiro).",
+    "description": "Endpoint GET /api/v1/projects/:slug/agent-actions (lista actions em mem\u00c3\u0192\u00c2\u00b3ria). Componente AgentActionsList na p\u00c3\u0192\u00c2\u00a1gina /projects/:slug com tabela: status badge, task, agent, feature, dura\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o, preview. Actions running com indicador animado. Click expande preview do output. Ordena\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o por data (mais recente primeiro).",
     "status": "pending",
     "priority": 27,
     "agent": "coder",
@@ -584,8 +585,8 @@
     ],
     "tests": [
       "GET /api/v1/projects/:slug/agent-actions retorna array de actions",
-      "AgentActionsList renderiza na pÃ¡gina do projeto",
-      "Tabela exibe colunas: status, task, agent, feature, duraÃ§Ã£o",
+      "AgentActionsList renderiza na p\u00c3\u0192\u00c2\u00a1gina do projeto",
+      "Tabela exibe colunas: status, task, agent, feature, dura\u00c3\u0192\u00c2\u00a7\u00c3\u0192\u00c2\u00a3o",
       "Actions com status running exibem indicador animado",
       "Click em action expande preview do output",
       "Lista ordenada por data (mais recente primeiro)"
