@@ -25,14 +25,14 @@ export const projectKeys = {
 export function useProjects() {
   return useQuery({
     queryKey: projectKeys.list(),
-    queryFn: () => apiFetch<Project[]>("/hub/projects"),
+    queryFn: () => apiFetch<Project[]>("/api/v1/hub/projects"),
   });
 }
 
 export function useProject(slug: string) {
   return useQuery({
     queryKey: projectKeys.detail(slug),
-    queryFn: () => apiFetch<Project>(`/hub/projects/${slug}`),
+    queryFn: () => apiFetch<Project>(`/api/v1/hub/projects/${slug}`),
   });
 }
 
@@ -40,7 +40,7 @@ export function useCreateProject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: { name: string; description?: string }) =>
-      apiFetch<Project>("/hub/projects", {
+      apiFetch<Project>("/api/v1/hub/projects", {
         method: "POST",
         body: JSON.stringify(body),
       }),
@@ -64,7 +64,7 @@ export function useUpdateProject() {
         settings?: { context_budget?: number };
       };
     }) =>
-      apiFetch<Project>(`/hub/projects/${slug}`, {
+      apiFetch<Project>(`/api/v1/hub/projects/${slug}`, {
         method: "PATCH",
         body: JSON.stringify(body),
       }),
@@ -78,7 +78,7 @@ export function useDeleteProject() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (slug: string) =>
-      apiFetch<void>(`/hub/projects/${slug}`, {
+      apiFetch<void>(`/api/v1/hub/projects/${slug}`, {
         method: "DELETE",
       }),
     onSuccess: () => {

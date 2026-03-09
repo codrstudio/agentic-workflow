@@ -17,7 +17,7 @@ context/projects/{slug}/
     └── ...
 ```
 
-Os nomes das pastas de sources e artifacts sao configuraveis via `project.json`. Exemplo do projeto ARC:
+Os nomes das pastas de sources e artifacts sao configuraveis via `project.json`. Exemplo do projeto Agentic Workflow:
 
 ```
 context/projects/arc/
@@ -32,8 +32,8 @@ context/projects/arc/
 
 ```json
 {
-  "name": "ARC",
-  "slug": "arc",
+  "name": "Agentic Workflow",
+  "slug": "aw",
   "description": "Add/Relate/Communicate - Interface de gestao de projetos",
   "tags": ["product", "frontend", "v0"],
   "source_folder": "sources",

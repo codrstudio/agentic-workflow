@@ -21,6 +21,11 @@ npm run typecheck    # tsc --noEmit
 
 There are no test scripts configured. No linter is configured.
 
+## Project Hygiene
+
+- **Não macule a estrutura de pastas do projeto com arquivos temporários.**
+- **Arquivos temporários vão em .tmp/**
+
 ## Architecture
 
 ### Monorepo Structure
@@ -146,7 +151,7 @@ Each spawned `claude` process is a direct child of the engine process. Steps exe
 - Strict mode with `noUncheckedIndexedAccess`
 - Node >= 20 required
 
-## Project Hygiene
+## Mobile Navigation
 
-- **Temporary files go in `.tmp/`** — scripts, test outputs, browser sessions, etc. Never clutter the root. Add `.tmp/` to `.gitignore`.
+**BottomNav** (`apps/web/src/components/layout/bottom-nav.tsx`): Displays up to 4 shortcuts from sidebar items + a menu button. Menu opens drawer with all options + "Customize" page to select which 4 shortcuts appear in the bar. Syncs dynamically with sidebar changes.
 

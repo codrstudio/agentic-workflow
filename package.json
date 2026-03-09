@@ -1,5 +1,5 @@
 {
-  "name": "agentic-workflow",
+  "name": "aw",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -7,6 +7,8 @@
   "scripts": {
     "build": "npm -w @aw/engine run build",
     "typecheck": "npm -w @aw/engine run typecheck",
+    "dev:server": "npm -w @arc/server run dev",
+    "dev:web": "npm -w @arc/web run dev",
     "dev:all": "dotenv -e .env -- concurrently \"npm -w @aw/engine run dev\" \"npm -w @arc/web run dev\" \"npm -w @arc/server run dev\"",
     "aw:run": "dotenv -e .env -- node apps/engine/dist/cli.js",
     "aw:status": "dotenv -e .env -- node apps/engine/dist/status.js",
@@ -16,6 +18,7 @@
     "env:show": "dotenv -e .env -p SERVER_PORT && dotenv -e .env -p WEB_PORT && dotenv -e .env -p PREFIX"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "concurrently": "^8.2.2",
     "dotenv-cli": "^7.4.2",
     "playwright": "^1.58.2"

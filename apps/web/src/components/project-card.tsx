@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import { Calendar, FileText, MessageSquare, Package, Pencil, Trash2 } from "lucide-react";
 import type { Project } from "@/hooks/use-projects";
 import { cn } from "@/lib/utils";
@@ -26,11 +25,9 @@ function truncate(text: string | undefined, maxLen: number): string {
 
 export function ProjectCard({ project, className, onEdit, onDelete }: ProjectCardProps) {
   return (
-    <Link
-      to="/projects/$projectId"
-      params={{ projectId: project.slug }}
+    <div
       className={cn(
-        "group relative flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:shadow-md",
+        "group relative flex flex-col gap-3 rounded-lg border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 hover:shadow-md cursor-pointer",
         className,
       )}
     >
@@ -93,6 +90,6 @@ export function ProjectCard({ project, className, onEdit, onDelete }: ProjectCar
           <span>{formatDate(project.created_at)}</span>
         </span>
       </div>
-    </Link>
+    </div>
   );
 }

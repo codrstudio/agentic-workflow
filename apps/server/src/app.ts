@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { requestLogger } from "./middleware/request-logger.js";
 import { errorHandler } from "./middleware/error-handler.js";
+import { auth } from "./routes/auth.js";
 import { health } from "./routes/health.js";
 import { projects } from "./routes/projects.js";
 import { sources } from "./routes/sources.js";
@@ -57,6 +58,7 @@ import { reviewPipelines } from "./routes/review-pipelines.js";
 import { maturity } from "./routes/maturity.js";
 import { traces } from "./routes/traces.js";
 import { verificationRecords } from "./routes/verification-records.js";
+import { events } from "./routes/events.js";
 
 const app = new Hono();
 
@@ -68,6 +70,7 @@ app.use("*", requestLogger());
 app.onError(errorHandler);
 
 // Routes
+app.route("/api/v1", auth);
 app.route("/api/v1", health);
 app.route("/api/v1", projects);
 app.route("/api/v1", sources);
@@ -123,5 +126,6 @@ app.route("/api/v1", reviewPipelines);
 app.route("/api/v1", maturity);
 app.route("/api/v1", traces);
 app.route("/api/v1", verificationRecords);
+app.route("/api/v1", events);
 
 export { app };

@@ -30,7 +30,7 @@ export function ProjectDeleteDialog({
     deleteMutation.mutate(project.slug, {
       onSuccess: () => {
         onOpenChange(false);
-        navigate({ to: "/projects" });
+        navigate({ to: "/web/projects" });
       },
     });
   }

@@ -1,141 +1,66 @@
-import { useState } from "react";
-import { Home, FolderKanban, Settings, Plus, FolderOpen, Activity } from "lucide-react";
-import { Link, useRouterState } from "@tanstack/react-router";
-import { useProjects } from "@/hooks/use-projects";
-import { ProjectFormDialog } from "@/components/project-form-dialog";
+import { Link, useMatchRoute } from "@tanstack/react-router";
+import {
+  LayoutDashboard,
+  FolderOpen,
+  UserCircle,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupAction,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarRail,
 } from "@/components/ui/sidebar";
+import { useAuthStore } from "@/lib/auth";
 
 const navItems = [
-  { title: "Home", icon: Home, to: "/" as const },
-  { title: "Projects", icon: FolderKanban, to: "/projects" as const },
-  { title: "Harness", icon: Activity, to: "/harness" as const },
-  { title: "Settings", icon: Settings, to: "/projects" as const },
-];
+  { label: "Dashboard", icon: LayoutDashboard, to: "/web" as const },
+  { label: "Projetos", icon: FolderOpen, to: "/web/projects" as const },
+] as const;
 
 export function AppSidebar() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const { data: projects } = useProjects();
-  const [createOpen, setCreateOpen] = useState(false);
-
-  const recentProjects = projects?.slice(0, 5) ?? [];
-
-  // Extract active project slug from pathname like /projects/my-slug/...
-  const projectSlugMatch = pathname.match(/^\/projects\/([^/]+)/);
-  const activeSlug = projectSlugMatch?.[1];
+  const matchRoute = useMatchRoute();
+  const user = useAuthStore((s) => s.user);
+  const isAccountActive = !!matchRoute({ to: "/web/account" });
 
   return (
-    <>
-      <Sidebar collapsible="icon">
-        <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" tooltip="ARC" asChild>
-                <Link to="/">
-                  <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg text-xs font-bold">
-                    A
-                  </div>
-                  <span className="font-semibold">ARC</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarHeader>
-
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {navItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      isActive={pathname === item.to || pathname.startsWith(item.to + "/")}
-                      asChild
-                    >
-                      <Link to={item.to}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
+    <Sidebar>
+      <SidebarHeader className="px-4 py-3">
+        <span className="text-lg font-semibold tracking-tight">Agentic Workflow</span>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => {
+                const isActive = !!matchRoute({ to: item.to, fuzzy: item.to !== "/web" });
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    <SidebarMenuButton isActive={isActive} render={<Link to={item.to} />}>
+                      <item.icon />
+                      <span>{item.label}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          <SidebarGroup>
-            <SidebarGroupLabel>Projetos</SidebarGroupLabel>
-            <SidebarGroupAction
-              title="Criar projeto"
-              onClick={() => setCreateOpen(true)}
-            >
-              <Plus />
-              <span className="sr-only">Criar projeto</span>
-            </SidebarGroupAction>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {recentProjects.map((project) => (
-                  <SidebarMenuItem key={project.slug}>
-                    <SidebarMenuButton
-                      tooltip={project.name}
-                      isActive={activeSlug === project.slug}
-                      asChild
-                    >
-                      <Link to="/projects/$projectId" params={{ projectId: project.slug }}>
-                        <FolderOpen />
-                        <span>{project.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    tooltip="Ver todos"
-                    asChild
-                    className="text-muted-foreground"
-                  >
-                    <Link to="/projects">
-                      <FolderKanban />
-                      <span>Ver todos</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-
-        <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" tooltip="User">
-                <div className="bg-muted flex aspect-square size-8 items-center justify-center rounded-lg text-xs">
-                  U
-                </div>
-                <span className="text-sm">User</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
-
-        <SidebarRail />
-      </Sidebar>
-
-      <ProjectFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-    </>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton isActive={isAccountActive} render={<Link to="/web/account" />}>
+              <UserCircle />
+              <span className="flex-1 truncate">{user?.displayName ?? "Minha Conta"}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   );
 }
