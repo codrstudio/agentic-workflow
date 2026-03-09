@@ -583,12 +583,32 @@ function printFeatures(features: Feature[], sprintNumber: number): void {
   }
 }
 
-function printLastMessages(messages: AgentMessage[], sourceLabel: string): void {
+function printLastMessages(messages: AgentMessage[], sourceLabel: string, freshness?: { mtime: Date; isLive: boolean }): void {
   if (messages.length === 0) return;
 
-  const label = sourceLabel === 'engine' ? 'last engine output' : `last agent output (${sourceLabel})`;
+  const isEngine = sourceLabel.includes('engine');
+  let label: string;
+  if (isEngine) {
+    label = `last ${sourceLabel}`;
+  } else {
+    label = `last agent output (${sourceLabel})`;
+  }
+
+  const now = Date.now();
+  let freshnessLabel = '';
+  if (freshness) {
+    const ageMs = now - freshness.mtime.getTime();
+    if (ageMs < 1000) {
+      freshnessLabel = chalk.green(' ✓ live');
+    } else if (ageMs < 10000) {
+      freshnessLabel = chalk.yellow(` (${Math.round(ageMs / 1000)}s ago)`);
+    } else {
+      freshnessLabel = chalk.red(` (${Math.round(ageMs / 1000)}s ago)`);
+    }
+  }
+
   console.log('');
-  console.log(`  ${chalk.gray(label)}`);
+  console.log(`  ${chalk.gray(label)}${freshnessLabel}`);
 
   for (let i = 0; i < messages.length; i++) {
     const text = truncate(messages[i]!.text, 80);
@@ -723,17 +743,21 @@ async function main(): Promise<void> {
     const spawnInfo = await findActiveSpawn(activeStep, currentWaveDir);
     if (spawnInfo) {
       const messages = await readLastMessages(spawnInfo.jsonlPath, 3);
-      printLastMessages(messages, spawnInfo.label);
+      const agentMtime = await getFileMtime(spawnInfo.jsonlPath);
+      printLastMessages(messages, spawnInfo.label, agentMtime ? { mtime: agentMtime, isLive: true } : undefined);
     }
     const activity = await getActivityInfo(activeStep, spawnInfo?.jsonlPath ?? null, spawnInfo?.spawnJsonPath ?? null);
     printActivitySummary(activity, activeStep.loop);
   }
 
   // ── Print engine log (always, from current wave) ──
+  // Note: Engine log is event history from workflow transitions, not live during agent work
   const engineLogPath = join(currentWaveDir, 'engine.log');
   const engineMessages = await readLastEngineMessages(engineLogPath, 3);
   if (engineMessages.length > 0) {
-    printLastMessages(engineMessages, 'engine');
+    // Don't show freshness for engine log - it's expected to be "old" while agent is running
+    // The important thing is that the agent output is live
+    printLastMessages(engineMessages, 'engine (history)', undefined);
   }
 
   // ── Section 4: Wave history ──
