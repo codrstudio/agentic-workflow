@@ -1,0 +1,272 @@
+[
+  {
+    "id": "F-001",
+    "name": "Hub Package Scaffolding",
+    "description": "Criar apps/hub/ com package.json, tsconfig.json, tsup.config.ts. Registrar no root workspaces.",
+    "status": "pending",
+    "priority": 1,
+    "agent": "coder",
+    "dependencies": [],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md"
+  },
+  {
+    "id": "F-002",
+    "name": "Hono Server + Middleware",
+    "description": "Criar app Hono com CORS, JSON body parser, request logger. Entry point src/index.ts que inicia o servidor.",
+    "status": "pending",
+    "priority": 2,
+    "agent": "coder",
+    "dependencies": ["F-001"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md"
+  },
+  {
+    "id": "F-003",
+    "name": "Health Check Endpoint",
+    "description": "GET /api/v1/health retornando { status, uptime, timestamp }. Estrutura modular de rotas em src/routes/.",
+    "status": "pending",
+    "priority": 3,
+    "agent": "coder",
+    "dependencies": ["F-002"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-001-hub-server-foundation.md"
+  },
+  {
+    "id": "F-004",
+    "name": "Auth Backend",
+    "description": "Endpoints POST /auth/login, GET /auth/me, POST /auth/logout. JWT em cookie httpOnly. Middleware de proteção de rotas. Variáveis SYSUSER/SYSPASS/SYSROLE.",
+    "status": "pending",
+    "priority": 4,
+    "agent": "coder",
+    "dependencies": ["F-003"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md"
+  },
+  {
+    "id": "F-005",
+    "name": "Auth Frontend",
+    "description": "Página /login com formulário. AuthProvider React com estado do usuário. Redirect para login quando 401. Botão Sair integrado. Vite proxy config para /api.",
+    "status": "pending",
+    "priority": 5,
+    "agent": "coder",
+    "dependencies": ["F-004"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md"
+  },
+  {
+    "id": "F-006",
+    "name": "TanStack Router Setup",
+    "description": "Instalar e configurar TanStack Router. Definir todas as rotas (stubs vazios). Route guard que redireciona para /login se não autenticado.",
+    "status": "pending",
+    "priority": 6,
+    "agent": "coder",
+    "dependencies": ["F-005"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
+  },
+  {
+    "id": "F-007",
+    "name": "AppShell + Sidebar",
+    "description": "Componente AppShell com sidebar shadcn retrátil. Items de navegação com ícones. Layout sem topbar.",
+    "status": "pending",
+    "priority": 7,
+    "agent": "coder",
+    "dependencies": ["F-006"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
+  },
+  {
+    "id": "F-008",
+    "name": "Sidebar User Menu + Theme Switch",
+    "description": "Menu do usuário na base do sidebar: avatar, username, theme toggle (light/dark/system com persistência), botão Sair.",
+    "status": "pending",
+    "priority": 8,
+    "agent": "coder",
+    "dependencies": ["F-007"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
+  },
+  {
+    "id": "F-009",
+    "name": "BottomNav Mobile",
+    "description": "BottomNav visível em viewport < 768px. Atalhos configuráveis. Drawer com menu completo + página Customizar.",
+    "status": "pending",
+    "priority": 9,
+    "agent": "coder",
+    "dependencies": ["F-007"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
+  },
+  {
+    "id": "F-010",
+    "name": "Breadcrumb + Navegação Linkada",
+    "description": "Componente Breadcrumb reutilizável. Colapso mobile com drawer. Componente LinkableText para F-XXX / step-XX. Transições framer-motion entre páginas.",
+    "status": "pending",
+    "priority": 10,
+    "agent": "coder",
+    "dependencies": ["F-006"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
+  },
+  {
+    "id": "F-011",
+    "name": "Projects & Workflows API",
+    "description": "Endpoints GET /projects, GET /projects/:slug, GET /workflows. Leitura do filesystem para listar projetos e workflows disponíveis.",
+    "status": "pending",
+    "priority": 11,
+    "agent": "coder",
+    "dependencies": ["F-003"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
+  },
+  {
+    "id": "F-012",
+    "name": "Projects List Page",
+    "description": "Página /projects com cards clicáveis. Cada card mostra nome, slug, status. Navegação para detalhe.",
+    "status": "pending",
+    "priority": 12,
+    "agent": "coder",
+    "dependencies": ["F-007", "F-011"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
+  },
+  {
+    "id": "F-013",
+    "name": "Project Execution API",
+    "description": "Endpoints POST /projects/:slug/runs, GET .../runs, DELETE .../runs/:runId. Spawn do CLI da engine. Tracking de PID e status em memória.",
+    "status": "pending",
+    "priority": 13,
+    "agent": "coder",
+    "dependencies": ["F-011"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
+  },
+  {
+    "id": "F-014",
+    "name": "Project Detail + Execution UI",
+    "description": "Página /projects/:slug com info do projeto, formulário de execução (select workflow, input plano, botão executar), lista de runs ativas com status e botão parar.",
+    "status": "pending",
+    "priority": 14,
+    "agent": "coder",
+    "dependencies": ["F-012", "F-013"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
+  },
+  {
+    "id": "F-015",
+    "name": "SSE Endpoint + Event Bus",
+    "description": "GET /api/v1/sse com streaming SSE. EventEmitter interno no hub. Keepalive 30s. Integração com child process da engine.",
+    "status": "pending",
+    "priority": 15,
+    "agent": "coder",
+    "dependencies": ["F-003", "F-013"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
+  },
+  {
+    "id": "F-016",
+    "name": "Agent Actions Endpoints",
+    "description": "POST /api/v1/hub/projects/:slug/agent-actions e PATCH .../agent-actions/:id. Armazenamento em memória. Emissão de eventos SSE.",
+    "status": "pending",
+    "priority": 16,
+    "agent": "coder",
+    "dependencies": ["F-015"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
+  },
+  {
+    "id": "F-017",
+    "name": "useSSE Hook + Connection Indicator",
+    "description": "Hook React useSSE() com conexão, reconexão backoff, ring buffer, subscribe por tipo. Componente indicador de status SSE no layout.",
+    "status": "pending",
+    "priority": 17,
+    "agent": "coder",
+    "dependencies": ["F-015", "F-007"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
+  },
+  {
+    "id": "F-018",
+    "name": "Waves & Steps API",
+    "description": "Endpoints GET /projects/:slug/waves, GET .../waves/:waveNumber, GET .../waves/:waveNumber/loop. Leitura de spawn.json, loop.json, features.json do filesystem.",
+    "status": "pending",
+    "priority": 18,
+    "agent": "coder",
+    "dependencies": ["F-011"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
+  },
+  {
+    "id": "F-019",
+    "name": "Wave Timeline UI",
+    "description": "Página /projects/:slug/waves/:waveNumber com timeline vertical de steps. Ícone de status, nome da task, tipo, duração. Steps clicáveis. Progress bar da wave.",
+    "status": "pending",
+    "priority": 19,
+    "agent": "coder",
+    "dependencies": ["F-014", "F-018"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
+  },
+  {
+    "id": "F-020",
+    "name": "Feature Loop Dashboard",
+    "description": "Componente FeatureLoopDashboard com progress ring, lista de features com badges de status, feature atual destacada, contadores pass/fail/skip. Atualização reativa via SSE.",
+    "status": "pending",
+    "priority": 20,
+    "agent": "coder",
+    "dependencies": ["F-019", "F-017"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-006-wave-monitoring.md"
+  },
+  {
+    "id": "F-021",
+    "name": "Operator Messages API",
+    "description": "POST /projects/:slug/messages (enfileira no operator-queue.jsonl) e GET /projects/:slug/messages (lista com status). Emissão de evento SSE ao enfileirar.",
+    "status": "pending",
+    "priority": 21,
+    "agent": "coder",
+    "dependencies": ["F-003", "F-015"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md"
+  },
+  {
+    "id": "F-022",
+    "name": "Console UI",
+    "description": "Página /console com select de projeto, campo de texto com focus automático, botão enviar, lista de mensagens com badges de status, timestamps relativos. Atualização reativa via SSE.",
+    "status": "pending",
+    "priority": 22,
+    "agent": "coder",
+    "dependencies": ["F-021", "F-007", "F-017"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md"
+  },
+  {
+    "id": "F-023",
+    "name": "Step Detail & Log API",
+    "description": "Endpoints GET .../steps/:stepIndex (metadata do spawn.json) e GET .../steps/:stepIndex/log (linhas parseadas com paginação offset/limit). Parser de spawn.jsonl por tipo de mensagem.",
+    "status": "pending",
+    "priority": 23,
+    "agent": "coder",
+    "dependencies": ["F-018"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md"
+  },
+  {
+    "id": "F-024",
+    "name": "Log Viewer UI",
+    "description": "Página de detalhe do step com header de metadata. LogViewer virtualizado para performance com 1000+ linhas. Highlight por tipo de mensagem. Botão scroll-to-bottom. Busca textual.",
+    "status": "pending",
+    "priority": 24,
+    "agent": "coder",
+    "dependencies": ["F-023", "F-019"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-008-log-viewer.md"
+  },
+  {
+    "id": "F-025",
+    "name": "Event Feed Page",
+    "description": "Página /events com feed de EngineEvents em tempo real via useSSE. Lista cronológica reversa. Badges de tipo coloridos por categoria. Auto-scroll com toggle pause. Limite 500 eventos.",
+    "status": "pending",
+    "priority": 25,
+    "agent": "coder",
+    "dependencies": ["F-017", "F-007"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
+  },
+  {
+    "id": "F-026",
+    "name": "Event Filters",
+    "description": "Filtros para a página /events: multi-select por tipo de evento, select por projeto, busca textual. Persistência de filtros em query params da URL.",
+    "status": "pending",
+    "priority": 26,
+    "agent": "coder",
+    "dependencies": ["F-025"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
+  },
+  {
+    "id": "F-027",
+    "name": "Agent Actions List",
+    "description": "Endpoint GET /projects/:slug/agent-actions. Componente AgentActionsList na página do projeto com tabela de actions, badges de status, duração, preview expansível.",
+    "status": "pending",
+    "priority": 27,
+    "agent": "coder",
+    "dependencies": ["F-016", "F-014"],
+    "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
+  }
+]
