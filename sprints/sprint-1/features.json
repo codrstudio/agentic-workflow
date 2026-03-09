@@ -3,11 +3,12 @@
     "id": "F-001",
     "name": "Hub Package Scaffolding",
     "description": "Criar apps/hub/ com package.json, tsconfig.json, tsup.config.ts. Registrar no root workspaces. Entry point vazio src/index.ts.",
-    "status": "pending",
+    "status": "passing",
     "priority": 1,
     "agent": "coder",
     "task": "vibe-code",
     "dependencies": [],
+    "completed_at": "2026-03-09T18:50:00.000Z",
     "tests": [
       "apps/hub/package.json existe com name @aw/hub",
       "apps/hub/tsconfig.json existe",
@@ -25,7 +26,9 @@
     "priority": 2,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-001"],
+    "dependencies": [
+      "F-001"
+    ],
     "tests": [
       "apps/hub/src/index.ts exporta e inicia app Hono",
       "CORS configurado para localhost:5173",
@@ -40,11 +43,13 @@
     "id": "F-003",
     "name": "Health Check Endpoint",
     "description": "GET /api/v1/health retornando { status, uptime, timestamp }. Estrutura modular de rotas em src/routes/.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 3,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-002"],
+    "dependencies": [
+      "F-002"
+    ],
     "tests": [
       "GET /api/v1/health retorna 200 com JSON contendo status, uptime e timestamp",
       "Rotas organizadas em apps/hub/src/routes/",
@@ -56,11 +61,13 @@
     "id": "F-004",
     "name": "Auth Backend",
     "description": "Endpoints POST /api/v1/auth/login, GET /api/v1/auth/me, POST /api/v1/auth/logout. JWT em cookie httpOnly. Middleware de proteção de rotas. Variáveis SYSUSER/SYSPASS/SYSROLE.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 4,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-003"],
+    "dependencies": [
+      "F-003"
+    ],
     "tests": [
       "POST /api/v1/auth/login com credenciais SYSUSER/SYSPASS retorna 200 e Set-Cookie com JWT httpOnly",
       "POST /api/v1/auth/login com credenciais erradas retorna 401",
@@ -75,11 +82,13 @@
     "id": "F-005",
     "name": "Auth Frontend",
     "description": "Página /login com formulário username+senha. AuthProvider React com estado do usuário. Redirect para /login quando 401. Botão Sair integrado. Vite proxy config para /api.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 5,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-004"],
+    "dependencies": [
+      "F-004"
+    ],
     "tests": [
       "/login renderiza formulário com campos username e password",
       "Submit com credenciais válidas redireciona para /projects",
@@ -95,11 +104,13 @@
     "id": "F-006",
     "name": "TanStack Router Setup",
     "description": "Instalar e configurar TanStack Router. Definir todas as rotas (stubs vazios). Route guard que redireciona para /login se não autenticado.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 6,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-005"],
+    "dependencies": [
+      "F-005"
+    ],
     "tests": [
       "TanStack Router instalado e configurado como router principal",
       "Rotas definidas: /, /login, /projects, /projects/:slug, /projects/:slug/waves/:waveNumber, /projects/:slug/waves/:waveNumber/steps/:stepIndex, /console, /events",
@@ -114,11 +125,13 @@
     "id": "F-007",
     "name": "AppShell + Sidebar",
     "description": "Componente AppShell com sidebar shadcn retrátil. Items de navegação com ícones (Projetos/FolderKanban, Console/Terminal, Eventos/Activity). Layout sem topbar. Conteúdo 100% largura disponível.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 7,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-006"],
+    "dependencies": [
+      "F-006"
+    ],
     "tests": [
       "AppShell renderiza sidebar + área de conteúdo",
       "Sidebar exibe items: Projetos, Console, Eventos com ícones Lucide",
@@ -133,11 +146,13 @@
     "id": "F-008",
     "name": "Sidebar User Menu + Theme Switch",
     "description": "Menu do usuário na base do sidebar: avatar, username (do auth context), theme toggle (light/dark/system com persistência localStorage), botão Sair.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 8,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-007"],
+    "dependencies": [
+      "F-007"
+    ],
     "tests": [
       "Base do sidebar exibe avatar e username do usuário autenticado",
       "Theme toggle alterna entre light, dark e system",
@@ -151,11 +166,13 @@
     "id": "F-009",
     "name": "BottomNav Mobile",
     "description": "BottomNav visível em viewport < 768px, oculto em desktop. Até 4 atalhos configuráveis do sidebar. Botão menu abre drawer (vaul) com todos os items + página Customizar para selecionar atalhos.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 9,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-007"],
+    "dependencies": [
+      "F-007"
+    ],
     "tests": [
       "BottomNav visível apenas em viewport < 768px",
       "Exibe até 4 atalhos de navegação",
@@ -170,11 +187,13 @@
     "id": "F-010",
     "name": "Breadcrumb + Navegação Linkada",
     "description": "Componente Breadcrumb reutilizável presente em todas as páginas exceto /projects. Desktop: horizontal completo. Mobile: último nível + '...' abre drawer. Componente LinkableText para F-XXX / step-XX clicáveis. Transições framer-motion entre páginas.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 10,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-006"],
+    "dependencies": [
+      "F-006"
+    ],
     "tests": [
       "Breadcrumb renderiza em todas as páginas exceto /projects",
       "Desktop: breadcrumb horizontal completo com todos os níveis",
@@ -189,11 +208,13 @@
     "id": "F-011",
     "name": "Projects & Workflows API",
     "description": "Endpoints GET /api/v1/projects (lista projetos lendo context/projects/*/project.json), GET /api/v1/projects/:slug (detalhe com info de workspace), GET /api/v1/workflows (lista workflows lendo context/workflows/*.yaml). Raiz do monorepo via AW_ROOT ou process.cwd().",
-    "status": "pending",
+    "status": "blocked",
     "priority": 11,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-003"],
+    "dependencies": [
+      "F-003"
+    ],
     "tests": [
       "GET /api/v1/projects retorna array de projetos com name e slug",
       "GET /api/v1/projects/:slug retorna detalhe do projeto incluindo info de workspace",
@@ -208,11 +229,14 @@
     "id": "F-012",
     "name": "Projects List Page",
     "description": "Página /projects com cards clicáveis. Cada card mostra nome, slug, status. Click navega para /projects/:slug.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 12,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-007", "F-011"],
+    "dependencies": [
+      "F-007",
+      "F-011"
+    ],
     "tests": [
       "/projects renderiza cards para cada projeto retornado pela API",
       "Cada card exibe nome, slug e indicador de status",
@@ -226,11 +250,13 @@
     "id": "F-013",
     "name": "Project Execution API",
     "description": "Endpoints POST /api/v1/projects/:slug/runs (spawna CLI da engine como child process), GET .../runs (lista execuções ativas/recentes), DELETE .../runs/:runId (SIGTERM ao processo). Estado em memória (Map). Monitora exit do child process.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 13,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-011"],
+    "dependencies": [
+      "F-011"
+    ],
     "tests": [
       "POST /api/v1/projects/:slug/runs aceita workflow slug e spawna processo da engine",
       "Resposta inclui runId e PID do processo spawnado",
@@ -245,11 +271,14 @@
     "id": "F-014",
     "name": "Project Detail + Execution UI",
     "description": "Página /projects/:slug com info do projeto, formulário de execução (select workflow populated da API, input opcional de plano, botão Executar), lista de runs ativas com PID, status e botão Parar.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 14,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-012", "F-013"],
+    "dependencies": [
+      "F-012",
+      "F-013"
+    ],
     "tests": [
       "/projects/:slug renderiza informações do projeto (nome, slug)",
       "Select de workflow populado com workflows da API",
@@ -264,11 +293,14 @@
     "id": "F-015",
     "name": "SSE Endpoint + Event Bus",
     "description": "GET /api/v1/sse com streaming SSE (headers text/event-stream). EventEmitter interno no hub para broadcast. Keepalive 30s. Integração com child process da engine para captura de eventos stdout.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 15,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-003", "F-013"],
+    "dependencies": [
+      "F-003",
+      "F-013"
+    ],
     "tests": [
       "GET /api/v1/sse retorna response com Content-Type text/event-stream",
       "Conexão SSE mantida aberta com keepalive a cada 30s",
@@ -283,11 +315,13 @@
     "id": "F-016",
     "name": "Agent Actions Endpoints",
     "description": "POST /api/v1/hub/projects/:slug/agent-actions (armazena action em memória + emite SSE agent:action:start). PATCH .../agent-actions/:id (atualiza + emite SSE agent:action:end). Compatível com AgentActionReporter da engine.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 16,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-015"],
+    "dependencies": [
+      "F-015"
+    ],
     "tests": [
       "POST /api/v1/hub/projects/:slug/agent-actions armazena action e retorna ID",
       "POST emite evento SSE agent:action:start",
@@ -302,11 +336,14 @@
     "id": "F-017",
     "name": "useSSE Hook + Connection Indicator",
     "description": "Hook React useSSE() com conexão a /api/v1/sse, reconexão com backoff exponencial, ring buffer de últimos N eventos, API de subscribe por tipo de evento. Componente indicador visual de status SSE (connected/reconnecting/disconnected) no layout.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 17,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-015", "F-007"],
+    "dependencies": [
+      "F-015",
+      "F-007"
+    ],
     "tests": [
       "useSSE() conecta ao /api/v1/sse e recebe eventos",
       "Reconexão automática com backoff exponencial ao perder conexão",
@@ -321,11 +358,13 @@
     "id": "F-018",
     "name": "Waves & Steps API",
     "description": "Endpoints GET /api/v1/projects/:slug/waves (lista waves com steps), GET .../waves/:waveNumber (wave detalhada), GET .../waves/:waveNumber/loop (estado do feature loop). Leitura de spawn.json, loop.json, features.json do filesystem.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 18,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-011"],
+    "dependencies": [
+      "F-011"
+    ],
     "tests": [
       "GET /api/v1/projects/:slug/waves retorna array de waves com steps resumidos",
       "GET .../waves/:waveNumber retorna wave detalhada com lista de steps e status derivado",
@@ -339,11 +378,14 @@
     "id": "F-019",
     "name": "Wave Timeline UI",
     "description": "Página /projects/:slug/waves/:waveNumber com timeline vertical de steps. Cada step: ícone de status, nome da task, tipo, duração. Steps clicáveis navegam para detalhe. Progress bar da wave. Seção de waves na página do projeto com cards/rows.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 19,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-014", "F-018"],
+    "dependencies": [
+      "F-014",
+      "F-018"
+    ],
     "tests": [
       "/projects/:slug/waves/:waveNumber renderiza timeline vertical de steps",
       "Cada step exibe ícone de status, nome da task, tipo e duração",
@@ -358,11 +400,14 @@
     "id": "F-020",
     "name": "Feature Loop Dashboard",
     "description": "Componente FeatureLoopDashboard com progress ring/bar, lista de features com badges de status (passing/failing/skipped/pending/blocked), feature atual destacada, contadores pass/fail/skip. Atualização reativa via SSE. Layout responsivo mobile.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 20,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-019", "F-017"],
+    "dependencies": [
+      "F-019",
+      "F-017"
+    ],
     "tests": [
       "FeatureLoopDashboard renderiza progress ring/bar com percentual",
       "Lista de features com badges coloridos por status",
@@ -377,11 +422,14 @@
     "id": "F-021",
     "name": "Operator Messages API",
     "description": "POST /api/v1/projects/:slug/messages (enfileira mensagem no operator-queue.jsonl replicando lógica do OperatorQueue.enqueue()). GET /api/v1/projects/:slug/messages (lista mensagens com status). Emissão de evento SSE ao enfileirar.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 21,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-003", "F-015"],
+    "dependencies": [
+      "F-003",
+      "F-015"
+    ],
     "tests": [
       "POST /api/v1/projects/:slug/messages aceita body com content e enfileira em operator-queue.jsonl",
       "GET /api/v1/projects/:slug/messages retorna array de mensagens com status (queued/processing/done)",
@@ -395,11 +443,15 @@
     "id": "F-022",
     "name": "Console UI",
     "description": "Página /console com select de projeto ativo, campo de texto com focus automático (Enter para enviar), botão enviar, lista de mensagens em ordem cronológica reversa com badges de status (queued amarelo, processing azul, done verde), timestamps relativos. Atualização reativa via SSE.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 22,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-021", "F-007", "F-017"],
+    "dependencies": [
+      "F-021",
+      "F-007",
+      "F-017"
+    ],
     "tests": [
       "/console renderiza com select de projeto no topo",
       "Campo de texto tem focus automático ao carregar",
@@ -415,11 +467,13 @@
     "id": "F-023",
     "name": "Step Detail & Log API",
     "description": "Endpoints GET /api/v1/projects/:slug/waves/:waveNumber/steps/:stepIndex (metadados do spawn.json) e GET .../steps/:stepIndex/log (linhas parseadas com paginação offset/limit). Parser de spawn.jsonl classificando por tipo (system, assistant, tool_use, tool_result, user).",
-    "status": "pending",
+    "status": "blocked",
     "priority": 23,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-018"],
+    "dependencies": [
+      "F-018"
+    ],
     "tests": [
       "GET .../steps/:stepIndex retorna metadata do spawn.json (task, agent, timing, exit_code)",
       "GET .../steps/:stepIndex/log retorna array de linhas parseadas",
@@ -434,11 +488,14 @@
     "id": "F-024",
     "name": "Log Viewer UI",
     "description": "Página /projects/:slug/waves/:waveNumber/steps/:stepIndex com header de metadata (task, agent, timing, exit code, badge success/failure). LogViewer virtualizado (react-window ou similar) para 1000+ linhas. Highlight por tipo: assistant azul, tool_use roxo, tool_result cinza, system amarelo, user verde. Botão scroll-to-bottom. Busca textual client-side.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 24,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-023", "F-019"],
+    "dependencies": [
+      "F-023",
+      "F-019"
+    ],
     "tests": [
       "Página renderiza header com task, agent, timing e exit code",
       "Badge de success/failure baseado no exit code",
@@ -453,11 +510,14 @@
     "id": "F-025",
     "name": "Event Feed Page",
     "description": "Página /events com feed de EngineEvents em tempo real via useSSE. Lista cronológica reversa. Cada evento: timestamp (relativo + absoluto no hover), tipo (badge colorido por categoria: workflow azul, feature verde, agent roxo, loop laranja, gutter vermelho, queue amarelo), dados resumidos. Auto-scroll com toggle pause. Limite 500 eventos em memória.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 25,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-017", "F-007"],
+    "dependencies": [
+      "F-017",
+      "F-007"
+    ],
     "tests": [
       "/events renderiza feed de eventos em tempo real via SSE",
       "Eventos listados em ordem cronológica reversa",
@@ -472,11 +532,13 @@
     "id": "F-026",
     "name": "Event Filters",
     "description": "Filtros para a página /events: multi-select por tipo de evento (checkboxes), select por projeto, busca textual. Filtros persistem em query params da URL para sharing/bookmarking.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 26,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-025"],
+    "dependencies": [
+      "F-025"
+    ],
     "tests": [
       "Multi-select de tipo de evento filtra feed por tipos selecionados",
       "Select de projeto filtra eventos de um projeto específico",
@@ -491,11 +553,14 @@
     "id": "F-027",
     "name": "Agent Actions List",
     "description": "Endpoint GET /api/v1/projects/:slug/agent-actions (lista actions em memória). Componente AgentActionsList na página /projects/:slug com tabela: status badge, task, agent, feature, duração, preview. Actions running com indicador animado. Click expande preview do output. Ordenação por data (mais recente primeiro).",
-    "status": "pending",
+    "status": "blocked",
     "priority": 27,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-016", "F-014"],
+    "dependencies": [
+      "F-016",
+      "F-014"
+    ],
     "tests": [
       "GET /api/v1/projects/:slug/agent-actions retorna array de actions",
       "AgentActionsList renderiza na página do projeto",
