@@ -1,0 +1,137 @@
+[
+  {
+    "id": "D-001",
+    "type": "feature",
+    "description": "Backend Hono server scaffolding — servidor HTTP com estrutura de rotas, middleware CORS, health-check e integração com a engine",
+    "score": 10,
+    "justification": "Base de toda a arquitetura hub. AgentActionReporter já chama endpoints REST do hub e SSEAdapter precisa de um servidor HTTP. Nada funciona sem isso.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-002",
+    "type": "feature",
+    "description": "Autenticação via SYSUSER/SYSPASS/SYSROLE — login simples, sessão JWT ou cookie, proteção de rotas frontend e backend",
+    "score": 9,
+    "justification": "Requisito explícito do TASK.md. Segurança básica antes de expor controle da engine.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-003",
+    "type": "feature",
+    "description": "Layout Foundation — AppShell com sidebar shadcn retrátil, BottomNav mobile, menu do usuário na base do sidebar (avatar, tema, sair), roteamento TanStack Router",
+    "score": 9,
+    "justification": "TASK.md proíbe topbar e exige sidebar robusto. BottomNav para mobile. Sem layout, nenhuma página é renderizável. Prerequisito de todas as features de UI.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-004",
+    "type": "feature",
+    "description": "Listagem dinâmica de projetos e workflows via combos — hub lê context/projects/ e context/workflows/ e expõe slugs para o frontend",
+    "score": 8,
+    "justification": "TASK.md pede explicitamente combos para evitar memorização de slugs. Prerequisito para D-005.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-005",
+    "type": "feature",
+    "description": "Execução de projeto via UI — form com selects de projeto/workflow/plano, botão executar, spawn do CLI da engine, exibição de PID e status do processo",
+    "score": 8,
+    "justification": "Core feature #1 do TASK.md. Substituição da linha de comando por interface visual.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-006",
+    "type": "feature",
+    "description": "Monitoramento de wave ativa via REST — equivalente web ao aw:status: lista waves, steps com status/timing, loop state, feature progress",
+    "score": 8,
+    "justification": "Core feature #3 do TASK.md. Visibilidade imediata do estado do sistema. Sem polling.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-007",
+    "type": "feature",
+    "description": "Integração SSE da engine → frontend — hub instancia SSEAdapter+Notifier, conecta ao processo da engine, expõe /sse para o frontend consumir EngineEvents em tempo real",
+    "score": 8,
+    "justification": "Core feature #4 do TASK.md. SSEAdapter já existe no engine mas não está conectado a nenhum servidor. Habilita realtime sem polling.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-008",
+    "type": "feature",
+    "description": "Log viewer de spawn.jsonl — visualização de mensagens de um step específico, com scroll e highlight de tipos (assistant/tool/system)",
+    "score": 7,
+    "justification": "Parte do monitoramento navegável. Essencial para debugging de agents. A própria informação (step) serve como link para detalhe.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-009",
+    "type": "feature",
+    "description": "Console do operador via UI — caixa de mensagem para enfileirar no OperatorQueue, lista de mensagens pendentes/processadas com status via SSE",
+    "score": 7,
+    "justification": "Core feature #2 do TASK.md. Equivalente web ao aw:console. Permite interação com a engine sem terminal.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-010",
+    "type": "feature",
+    "description": "Feed de eventos SSE ao vivo — stream de todos os EngineEvents com timestamp, tipo, dados, filtro por tipo e por projeto",
+    "score": 7,
+    "justification": "Visibilidade granular de lifecycle da engine. Complementa D-006 com eventos em tempo real.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-011",
+    "type": "feature",
+    "description": "Gestão de AgentActions — lista de actions criadas pelo AgentActionReporter com status running/completed/failed, duração, output_preview",
+    "score": 6,
+    "justification": "AgentActionReporter já faz POST/PATCH para o hub. O hub precisa armazenar e expor essas ações. Útil para auditoria de spawns.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-012",
+    "type": "feature",
+    "description": "Navegação linkada drill-down — projeto → wave → step → feature → tentativa → spawn.jsonl. Cada item da lista é clicável e leva ao nível de detalhe",
+    "score": 6,
+    "justification": "Regra de ouro do TASK.md: 'a própria informação exibida serve como navegação'. Exige rotas nested e componentes de detalhe.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-013",
+    "type": "feature",
+    "description": "Ralph-Wiggum loop dashboard — visualização de progresso do feature loop: total, done, remaining, feature atual, pass/fail/skip por feature",
+    "score": 6,
+    "justification": "Parte do monitoramento. Visibilidade específica do loop de features que é o coração do workflow.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-014",
+    "type": "feature",
+    "description": "Theme switch na base do sidebar — toggle claro/escuro/auto com persistência em localStorage, integrado ao ThemeProvider existente",
+    "score": 5,
+    "justification": "TASK.md pede explicitamente na base do sidebar. ThemeProvider já existe no código. Baixo esforço, UX quality-of-life.",
+    "sprint": 1,
+    "implemented": false
+  },
+  {
+    "id": "D-015",
+    "type": "feature",
+    "description": "PWA / offline awareness — service worker, update prompt, indicador de conectividade com o hub",
+    "score": 4,
+    "justification": "Stack suporta PWA (Vite). TASK.md não exige explicitamente mas o guia UX menciona. Nice-to-have para wave futura.",
+    "sprint": 1,
+    "implemented": false
+  }
+]
