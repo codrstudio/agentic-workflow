@@ -441,7 +441,7 @@
     "id": "F-021",
     "name": "Operator Messages API",
     "description": "POST /api/v1/projects/:slug/messages (enfileira mensagem no operator-queue.jsonl replicando lÃ³gica do OperatorQueue.enqueue()). GET /api/v1/projects/:slug/messages (lista mensagens com status). EmissÃ£o de evento SSE ao enfileirar.",
-    "status": "pending",
+    "status": "passing",
     "priority": 21,
     "agent": "coder",
     "task": "vibe-code",
@@ -456,13 +456,14 @@
       "Formato da mensagem no jsonl compatÃ­vel com OperatorQueue da engine",
       "Typecheck passa sem erros"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-007-operator-console.md",
+    "completed_at": "2026-03-09T20:54:07.850Z"
   },
   {
     "id": "F-022",
     "name": "Console UI",
     "description": "PÃ¡gina /console com select de projeto ativo, campo de texto com focus automÃ¡tico (Enter para enviar), botÃ£o enviar, lista de mensagens em ordem cronolÃ³gica reversa com badges de status (queued amarelo, processing azul, done verde), timestamps relativos. AtualizaÃ§Ã£o reativa via SSE.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 22,
     "agent": "coder",
     "task": "vibe-code",
