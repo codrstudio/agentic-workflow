@@ -30,6 +30,7 @@ Desktop.ini
 # Runtime workspaces, samples and project data (generated/private)
 context/workspaces/*/
 context/projects/*/
+sprints/
 !.gitkeep
 
 # Logs
