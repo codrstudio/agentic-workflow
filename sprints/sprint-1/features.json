@@ -195,7 +195,7 @@
     "id": "F-010",
     "name": "Breadcrumb + Navegação Linkada",
     "description": "Componente Breadcrumb reutilizável presente em todas as páginas exceto /projects. Desktop: horizontal completo. Mobile: último nível + '...' abre drawer. Componente LinkableText para F-XXX / step-XX clicáveis. Transições framer-motion entre páginas.",
-    "status": "pending",
+    "status": "passing",
     "priority": 10,
     "agent": "coder",
     "task": "vibe-code",
@@ -210,7 +210,8 @@
       "LinkableText converte referências step-XX em links clicáveis para o step",
       "Transições entre páginas usam framer-motion"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-003-app-shell-navigation.md",
+    "completed_at": "2026-03-09T23:30:00.000Z"
   },
   {
     "id": "F-011",

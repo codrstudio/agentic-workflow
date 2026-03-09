@@ -1,10 +1,12 @@
 import * as React from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
 import { FolderKanban, Terminal, Activity, ChevronLeft, ChevronRight, Sun, Moon, Monitor, LogOut } from "lucide-react"
+import { AnimatePresence, motion } from "framer-motion"
 import { cn } from "@workspace/ui/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "@/components/theme-provider"
 import { BottomNav } from "@/components/layout/bottom-nav"
+import { Breadcrumb } from "@/components/layout/breadcrumb"
 
 const NAV_ITEMS = [
   { to: "/projects", label: "Projetos", icon: FolderKanban },
@@ -79,12 +81,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Content */}
       <main className="flex flex-1 flex-col overflow-auto pb-16 md:pb-0">
-        {children}
+        <Breadcrumb />
+        <PageTransition>{children}</PageTransition>
       </main>
 
       {/* BottomNav — visible only on mobile (< 768px) */}
       <BottomNav />
     </div>
+  )
+}
+
+function PageTransition({ children }: { children: React.ReactNode }) {
+  const routerState = useRouterState()
+  const pathname = routerState.location.pathname
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={pathname}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.15, ease: "easeInOut" }}
+        className="flex flex-1 flex-col"
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
   )
 }
 
