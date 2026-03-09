@@ -1,0 +1,21 @@
+{
+  "id": "3ee4fc83-4b78-43d3-89d9-6d546c112b7e",
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "slug": "S-002",
+  "title": "My Second Spec",
+  "status": "review",
+  "version": 1,
+  "content_md": "",
+  "sections": [],
+  "discoveries": [],
+  "derived_features": [
+    "F-001",
+    "F-002"
+  ],
+  "review_score": null,
+  "reviewed_by": [],
+  "superseded_by": null,
+  "tags": [],
+  "created_at": "2026-03-08T08:38:06.825Z",
+  "updated_at": "2026-03-08T08:38:06.825Z"
+}

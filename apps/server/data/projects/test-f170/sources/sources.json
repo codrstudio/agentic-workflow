@@ -1,0 +1,16 @@
+[
+  {
+    "id": "785e2ca6-9ece-4dce-9062-f76f0c1a6411",
+    "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+    "name": "Graph Source",
+    "type": "codebase_graph",
+    "size_bytes": 0,
+    "created_at": "2026-03-08T00:37:38.899Z",
+    "updated_at": "2026-03-08T00:37:38.899Z",
+    "tags": [],
+    "category": "general",
+    "pinned": false,
+    "auto_include": false,
+    "relevance_tags": []
+  }
+]

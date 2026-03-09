@@ -1,0 +1,12 @@
+{
+  "F-001": {
+    "assignee": "agent",
+    "priority": "medium",
+    "labels": []
+  },
+  "F-002": {
+    "assignee": "agent",
+    "priority": "medium",
+    "labels": []
+  }
+}

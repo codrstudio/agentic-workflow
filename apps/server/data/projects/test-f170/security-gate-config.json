@@ -1,0 +1,10 @@
+{
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "enabled": true,
+  "block_on_critical": true,
+  "block_on_high": true,
+  "block_on_medium": true,
+  "auto_scan_on_review": true,
+  "scan_model": "claude-sonnet-4-5-20250514",
+  "updated_at": "2026-03-08T12:25:01.624Z"
+}

@@ -14,6 +14,9 @@ import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
+import { ModelResolver } from './model-resolver.js';
+import { runCoverageGate, formatCoverageFailureContext, type CoverageGateConfig } from './coverage-gate.js';
+import { type ContributionQualityGateConfig, calculateOverallScore, formatQualityFailureContext, formatQualityRetryContext } from './quality-gate.js';
 
 export interface FeatureLoopContext {
   worktreeDir: string;
@@ -27,6 +30,12 @@ export interface FeatureLoopContext {
   templateContext: Record<string, string>;
   project?: string;
   projectSlug?: string;
+  workflowSlug?: string;
+  stepModel?: string;
+  modelResolver?: ModelResolver;
+  coverageGateConfig?: CoverageGateConfig;
+  qualityGateConfig?: ContributionQualityGateConfig;
+  hubBaseUrl?: string;
   onCheckpoint?: () => Promise<void>;
 }
 
@@ -187,6 +196,9 @@ export class FeatureLoop {
           : '';
         const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${acrSection}`;
 
+        // Resolve model/effort from plan with escalation support
+        const resolved = this.resolveSpawnModelEffort(taskSlug, task.frontmatter, agentFrontmatter, ctx.plan, attempt);
+
         const meta: SpawnMeta = {
           task: taskSlug,
           agent: agentName,
@@ -198,6 +210,7 @@ export class FeatureLoop {
           pid: 0,
           started_at: now(),
           timed_out: false,
+          model_used: resolved.model,
         };
 
         await this.spawner.writeSpawnMeta(attemptDir, meta);
@@ -215,9 +228,6 @@ export class FeatureLoop {
             spawnDir: attemptDir,
           });
         }
-
-        // Resolve model/effort from plan with escalation support
-        const resolved = this.resolveSpawnModelEffort(taskSlug, task.frontmatter, agentFrontmatter, ctx.plan, attempt);
 
         const result = await this.spawner.spawnAgent({
           prompt,
@@ -270,20 +280,102 @@ export class FeatureLoop {
         const updatedFeature = updatedFeatures.find((f) => f.id === feature.id);
 
         if (updatedFeature?.status === 'passing') {
-          this.featuresDone++;
-          await this.emitEvent('feature:pass', ctx, {
-            feature_id: feature.id,
-            feature_name: feature.name,
-            iteration: this.iteration,
-            features_done: this.featuresDone,
-          });
+          // Run coverage gate if enabled
+          let coverageGateFailed = false;
+          if (ctx.coverageGateConfig?.enabled) {
+            try {
+              const coverageResult = await runCoverageGate(ctx.coverageGateConfig, worktreeDir);
+              // POST result to hub if available
+              if (ctx.hubBaseUrl && ctx.projectSlug) {
+                try {
+                  const postBody = {
+                    feature_id: feature.id,
+                    attempt,
+                    lines_pct: coverageResult.lines_pct,
+                    branches_pct: coverageResult.branches_pct,
+                    functions_pct: coverageResult.functions_pct,
+                    statements_pct: coverageResult.statements_pct,
+                    overall_pct: coverageResult.overall_pct,
+                    threshold_pct: coverageResult.threshold_pct,
+                    passed: coverageResult.passed,
+                    uncovered_files: coverageResult.uncovered_files,
+                    tool_used: coverageResult.tool_used,
+                    stdout_preview: coverageResult.stdout_preview,
+                    duration_ms: coverageResult.duration_ms,
+                  };
+                  await fetch(`${ctx.hubBaseUrl}/api/v1/hub/projects/${ctx.projectSlug}/test-coverage-results`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(postBody),
+                  });
+                } catch {
+                  // non-fatal: hub may not be available
+                }
+              }
+
+              if (!coverageResult.passed) {
+                coverageGateFailed = true;
+                // Mark feature as failing with coverage context
+                (updatedFeature as Record<string, unknown>).status = 'failing';
+                const coverageContext = formatCoverageFailureContext(coverageResult);
+                (updatedFeature as Record<string, unknown>).coverage_failure_context = coverageContext;
+                const newRetries = retries + 1;
+                (updatedFeature as Record<string, unknown>).retries = newRetries;
+                await this.state.saveFeatures(featuresPath, updatedFeatures);
+
+                await this.emitEvent('feature:fail', ctx, {
+                  feature_id: feature.id,
+                  feature_name: feature.name,
+                  reason: 'coverage_gate_failed',
+                  overall_pct: coverageResult.overall_pct,
+                  threshold_pct: coverageResult.threshold_pct,
+                });
+              }
+            } catch (err) {
+              // Coverage gate execution error — log but don't block
+              await this.emitEvent('feature:pass', ctx, {
+                feature_id: feature.id,
+                feature_name: feature.name,
+                iteration: this.iteration,
+                features_done: this.featuresDone + 1,
+                coverage_gate_error: err instanceof Error ? err.message : String(err),
+              });
+            }
+          }
+
+          // Run quality gate if enabled (after coverage gate)
+          let qualityGateFailed = false;
+          if (!coverageGateFailed && ctx.qualityGateConfig?.enabled) {
+            try {
+              const qualityResult = await this.evaluateQualityGate(
+                feature, agentName, ctx, updatedFeatures, featuresPath, retries,
+              );
+              if (qualityResult) {
+                qualityGateFailed = true;
+              }
+            } catch {
+              // Quality gate error — non-fatal
+            }
+          }
+
+          if (!coverageGateFailed && !qualityGateFailed) {
+            this.featuresDone++;
+            await this.emitEvent('feature:pass', ctx, {
+              feature_id: feature.id,
+              feature_name: feature.name,
+              iteration: this.iteration,
+              features_done: this.featuresDone,
+            });
+          }
         } else {
           const newRetries = retries + 1;
           if (updatedFeature) {
             (updatedFeature as Record<string, unknown>).retries = newRetries;
           }
 
-          const gutterAction = this.gutter.evaluate(newRetries, maxRetries);
+          // Check if feature was auto-rejected by quality gate
+          const autoRejected = (updatedFeature as Record<string, unknown> | undefined)?.auto_rejected === true;
+          const gutterAction = this.gutter.evaluate(newRetries, maxRetries, autoRejected);
 
           if (gutterAction.action === 'skip') {
             if (updatedFeature) {
@@ -371,6 +463,83 @@ export class FeatureLoop {
       return { model: agentFrontmatter.model as string };
     }
     return {};
+  }
+
+  private async evaluateQualityGate(
+    feature: Feature,
+    agentName: string,
+    ctx: FeatureLoopContext,
+    updatedFeatures: Feature[],
+    featuresPath: string,
+    retries: number,
+  ): Promise<boolean> {
+    const config = ctx.qualityGateConfig!;
+    const updatedFeature = updatedFeatures.find((f) => f.id === feature.id);
+    if (!updatedFeature) return false;
+
+    // Quality scoring is done by the review agent via prompt instruction.
+    // Here we simulate scoring based on feature state for the engine pipeline.
+    // In production, the review agent returns scores via --json-schema.
+    // For now, read quality result if posted by the review agent to the hub.
+    if (!ctx.hubBaseUrl || !ctx.projectSlug) return false;
+
+    // The review agent posts quality results to the hub.
+    // Check if a result was posted for this feature.
+    try {
+      const res = await fetch(
+        `${ctx.hubBaseUrl}/api/v1/hub/projects/${ctx.projectSlug}/contribution-quality-results?feature_id=${feature.id}&limit=1`,
+      );
+      if (!res.ok) return false;
+
+      const results = await res.json() as Array<{
+        overall_score: number;
+        passed: boolean;
+        auto_rejected: boolean;
+        scores: Record<string, number>;
+        flags: Array<{ type: string; severity: string; message: string; file?: string; line?: number }>;
+      }>;
+      const latest = results[0];
+      if (!latest) return false;
+
+      if (latest.auto_rejected) {
+        (updatedFeature as Record<string, unknown>).status = 'failing';
+        (updatedFeature as Record<string, unknown>).auto_rejected = true;
+        const qualityContext = formatQualityFailureContext(latest.scores, latest.overall_score, config, latest.flags);
+        (updatedFeature as Record<string, unknown>).quality_failure_context = qualityContext;
+        const newRetries = retries + 1;
+        (updatedFeature as Record<string, unknown>).retries = newRetries;
+        await this.state.saveFeatures(featuresPath, updatedFeatures);
+
+        await this.emitEvent('feature:fail', ctx, {
+          feature_id: feature.id,
+          feature_name: feature.name,
+          reason: 'quality_gate_auto_rejected',
+          overall_score: latest.overall_score,
+        });
+        return true;
+      }
+
+      if (!latest.passed) {
+        (updatedFeature as Record<string, unknown>).status = 'failing';
+        const qualityContext = formatQualityRetryContext(latest.scores, latest.overall_score, config, latest.flags);
+        (updatedFeature as Record<string, unknown>).quality_failure_context = qualityContext;
+        const newRetries = retries + 1;
+        (updatedFeature as Record<string, unknown>).retries = newRetries;
+        await this.state.saveFeatures(featuresPath, updatedFeatures);
+
+        await this.emitEvent('feature:fail', ctx, {
+          feature_id: feature.id,
+          feature_name: feature.name,
+          reason: 'quality_gate_failed',
+          overall_score: latest.overall_score,
+        });
+        return true;
+      }
+    } catch {
+      // Non-fatal: hub may not be available
+    }
+
+    return false;
   }
 
   private async emitEvent(

@@ -18,7 +18,14 @@ export class GutterDetector {
    * - retries === maxRetries: rollback + context rotation
    * - retries >= maxRetries * 2: permanent skip
    */
-  evaluate(retries: number, maxRetries: number): GutterAction {
+  evaluate(retries: number, maxRetries: number, autoRejected?: boolean): GutterAction {
+    if (autoRejected) {
+      return {
+        action: 'skip',
+        reason: 'Feature auto-rejected by contribution quality gate (score < auto_reject_below)',
+      };
+    }
+
     if (retries >= maxRetries * 2) {
       return {
         action: 'skip',

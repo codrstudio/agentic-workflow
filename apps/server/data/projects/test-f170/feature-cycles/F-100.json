@@ -1,0 +1,15 @@
+{
+  "id": "22f776d3-baca-4568-b2a3-7444ce182800",
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "feature_id": "F-100",
+  "sprint": 7,
+  "started_at": "2026-03-08T12:36:41.450Z",
+  "completed_at": "2026-03-08T12:36:42.193Z",
+  "status": "completed",
+  "attempts": 1,
+  "review_iterations": 0,
+  "first_pass": true,
+  "ai_contribution": "majority",
+  "cycle_time_hours": 0,
+  "tags": []
+}

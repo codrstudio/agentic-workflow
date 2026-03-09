@@ -1,0 +1,14 @@
+{
+  "id": "dbaf3b09-9983-4b0b-8083-83b7afb926a0",
+  "project_id": "test-f140",
+  "slug": "ACR-002",
+  "title": "Active ACR Two",
+  "category": "security",
+  "status": "active",
+  "constraint": "All endpoints must validate input with Zod",
+  "rationale": "Prevents injection attacks",
+  "superseded_by": null,
+  "tags": [],
+  "created_at": "2026-03-07T23:34:31.186Z",
+  "updated_at": "2026-03-07T23:34:31.186Z"
+}

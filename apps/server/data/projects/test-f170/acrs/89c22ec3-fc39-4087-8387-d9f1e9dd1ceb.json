@@ -1,0 +1,14 @@
+{
+  "id": "89c22ec3-fc39-4087-8387-d9f1e9dd1ceb",
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "slug": "ACR-001",
+  "title": "Security Constraint: No SQL Injection",
+  "category": "security",
+  "status": "active",
+  "constraint": "All user inputs must be sanitized to prevent SQL injection and security vulnerabilities.",
+  "rationale": "Security is paramount for protecting user data.",
+  "superseded_by": null,
+  "tags": ["security"],
+  "created_at": "2026-03-08T13:49:55Z",
+  "updated_at": "2026-03-08T13:49:55Z"
+}

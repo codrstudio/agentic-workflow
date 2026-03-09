@@ -1,0 +1,17 @@
+{
+  "id": "6b13a695-d0a3-4828-8b64-4b376d927c31",
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "feature_id": "F-002",
+  "scan_type": "manual",
+  "status": "pending",
+  "findings_count": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0
+  },
+  "triggered_by": "test",
+  "started_at": "2026-03-08T12:25:02.194Z",
+  "completed_at": null
+}

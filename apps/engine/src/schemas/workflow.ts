@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 const WorkflowStepBase = z.object({
   name: z.string().optional(),
+  model: z.string().optional(),
+  model_fallback: z.string().optional(),
 });
 
 export const SpawnAgentStepSchema = WorkflowStepBase.extend({

@@ -1,0 +1,16 @@
+{
+  "id": "3bf35e0b-6dc6-4999-b217-4fdb0be06dfd",
+  "project_id": "2c14b711-d816-4a18-a99f-9206ebd4a24e",
+  "phase_transition": "specs→prps",
+  "checkpoint_type": "comprehension_check",
+  "questions": [
+    "What design?",
+    "What tradeoffs?"
+  ],
+  "developer_response": "I understand the spec structure well.",
+  "ai_evaluation": null,
+  "depth_classification": null,
+  "skipped": false,
+  "created_at": "2026-03-08T05:06:31.484Z",
+  "completed_at": "2026-03-08T05:10:00.000Z"
+}

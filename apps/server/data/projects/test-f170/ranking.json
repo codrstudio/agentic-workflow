@@ -1,0 +1,7 @@
+{
+  "discoveries": [
+    { "id": "D-001", "type": "pain", "description": "Discovery 1", "score": 9 },
+    { "id": "D-002", "type": "pain", "description": "Discovery 2", "score": 8 },
+    { "id": "D-003", "type": "pain", "description": "Discovery 3", "score": 7 }
+  ]
+}

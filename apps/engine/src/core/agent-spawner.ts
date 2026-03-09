@@ -31,6 +31,7 @@ export interface SpawnAgentResult {
   pid: number;
   timedOut: boolean;
   response?: unknown;
+  model_used: string;
 }
 
 export interface SpawnMeta {
@@ -46,6 +47,7 @@ export interface SpawnMeta {
   finished_at?: string;
   exit_code?: number;
   timed_out: boolean;
+  model_used?: string;
 }
 
 export class AgentSpawner {
@@ -110,8 +112,8 @@ export class AgentSpawner {
       args.push('--max-turns', String(maxTurns));
     }
 
-    const model = agentConfig.model ?? process.env.MODEL ?? 'sonnet';
-    args.push('--model', model);
+    const model_used = agentConfig.model ?? process.env.MODEL ?? 'sonnet';
+    args.push('--model', model_used);
 
     const effort = agentConfig.effort ?? process.env.EFFORT;
     if (effort) {
@@ -185,6 +187,7 @@ export class AgentSpawner {
           pid,
           timedOut,
           response,
+          model_used,
         });
       });
 
@@ -192,7 +195,7 @@ export class AgentSpawner {
         if (inactivityTimer) clearTimeout(inactivityTimer);
         logStream.end();
         console.error(`[agent-spawner] Process error: ${err.message}`);
-        resolve({ code: 1, pid, timedOut: false });
+        resolve({ code: 1, pid, timedOut: false, model_used });
       });
     });
   }
