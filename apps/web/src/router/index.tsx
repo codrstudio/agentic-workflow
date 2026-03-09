@@ -8,6 +8,7 @@ import {
 import type { AuthContextValue } from "@/contexts/auth-context"
 import { LoginPage } from "@/pages/login"
 import { ProjectsPage } from "@/pages/projects"
+import { AppShell } from "@/components/layout/app-shell"
 
 // Root route with context type
 const rootRoute = createRootRouteWithContext<{ auth: AuthContextValue }>()({
@@ -35,7 +36,7 @@ const authRoute = createRoute({
       throw redirect({ to: "/login" })
     }
   },
-  component: () => <Outlet />,
+  component: () => <AppShell><Outlet /></AppShell>,
 })
 
 // / → redirect to /projects
