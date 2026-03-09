@@ -7,6 +7,8 @@ import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "@/components/theme-provider"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { Breadcrumb } from "@/components/layout/breadcrumb"
+import { SSEIndicator } from "@/components/layout/sse-indicator"
+import { SSEProvider } from "@/contexts/sse-context"
 
 const NAV_ITEMS = [
   { to: "/projects", label: "Projetos", icon: FolderKanban },
@@ -38,6 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
+    <SSEProvider>
     <div className="flex h-svh overflow-hidden">
       {/* Sidebar — hidden on mobile (< 768px) */}
       <aside
@@ -75,6 +78,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
+        {/* SSE connection indicator */}
+        <div className={cn(
+          "px-4 py-1.5",
+          collapsed ? "flex justify-center px-0" : ""
+        )}>
+          <SSEIndicator compact={collapsed} />
+        </div>
+
         {/* User menu */}
         <UserMenu collapsed={collapsed} />
       </aside>
@@ -88,6 +99,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* BottomNav — visible only on mobile (< 768px) */}
       <BottomNav />
     </div>
+    </SSEProvider>
   )
 }
 

@@ -351,7 +351,7 @@
     "id": "F-017",
     "name": "useSSE Hook + Connection Indicator",
     "description": "Hook React useSSE() com conexÃ£o a /api/v1/sse, reconexÃ£o com backoff exponencial, ring buffer de Ãºltimos N eventos, API de subscribe por tipo de evento. Componente indicador visual de status SSE (connected/reconnecting/disconnected) no layout.",
-    "status": "pending",
+    "status": "passing",
     "priority": 17,
     "agent": "coder",
     "task": "vibe-code",
@@ -367,7 +367,8 @@
       "Indicador de conexÃ£o SSE visÃ­vel no layout (connected verde, reconnecting amarelo, disconnected vermelho)",
       "Build do web compila sem erros"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-005-sse-integration.md",
+    "completed_at": "2026-03-09T21:30:00.000Z"
   },
   {
     "id": "F-018",
@@ -568,7 +569,7 @@
     "id": "F-027",
     "name": "Agent Actions List",
     "description": "Endpoint GET /api/v1/projects/:slug/agent-actions (lista actions em memÃ³ria). Componente AgentActionsList na pÃ¡gina /projects/:slug com tabela: status badge, task, agent, feature, duraÃ§Ã£o, preview. Actions running com indicador animado. Click expande preview do output. OrdenaÃ§Ã£o por data (mais recente primeiro).",
-    "status": "blocked",
+    "status": "pending",
     "priority": 27,
     "agent": "coder",
     "task": "vibe-code",
