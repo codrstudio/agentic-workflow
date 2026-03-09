@@ -1,19 +1,10 @@
 import * as React from "react"
-import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/auth-context"
 
 export function LoginPage() {
-  const { login, user } = useAuth()
-  const navigate = useNavigate()
+  const { login } = useAuth()
   const [error, setError] = React.useState<string | null>(null)
   const [pending, setPending] = React.useState(false)
-
-  // Already authenticated → go to projects
-  React.useEffect(() => {
-    if (user.isAuthenticated) {
-      navigate("/projects", { replace: true })
-    }
-  }, [user.isAuthenticated, navigate])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()

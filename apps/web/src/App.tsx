@@ -1,40 +1,16 @@
-import * as React from "react"
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { RouterProvider } from "@tanstack/react-router"
 import { AuthProvider, useAuth } from "@/contexts/auth-context"
-import { LoginPage } from "@/pages/login"
-import { ProjectsPage } from "@/pages/projects"
+import { router } from "@/router"
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
-  if (!user.isAuthenticated) {
-    return <Navigate to="/login" replace />
-  }
-  return <>{children}</>
-}
-
-function AppRoutes() {
-  return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        path="/projects"
-        element={
-          <RequireAuth>
-            <ProjectsPage />
-          </RequireAuth>
-        }
-      />
-      <Route path="*" element={<Navigate to="/projects" replace />} />
-    </Routes>
-  )
+function InnerApp() {
+  const auth = useAuth()
+  return <RouterProvider router={router} context={{ auth }} />
 }
 
 export function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </BrowserRouter>
+    <AuthProvider>
+      <InnerApp />
+    </AuthProvider>
   )
 }

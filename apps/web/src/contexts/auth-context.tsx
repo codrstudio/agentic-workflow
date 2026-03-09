@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import * as React from "react"
-import { useNavigate } from "react-router-dom"
 import { apiFetch, setOn401Handler } from "@/lib/api"
+import { router } from "@/router"
 
 export type AuthUser = {
   username: string
@@ -13,7 +13,7 @@ export type AuthState =
   | { isAuthenticated: false; username: null; role: null }
   | AuthUser
 
-type AuthContextValue = {
+export type AuthContextValue = {
   user: AuthState
   login: (username: string, password: string) => Promise<void>
   logout: () => Promise<void>
@@ -22,7 +22,6 @@ type AuthContextValue = {
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate()
   const [user, setUser] = React.useState<AuthState>({
     isAuthenticated: false,
     username: null,
@@ -33,9 +32,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     setOn401Handler(() => {
       setUser({ isAuthenticated: false, username: null, role: null })
-      navigate("/login", { replace: true })
+      void router.navigate({ to: "/login", replace: true })
+      void router.invalidate()
     })
-  }, [navigate])
+  }, [])
 
   // On mount: check session via /me
   React.useEffect(() => {
@@ -44,6 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const data = (await res.json()) as { username: string; role: string }
           setUser({ isAuthenticated: true, username: data.username, role: data.role })
+          void router.invalidate()
         }
       })
       .catch(() => {
@@ -51,35 +52,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
   }, [])
 
-  const login = React.useCallback(
-    async (username: string, password: string) => {
-      const res = await fetch("/api/v1/auth/login", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      })
+  const login = React.useCallback(async (username: string, password: string) => {
+    const res = await fetch("/api/v1/auth/login", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    })
 
-      if (!res.ok) {
-        throw new Error("Invalid credentials")
-      }
+    if (!res.ok) {
+      throw new Error("Invalid credentials")
+    }
 
-      // Fetch user info after successful login
-      const meRes = await apiFetch("/api/v1/auth/me")
-      if (!meRes.ok) throw new Error("Failed to fetch user info")
+    // Fetch user info after successful login
+    const meRes = await apiFetch("/api/v1/auth/me")
+    if (!meRes.ok) throw new Error("Failed to fetch user info")
 
-      const data = (await meRes.json()) as { username: string; role: string }
-      setUser({ isAuthenticated: true, username: data.username, role: data.role })
-      navigate("/projects", { replace: true })
-    },
-    [navigate]
-  )
+    const data = (await meRes.json()) as { username: string; role: string }
+    setUser({ isAuthenticated: true, username: data.username, role: data.role })
+    void router.invalidate()
+    void router.navigate({ to: "/projects", replace: true })
+  }, [])
 
   const logout = React.useCallback(async () => {
     await apiFetch("/api/v1/auth/logout", { method: "POST" })
     setUser({ isAuthenticated: false, username: null, role: null })
-    navigate("/login", { replace: true })
-  }, [navigate])
+    void router.invalidate()
+    void router.navigate({ to: "/login", replace: true })
+  }, [])
 
   const value = React.useMemo(() => ({ user, login, logout }), [user, login, logout])
 
