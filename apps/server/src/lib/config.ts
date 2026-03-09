@@ -1,13 +1,12 @@
 import path from "node:path";
 
-const DATA_DIR = process.env.ARC_DATA_DIR || path.join(process.cwd(), "data");
-const WORKSPACES_DIR =
-  process.env.ARC_WORKSPACES_DIR ||
-  path.join(process.cwd(), "context", "workspaces");
+const CONTEXT_DIR = process.env.CONTEXT_FOLDER
+  ? path.resolve(process.cwd(), process.env.CONTEXT_FOLDER)
+  : path.join(process.cwd(), "context");
 
 export const config = {
-  dataDir: DATA_DIR,
-  projectsDir: path.join(DATA_DIR, "projects"),
-  workspacesDir: WORKSPACES_DIR,
+  contextDir: CONTEXT_DIR,
+  projectsDir: path.join(CONTEXT_DIR, "projects"),
+  workspacesDir: path.join(CONTEXT_DIR, "workspaces"),
   serverPort: Number(process.env.SERVER_PORT) || 2101,
 } as const;

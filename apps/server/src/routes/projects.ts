@@ -205,7 +205,7 @@ projects.delete("/hub/projects/:slug", async (c) => {
     throw err;
   }
 
-  await moveToTrash(dir, config.dataDir);
+  await moveToTrash(dir, config.contextDir);
 
   return c.body(null, 204);
 });
