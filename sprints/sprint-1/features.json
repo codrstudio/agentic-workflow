@@ -63,7 +63,7 @@
     "id": "F-004",
     "name": "Auth Backend",
     "description": "Endpoints POST /api/v1/auth/login, GET /api/v1/auth/me, POST /api/v1/auth/logout. JWT em cookie httpOnly. Middleware de proteção de rotas. Variáveis SYSUSER/SYSPASS/SYSROLE.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 4,
     "agent": "coder",
     "task": "vibe-code",
@@ -78,13 +78,14 @@
       "Rotas /api/v1/* (exceto /auth/login e /health) retornam 401 sem cookie válido",
       "Variáveis SYSUSER, SYSPASS, SYSROLE lidas de env"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-002-authentication.md",
+    "completed_at": "2026-03-09T18:45:00Z"
   },
   {
     "id": "F-005",
     "name": "Auth Frontend",
     "description": "Página /login com formulário username+senha. AuthProvider React com estado do usuário. Redirect para /login quando 401. Botão Sair integrado. Vite proxy config para /api.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 5,
     "agent": "coder",
     "task": "vibe-code",
@@ -210,7 +211,7 @@
     "id": "F-011",
     "name": "Projects & Workflows API",
     "description": "Endpoints GET /api/v1/projects (lista projetos lendo context/projects/*/project.json), GET /api/v1/projects/:slug (detalhe com info de workspace), GET /api/v1/workflows (lista workflows lendo context/workflows/*.yaml). Raiz do monorepo via AW_ROOT ou process.cwd().",
-    "status": "blocked",
+    "status": "pending",
     "priority": 11,
     "agent": "coder",
     "task": "vibe-code",
