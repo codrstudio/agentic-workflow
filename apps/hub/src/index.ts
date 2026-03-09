@@ -7,6 +7,7 @@ import { auth } from './routes/auth.js';
 import { projects } from './routes/projects.js';
 import { workflows } from './routes/workflows.js';
 import { sse } from './routes/sse.js';
+import { agentActions } from './routes/agent-actions.js';
 import { authMiddleware } from './middleware/auth.js';
 
 const app = new Hono();
@@ -28,6 +29,7 @@ app.route('/api/v1/auth', auth);
 app.route('/api/v1/projects', projects);
 app.route('/api/v1/workflows', workflows);
 app.route('/api/v1/sse', sse);
+app.route('/api/v1/hub/projects', agentActions);
 
 const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
 

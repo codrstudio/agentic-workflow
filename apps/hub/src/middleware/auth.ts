@@ -9,10 +9,17 @@ const UNPROTECTED_PATHS = new Set([
   '/api/v1/auth/login',
 ]);
 
+// Engine-to-hub server calls (no browser cookie available)
+const UNPROTECTED_PREFIXES = ['/api/v1/hub/'];
+
 export async function authMiddleware(c: Context, next: Next) {
   const path = c.req.path;
 
   if (UNPROTECTED_PATHS.has(path)) {
+    return next();
+  }
+
+  if (UNPROTECTED_PREFIXES.some((prefix) => path.startsWith(prefix))) {
     return next();
   }
 
