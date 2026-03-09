@@ -3,6 +3,7 @@ import { useParams, Link } from "@tanstack/react-router"
 import { CheckCircle2, XCircle, Loader2, Circle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { AgentActionsList, type AgentAction } from "@/components/ui/agent-actions-list"
 
 interface Project {
   name: string
@@ -63,6 +64,7 @@ export function ProjectDetailPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [runs, setRuns] = useState<Run[]>([])
   const [waves, setWaves] = useState<Wave[]>([])
+  const [agentActions, setAgentActions] = useState<AgentAction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -81,12 +83,16 @@ export function ProjectDetailPage() {
       apiFetch(`/api/v1/projects/${slug}/waves`)
         .then((r) => (r.ok ? (r.json() as Promise<Wave[]>) : Promise.resolve([])))
         .catch(() => [] as Wave[]),
+      apiFetch(`/api/v1/projects/${slug}/agent-actions`)
+        .then((r) => (r.ok ? (r.json() as Promise<AgentAction[]>) : Promise.resolve([])))
+        .catch(() => [] as AgentAction[]),
     ])
-      .then(([projectData, workflowData, runsData, wavesData]) => {
+      .then(([projectData, workflowData, runsData, wavesData, actionsData]) => {
         setProject(projectData)
         setWorkflows(workflowData)
         setRuns(runsData)
         setWaves(wavesData)
+        setAgentActions(actionsData)
         if (workflowData.length > 0 && workflowData[0]) {
           setSelectedWorkflow(workflowData[0].slug)
         }
@@ -337,6 +343,19 @@ export function ProjectDetailPage() {
           </div>
         </section>
       )}
+
+      {/* Agent Actions */}
+      <section>
+        <h2 className="text-sm font-semibold mb-3">
+          Agent Actions
+          {agentActions.length > 0 && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              ({agentActions.length})
+            </span>
+          )}
+        </h2>
+        <AgentActionsList actions={agentActions} />
+      </section>
     </div>
   )
 }

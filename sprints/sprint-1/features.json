@@ -578,7 +578,7 @@
     "id": "F-027",
     "name": "Agent Actions List",
     "description": "Endpoint GET /api/v1/projects/:slug/agent-actions (lista actions em memÃƒÂ³ria). Componente AgentActionsList na pÃƒÂ¡gina /projects/:slug com tabela: status badge, task, agent, feature, duraÃƒÂ§ÃƒÂ£o, preview. Actions running com indicador animado. Click expande preview do output. OrdenaÃƒÂ§ÃƒÂ£o por data (mais recente primeiro).",
-    "status": "pending",
+    "status": "passing",
     "priority": 27,
     "agent": "coder",
     "task": "vibe-code",
@@ -594,6 +594,7 @@
       "Click em action expande preview do output",
       "Lista ordenada por data (mais recente primeiro)"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-009-live-feed-agent-actions.md",
+    "completed_at": "2026-03-09T21:31:38.354Z"
   }
 ]
