@@ -19,6 +19,9 @@ export const ProjectConfigSchema = z.object({
   params: z.record(z.unknown()).optional(),
   plan: z.string().optional(),
   wave_limit: z.number().int().positive().optional(),
+  tags: z.array(z.string()).optional(),
+  created_at: z.string().optional(),
+  status: z.string().optional(),
 });
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;

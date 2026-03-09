@@ -171,12 +171,21 @@ async function readLastMessages(jsonlPath: string, n: number): Promise<AgentMess
   for (const line of lines) {
     try {
       const obj = JSON.parse(line);
-      if (obj.type !== 'assistant') continue;
       const content = obj.message?.content;
       if (!Array.isArray(content)) continue;
       for (const block of content) {
+        let text = '';
+        // Extract from any block type
         if (block.type === 'text' && typeof block.text === 'string' && block.text.trim()) {
-          messages.push({ text: block.text.trim() });
+          text = block.text.trim();
+        } else if (block.type === 'thinking' && typeof block.thinking === 'string' && block.thinking.trim()) {
+          text = `[thinking] ${block.thinking.trim()}`;
+        } else if (block.type === 'tool_use' && block.name) {
+          const input = block.input ? JSON.stringify(block.input).slice(0, 60) : '';
+          text = `[${block.name}] ${input}`;
+        }
+        if (text) {
+          messages.push({ text });
         }
       }
     } catch {
@@ -210,75 +219,17 @@ async function readLastEngineMessages(logPath: string, n: number): Promise<Agent
       const type = entry.type;
       const data = entry.data || {};
 
-      let message = '';
+      // Build a simple message showing type and key data
+      const fields = Object.entries(data)
+        .filter(([k]) => !k.startsWith('_'))
+        .slice(0, 3)
+        .map(([k, v]) => {
+          const val = String(v).slice(0, 30);
+          return `${k}=${val}`;
+        })
+        .join(' ');
 
-      if (type === 'workflow:start') {
-        message = `workflow start: ${data.workflow}`;
-      } else if (type === 'workflow:step:start') {
-        const stepType = data.type as string;
-        const stepName = data.step as string;
-        message = `step: ${stepName} (${stepType})`;
-      } else if (type === 'workflow:step:end') {
-        const stepName = data.step as string;
-        const result = data.result as string;
-        if (result?.includes('error') || result?.includes('EPERM')) {
-          message = `step failed: ${stepName}`;
-        } else {
-          message = `step end: ${stepName}`;
-        }
-      } else if (type === 'workflow:step:complete') {
-        const exitCode = data.exit_code as number;
-        const stepName = data.step as string;
-        const status = exitCode === 0 ? 'OK' : `FAIL(${exitCode})`;
-        message = `step complete: ${stepName} → ${status}`;
-      } else if (type === 'workflow:end') {
-        const reason = data.reason as string;
-        message = `workflow end: ${reason}`;
-      } else if (type === 'agent:spawn') {
-        const task = data.task as string;
-        const agent = data.agent as string;
-        message = `agent spawn: ${task} (${agent})`;
-      } else if (type === 'agent:exit') {
-        const exitCode = data.exit_code as number;
-        const status = exitCode === 0 ? 'success' : `fail(${exitCode})`;
-        message = `agent exit: ${status}`;
-      } else if (type === 'loop:start') {
-        message = `loop: starting iteration ${data.iteration}`;
-      } else if (type === 'loop:end') {
-        const reason = data.reason as string;
-        if (reason === 'success') {
-          message = `loop: complete`;
-        } else if (reason === 'error') {
-          const errorMsg = (data.error as string)?.split('\n')[0]?.slice(0, 40) || 'unknown error';
-          message = `loop error: ${errorMsg}`;
-        } else {
-          message = `loop: ${reason}`;
-        }
-      } else if (type === 'feature:attempt:start') {
-        const featureId = data.feature_id as string;
-        message = `feature attempt: ${featureId}`;
-      } else if (type === 'feature:attempt:complete') {
-        const featureId = data.feature_id as string;
-        const status = data.status as string;
-        message = `feature result: ${featureId} → ${status}`;
-      } else if (type === 'merge:start') {
-        message = 'merge: starting';
-      } else if (type === 'merge:complete') {
-        const status = data.success ? 'success' : 'failed';
-        message = `merge: ${status}`;
-      } else if (type === 'worktree:create') {
-        message = 'worktree: created';
-      } else if (type === 'worktree:cleanup') {
-        message = 'worktree: cleaned up';
-      } else {
-        // Generic: show type and any key fields
-        const fields = Object.entries(data)
-          .filter(([k]) => !k.startsWith('_'))
-          .slice(0, 2)
-          .map(([, v]) => String(v).slice(0, 20))
-          .join(' / ');
-        message = `${type}${fields ? ': ' + fields : ''}`;
-      }
+      const message = fields ? `${type} | ${fields}` : type;
 
       if (message) {
         messages.push({ text: message });
