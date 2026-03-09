@@ -3,6 +3,7 @@ import { Home, FolderKanban, Settings, Plus, FolderOpen, Activity } from "lucide
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useProjects } from "@/hooks/use-projects";
 import { ProjectFormDialog } from "@/components/project-form-dialog";
+import { UserMenu } from "@/components/layout/user-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -120,16 +121,7 @@ export function AppSidebar() {
         </SidebarContent>
 
         <SidebarFooter>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" tooltip="User">
-                <div className="bg-muted flex aspect-square size-8 items-center justify-center rounded-lg text-xs">
-                  U
-                </div>
-                <span className="text-sm">User</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <UserMenu />
         </SidebarFooter>
 
         <SidebarRail />
