@@ -283,7 +283,7 @@
     "id": "F-014",
     "name": "Project Detail + Execution UI",
     "description": "Página /projects/:slug com info do projeto, formulário de execução (select workflow populated da API, input opcional de plano, botão Executar), lista de runs ativas com PID, status e botão Parar.",
-    "status": "pending",
+    "status": "passing",
     "priority": 14,
     "agent": "coder",
     "task": "vibe-code",
@@ -299,13 +299,14 @@
       "Botão Parar envia DELETE para /runs/:runId",
       "Estado de loading/erro tratado na UI"
     ],
-    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md"
+    "prp_path": "sprints/sprint-1/3-prps/PRP-004-project-workflow-management.md",
+    "completed_at": "2026-03-09T19:33:07Z"
   },
   {
     "id": "F-015",
     "name": "SSE Endpoint + Event Bus",
     "description": "GET /api/v1/sse com streaming SSE (headers text/event-stream). EventEmitter interno no hub para broadcast. Keepalive 30s. Integração com child process da engine para captura de eventos stdout.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 15,
     "agent": "coder",
     "task": "vibe-code",
