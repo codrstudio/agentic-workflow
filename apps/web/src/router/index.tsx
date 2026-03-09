@@ -12,6 +12,7 @@ import { ProjectDetailPage } from "@/pages/project-detail"
 import { WaveDetailPage } from "@/pages/wave-detail"
 import { ConsolePage } from "@/pages/console"
 import { StepDetailPage } from "@/pages/step-detail"
+import { EventsPage } from "@/pages/events"
 import { AppShell } from "@/components/layout/app-shell"
 
 // Root route with context type
@@ -85,7 +86,7 @@ const consoleRoute = createRoute({
 const eventsRoute = createRoute({
   getParentRoute: () => authRoute,
   path: "/events",
-  component: () => <div>Events (stub)</div>,
+  component: EventsPage,
 })
 
 const routeTree = rootRoute.addChildren([
