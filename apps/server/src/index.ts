@@ -10,31 +10,31 @@ import { sse } from './routes/sse.js';
 import { agentActions } from './routes/agent-actions.js';
 import { authMiddleware } from './middleware/auth.js';
 
-const app = new Hono();
+const app = new Hono().basePath('/api/v1');
 
 app.use('*', logger());
 
 app.use(
   '*',
   cors({
-    origin: 'http://localhost:5173',
+    origin: `http://localhost:${process.env['WEB_PORT']}`,
     credentials: true,
   })
 );
 
-app.use('/api/v1/*', authMiddleware);
+app.use('*', authMiddleware);
 
-app.route('/api/v1/health', health);
-app.route('/api/v1/auth', auth);
-app.route('/api/v1/projects', projects);
-app.route('/api/v1/workflows', workflows);
-app.route('/api/v1/sse', sse);
-app.route('/api/v1/hub/projects', agentActions);
+app.route('/health', health);
+app.route('/auth', auth);
+app.route('/projects', projects);
+app.route('/workflows', workflows);
+app.route('/events', sse);
+app.route('/hub/projects', agentActions);
 
-const PORT = parseInt(process.env['PORT'] ?? '3000', 10);
+const PORT = parseInt(process.env['SERVER_PORT']!, 10);
 
 serve({ fetch: app.fetch, port: PORT }, (info) => {
-  console.log(`Hub listening on http://localhost:${info.port}`);
+  console.log(`Server listening on http://localhost:${info.port}`);
 });
 
 export { app };

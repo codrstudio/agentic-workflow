@@ -1,12 +1,9 @@
 import { Hono } from 'hono';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { getAwRoot } from '../lib/paths.js';
 
 const app = new Hono();
-
-function getAwRoot(): string {
-  return process.env['AW_ROOT'] ?? process.cwd();
-}
 
 async function readJson(filePath: string): Promise<unknown> {
   const content = await fs.readFile(filePath, 'utf-8');

@@ -7,6 +7,7 @@ const JWT_SECRET = process.env['JWT_SECRET'] ?? 'aw-monitor-secret-key-change-in
 const UNPROTECTED_PATHS = new Set([
   '/api/v1/health',
   '/api/v1/auth/login',
+  '/api/v1/auth/me',
 ]);
 
 // Engine-to-hub server calls (no browser cookie available)

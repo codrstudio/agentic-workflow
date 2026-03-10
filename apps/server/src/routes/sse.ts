@@ -18,6 +18,10 @@ app.get('/', (c) => {
       }
     };
 
+    // Flush an initial event so the browser receives the first byte
+    // and transitions EventSource from CONNECTING to OPEN immediately
+    await stream.writeSSE({ event: 'keepalive', data: '' });
+
     eventBus.on('event', handler);
 
     // Keepalive every 30s to prevent proxy/browser timeouts

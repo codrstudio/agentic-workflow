@@ -4,6 +4,7 @@ import { router } from "@/router"
 
 function InnerApp() {
   const auth = useAuth()
+  if (auth.loading) return null
   return <RouterProvider router={router} context={{ auth }} />
 }
 

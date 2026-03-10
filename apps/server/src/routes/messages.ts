@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { eventBus, type HubEvent } from '../lib/event-bus.js';
+import { getAwRoot } from '../lib/paths.js';
 
 type MessageStatus = 'queued' | 'processing' | 'done';
 
@@ -16,10 +17,6 @@ interface HubMessage {
 
 // In-memory store: slug → messages
 const messageStore = new Map<string, HubMessage[]>();
-
-function getAwRoot(): string {
-  return process.env['AW_ROOT'] ?? process.cwd();
-}
 
 function getMessages(slug: string): HubMessage[] {
   if (!messageStore.has(slug)) {

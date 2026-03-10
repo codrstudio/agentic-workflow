@@ -6,12 +6,9 @@ import { runs } from './runs.js';
 import { waves } from './waves.js';
 import { messages } from './messages.js';
 import { getAllActions } from './agent-actions.js';
+import { getAwRoot } from '../lib/paths.js';
 
 const app = new Hono();
-
-function getAwRoot(): string {
-  return process.env['AW_ROOT'] ?? process.cwd();
-}
 
 async function readJson(filePath: string): Promise<unknown> {
   const content = await fs.readFile(filePath, 'utf-8');

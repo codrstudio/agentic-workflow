@@ -1,5 +1,5 @@
 {
-  "name": "@aw/hub",
+  "name": "@aw/server",
   "version": "0.1.0",
   "description": "Hub HTTP server — bridge between engine and frontend",
   "type": "module",
@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "dev": "tsup --watch",
+    "dev": "tsup --watch --onSuccess \"node dist/index.js\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

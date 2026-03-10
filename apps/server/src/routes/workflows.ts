@@ -2,12 +2,9 @@ import { Hono } from 'hono';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { getAwRoot } from '../lib/paths.js';
 
 const app = new Hono();
-
-function getAwRoot(): string {
-  return process.env['AW_ROOT'] ?? process.cwd();
-}
 
 // GET /api/v1/workflows
 app.get('/', async (c) => {

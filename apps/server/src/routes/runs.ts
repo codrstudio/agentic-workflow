@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import readline from 'node:readline';
 import { eventBus } from '../lib/event-bus.js';
+import { getAwRoot } from '../lib/paths.js';
 
 type RunStatus = 'running' | 'completed' | 'failed';
 
@@ -19,10 +20,6 @@ interface Run {
 }
 
 const runs = new Map<string, Run>();
-
-function getAwRoot(): string {
-  return process.env['AW_ROOT'] ?? process.cwd();
-}
 
 const app = new Hono();
 
