@@ -59,7 +59,7 @@ export class ModelResolver {
       return this.cache.get(cacheKey)!;
     }
 
-    const hubUrl = process.env.HUB_URL ?? 'http://localhost:3001';
+    const hubUrl = process.env.WEB_URL ?? 'http://localhost:3001';
     try {
       const resp = await fetch(
         `${hubUrl}/api/v1/hub/projects/${projectSlug}/phase-model-configs/${workflowSlug}`,

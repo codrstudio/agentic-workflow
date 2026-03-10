@@ -21,7 +21,7 @@ export class AcrInjector {
   private readonly hubBaseUrl: string;
 
   constructor(hubBaseUrl?: string) {
-    this.hubBaseUrl = hubBaseUrl ?? process.env.AW_HUB_URL ?? 'http://localhost:3000';
+    this.hubBaseUrl = hubBaseUrl ?? process.env.AW_WEB_URL ?? 'http://localhost:3000';
   }
 
   /**
