@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { getAwRoot } from '../lib/paths.js';
+import { isPidAlive } from '../lib/pid-check.js';
 
 const app = new Hono();
 
@@ -40,12 +41,18 @@ interface LoopJson {
   max_features?: number | null;
 }
 
-type StepStatus = 'pending' | 'running' | 'completed' | 'failed';
+type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'interrupted';
 
 function deriveStatus(spawn: SpawnJson | null, dirExists: boolean): StepStatus {
   if (!dirExists) return 'pending';
   if (!spawn) return 'running';
-  if (spawn.exit_code === undefined || spawn.exit_code === null) return 'running';
+  if (spawn.exit_code === undefined || spawn.exit_code === null) {
+    // Process started but not finished — check if PID is still alive
+    if (spawn.pid !== undefined && spawn.pid !== null) {
+      return isPidAlive(spawn.pid) ? 'running' : 'interrupted';
+    }
+    return 'running';
+  }
   return spawn.exit_code === 0 ? 'completed' : 'failed';
 }
 
@@ -92,7 +99,12 @@ async function readStepSummary(
     } else if (loop.status === 'failed') {
       status = 'failed';
     } else {
-      status = 'running';
+      // Loop is in progress — check if PID is still alive
+      if (loop.pid !== undefined && loop.pid !== null) {
+        status = isPidAlive(loop.pid) ? 'running' : 'interrupted';
+      } else {
+        status = 'running';
+      }
     }
 
     return {
@@ -129,6 +141,51 @@ async function readStepSummary(
     finished_at: spawn?.finished_at,
     duration_ms,
     exit_code: spawn?.exit_code,
+  };
+}
+
+interface TimingResult {
+  started_at: string;
+  elapsed_ms: number;
+  completed_steps_avg_ms: number;
+  completed_steps_total_ms: number;
+  remaining_steps: number;
+  estimated_remaining_ms: number;
+  estimated_completion: string;
+}
+
+function computeTiming(steps: Array<{
+  status: StepStatus;
+  started_at?: string;
+  finished_at?: string;
+  duration_ms?: number;
+}>): TimingResult | null {
+  const firstStarted = steps.find((s) => s.started_at);
+  if (!firstStarted?.started_at) return null;
+
+  const completedSteps = steps.filter((s) => s.status === 'completed' && s.duration_ms !== undefined);
+  if (completedSteps.length === 0) return null;
+
+  const now = Date.now();
+  const startedAtMs = new Date(firstStarted.started_at).getTime();
+  const elapsed_ms = now - startedAtMs;
+
+  const completed_steps_total_ms = completedSteps.reduce((sum, s) => sum + (s.duration_ms ?? 0), 0);
+  const completed_steps_avg_ms = completed_steps_total_ms / completedSteps.length;
+
+  const completed = steps.filter((s) => s.status === 'completed').length;
+  const remaining_steps = steps.length - completed;
+  const estimated_remaining_ms = remaining_steps * completed_steps_avg_ms;
+  const estimated_completion = new Date(now + estimated_remaining_ms).toISOString();
+
+  return {
+    started_at: firstStarted.started_at,
+    elapsed_ms,
+    completed_steps_avg_ms,
+    completed_steps_total_ms,
+    remaining_steps,
+    estimated_remaining_ms,
+    estimated_completion,
   };
 }
 
@@ -187,9 +244,11 @@ app.get('/', async (c) => {
       const completed = steps.filter((s) => s!.status === 'completed').length;
       const failed = steps.filter((s) => s!.status === 'failed').length;
       const running = steps.filter((s) => s!.status === 'running').length;
+      const interrupted = steps.filter((s) => s!.status === 'interrupted').length;
 
       let waveStatus: StepStatus = 'pending';
       if (running > 0) waveStatus = 'running';
+      else if (interrupted > 0) waveStatus = 'interrupted';
       else if (failed > 0) waveStatus = 'failed';
       else if (completed === total && total > 0) waveStatus = 'completed';
       else if (completed > 0) waveStatus = 'running';
@@ -243,6 +302,8 @@ app.get('/:waveNumber', async (c) => {
   else if (completed === total && total > 0) waveStatus = 'completed';
   else if (completed > 0) waveStatus = 'running';
 
+  const timing = computeTiming(steps.filter(Boolean) as NonNullable<Awaited<ReturnType<typeof readStepSummary>>>[]);
+
   return c.json({
     wave_number: waveNumber,
     status: waveStatus,
@@ -251,6 +312,7 @@ app.get('/:waveNumber', async (c) => {
     steps_failed: failed,
     progress: total > 0 ? Math.round((completed / total) * 100) : 0,
     steps: steps,
+    timing,
   });
 });
 

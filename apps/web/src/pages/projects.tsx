@@ -10,15 +10,27 @@ interface Project {
   status?: string
 }
 
+interface ActiveRun {
+  slug: string
+}
+
 export function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeSlugs, setActiveSlugs] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     apiFetch("/api/v1/projects")
       .then((res) => res.json() as Promise<Project[]>)
       .then(setProjects)
       .finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    apiFetch("/api/v1/runs/active")
+      .then((r) => r.json() as Promise<ActiveRun[]>)
+      .then((runs) => setActiveSlugs(new Set(runs.map((r) => r.slug))))
+      .catch(() => undefined)
   }, [])
 
   if (loading) {
@@ -68,7 +80,15 @@ export function ProjectsPage() {
             className="bg-card border rounded-lg p-5 hover:border-foreground/30 hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="flex items-start justify-between gap-2 mb-1">
-              <h2 className="font-medium text-sm leading-snug">{project.name}</h2>
+              <div className="flex items-center gap-2 min-w-0">
+                {activeSlugs.has(project.slug) && (
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500" />
+                  </span>
+                )}
+                <h2 className="font-medium text-sm leading-snug">{project.name}</h2>
+              </div>
               <StatusBadge status={project.status} />
             </div>
             <p className="text-muted-foreground text-xs font-mono mb-2">{project.slug}</p>

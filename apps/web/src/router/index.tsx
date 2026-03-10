@@ -12,7 +12,6 @@ import { ProjectDetailPage } from "@/pages/project-detail"
 import { WaveDetailPage } from "@/pages/wave-detail"
 import { ConsolePage } from "@/pages/console"
 import { StepDetailPage } from "@/pages/step-detail"
-import { EventsPage } from "@/pages/events"
 import { AppShell } from "@/components/layout/app-shell"
 
 // Root route with context type
@@ -80,13 +79,21 @@ const stepDetailRoute = createRoute({
 const consoleRoute = createRoute({
   getParentRoute: () => authRoute,
   path: "/console",
+  validateSearch: (search: Record<string, unknown>) => ({
+    project: typeof search.project === "string" ? search.project : "",
+    cats: typeof search.cats === "string" ? search.cats : "",
+    op: search.op !== false && search.op !== "false",
+    q: typeof search.q === "string" ? search.q : "",
+  }),
   component: ConsolePage,
 })
 
 const eventsRoute = createRoute({
   getParentRoute: () => authRoute,
   path: "/events",
-  component: EventsPage,
+  beforeLoad: () => {
+    throw redirect({ to: "/console" })
+  },
 })
 
 const routeTree = rootRoute.addChildren([

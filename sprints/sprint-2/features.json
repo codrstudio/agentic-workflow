@@ -1,0 +1,259 @@
+[
+  {
+    "id": "F-028",
+    "name": "PID Check Utility & Endpoints",
+    "description": "Criar apps/server/src/lib/pid-check.ts com função isPidAlive(pid) usando process.kill(pid, 0) com try/catch. Adicionar rota GET /api/v1/pid/:pid/alive que retorna { alive: boolean }. Validar PID não-numérico retornando 400. Adicionar GET /api/v1/runs/active que lista runs com status running, enriquecidos com campo alive via isPidAlive(). Exportar isPidAlive para uso em outros módulos.",
+    "status": "passing",
+    "completed_at": "2026-03-10T07:00:00.000Z",
+    "priority": 1,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [],
+    "tests": [
+      "GET /api/v1/pid/99999999/alive retorna { alive: false } com status 200",
+      "GET /api/v1/pid/abc/alive retorna status 400",
+      "GET /api/v1/runs/active retorna array (pode ser vazio) com status 200",
+      "Arquivo apps/server/src/lib/pid-check.ts existe e exporta isPidAlive",
+      "Build compila sem erros (npm run typecheck no apps/server)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-010-pid-monitoring-wave-interruption.md"
+  },
+  {
+    "id": "F-029",
+    "name": "Wave Interruption Detection Backend",
+    "description": "Adicionar 'interrupted' ao tipo StepStatus em routes/waves.ts. Alterar deriveStatus() para checar PID via isPidAlive() quando spawn.json existe com pid mas sem exit_code: se PID morto, retornar 'interrupted'. Aplicar mesma lógica em loop steps via loop.json.pid. Wave status geral deve refletir o estado interrupted (se algum step está interrupted sem steps posteriores running/completed, a wave é interrupted).",
+    "status": "passing",
+    "priority": 2,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-028"
+    ],
+    "tests": [
+      "'interrupted' é um valor válido no tipo StepStatus",
+      "deriveStatus() retorna 'interrupted' quando spawn.json tem pid sem exit_code e isPidAlive retorna false",
+      "deriveStatus() retorna 'running' quando spawn.json tem pid sem exit_code e isPidAlive retorna true",
+      "Wave status reflete interrupted quando último step ativo está interrupted",
+      "Build compila sem erros (npm run typecheck no apps/server)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-010-pid-monitoring-wave-interruption.md",
+    "completed_at": "2026-03-10T05:53:41Z"
+  },
+  {
+    "id": "F-031",
+    "name": "Console Unified Feed",
+    "description": "Reescrever pages/console.tsx para fundir conteúdo de pages/events.tsx. Criar tipo FeedItem com discriminator: 'operator-message' | 'engine-event'. Merge de operator messages (API REST) e engine events (useSSE) em feed cronológico ordenado por timestamp. Operator messages alinhadas à direita com badge de status (pending/delivered/processed). Engine events à esquerda com badge de categoria colorido (reutilizar CATEGORY_COLORS, getCategory(), getLabel(), getSummary() de events.tsx). Campo de envio de mensagem no bottom. Select de projeto filtra ambos os fluxos.",
+    "status": "passing",
+    "completed_at": "2026-03-10T09:00:00.000Z",
+    "priority": 3,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [],
+    "tests": [
+      "Página /console renderiza sem erros",
+      "Feed exibe operator messages (direita) e engine events (esquerda) em ordem cronológica",
+      "Operator messages mostram badge de status (pending/delivered/processed)",
+      "Engine events mostram badge de categoria colorido",
+      "Campo de envio de mensagem funciona e adiciona mensagem ao feed",
+      "Select de projeto filtra ambos os fluxos simultaneamente",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-011-console-events-fusion.md"
+  },
+  {
+    "id": "F-038",
+    "name": "Wave Timing Backend",
+    "description": "Criar função computeTiming(steps) em routes/waves.ts que calcula: started_at (do primeiro step com started_at), elapsed_ms (Date.now() - started_at), completed_steps_avg_ms (média de duração dos steps concluídos), completed_steps_total_ms, remaining_steps (total - completed), estimated_remaining_ms (remaining * avg), estimated_completion (new Date(now + estimated_remaining_ms)). Retornar null quando não há steps concluídos. Incluir objeto timing na resposta de GET /api/v1/projects/:slug/waves/:waveNumber.",
+    "status": "passing",
+    "priority": 4,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [],
+    "tests": [
+      "GET /api/v1/projects/:slug/waves/:waveNumber inclui campo timing na resposta",
+      "timing é null quando não há steps concluídos",
+      "timing.elapsed_ms é número positivo quando há steps",
+      "timing.estimated_completion é uma data ISO quando há steps concluídos e steps restantes",
+      "Build compila sem erros (npm run typecheck no apps/server)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-014-time-estimates.md",
+    "completed_at": "2026-03-10T06:02:19Z"
+  },
+  {
+    "id": "F-030",
+    "name": "Wave Interruption Detection Frontend",
+    "description": "Adicionar estado visual 'interrupted' em pages/wave-detail.tsx: ícone AlertTriangle de lucide-react com cor amber-500, texto 'Interrompido' no lugar de 'Em execução' para steps com status interrupted. Aplicar fundo bg-amber-500/10 border-amber-500/30 no step da timeline. Tooltip explicativo: 'Processo encerrado inesperadamente (PID não encontrado)'. Manter consistência entre temas claro e escuro.",
+    "status": "passing",
+    "completed_at": "2026-03-10T11:00:00.000Z",
+    "priority": 5,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-029"
+    ],
+    "tests": [
+      "Step com status 'interrupted' exibe ícone AlertTriangle amber",
+      "Step com status 'interrupted' exibe texto 'Interrompido'",
+      "Step interrupted tem fundo bg-amber-500/10 e borda amber",
+      "Tooltip explicativo aparece ao hover no ícone de interrupted",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-010-pid-monitoring-wave-interruption.md"
+  },
+  {
+    "id": "F-032",
+    "name": "Console Filters",
+    "description": "Adicionar painel de filtros colapsável na Console fusionada: checkboxes por categoria de evento (workflow, feature, agent, loop, gutter, queue) + checkbox para operator messages. Select de projeto (já existente, integrar). Busca textual por conteúdo (input de texto filtrando por substring no summary/message). Filtros persistem na URL via query params (useSearch do TanStack Router). Painel abre/fecha com botão de toggle.",
+    "status": "passing",
+    "priority": 6,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-031"
+    ],
+    "tests": [
+      "Painel de filtros abre e fecha com botão toggle",
+      "Checkboxes por categoria filtram os engine events no feed",
+      "Checkbox de operator messages mostra/oculta as mensagens do operador",
+      "Busca textual filtra entradas por conteúdo",
+      "Filtros persistem na URL (recarregar página mantém filtros ativos)",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-011-console-events-fusion.md",
+    "completed_at": "2026-03-10T06:11:49Z"
+  },
+  {
+    "id": "F-033",
+    "name": "Events Route Removal & Cleanup",
+    "description": "Remover pages/events.tsx. Alterar router: substituir eventsRoute por redirect /events → /console. Remover item 'Eventos' de NAV_ITEMS em app-shell.tsx. Limpar bottom-nav (remover referência a eventos). Sidebar fica com: Projetos + Console (+ demais itens existentes). Verificar que build compila sem referências órfãs a events.tsx ou eventsRoute.",
+    "status": "passing",
+    "priority": 7,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-031"
+    ],
+    "tests": [
+      "Arquivo pages/events.tsx não existe mais",
+      "Navegar para /events redireciona para /console",
+      "Sidebar não exibe item 'Eventos'",
+      "Bottom-nav não exibe atalho para eventos",
+      "Nenhuma referência órfã a events.tsx ou eventsRoute no código",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-011-console-events-fusion.md",
+    "completed_at": "2026-03-10T06:15:32Z"
+  },
+  {
+    "id": "F-034",
+    "name": "Autoscroll Inteligente",
+    "description": "Container do feed da Console com scroll interno (flex: 1; min-height: 0; overflow-y: auto — sem page scroll). Detectar posição do scroll (threshold 50px do bottom). Autoscroll ativo quando no bottom — novas entradas rolam automaticamente via scrollTo. Autoscroll suspenso quando usuário rola para cima. Botão flutuante '↓ Novas entradas' posicionado fixo no bottom do container quando há conteúdo novo abaixo com autoscroll suspenso; clique rola ao bottom e reativa autoscroll.",
+    "status": "passing",
+    "completed_at": "2026-03-10T14:00:00.000Z",
+    "priority": 8,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-031"
+    ],
+    "tests": [
+      "Feed da Console usa scroll interno (container não causa page scroll)",
+      "Novas entradas rolam automaticamente quando usuário está no bottom",
+      "Autoscroll é suspenso ao rolar para cima",
+      "Botão '↓ Novas entradas' aparece quando há conteúdo novo abaixo e autoscroll está suspenso",
+      "Clicar no botão rola ao bottom e reativa autoscroll",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-012-smart-scroll.md"
+  },
+  {
+    "id": "F-035",
+    "name": "Controle de Linhas Visíveis",
+    "description": "Select com opções predefinidas (50, 100, 200, 500) posicionado ao lado dos filtros no header da Console. Padrão: 100. Entradas mais antigas descartadas quando total excede o limite (feedItems.slice(-maxLines)). Valor persiste em localStorage com chave 'aw-console-max-lines'. Ao mudar o valor, o feed é imediatamente truncado ao novo limite.",
+    "status": "passing",
+    "completed_at": "2026-03-10T15:00:00.000Z",
+    "priority": 9,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-031"
+    ],
+    "tests": [
+      "Select de linhas visíveis está presente no header da Console",
+      "Opções são 50, 100, 200, 500",
+      "Padrão é 100",
+      "Feed não exibe mais entradas do que o limite selecionado",
+      "Valor persiste em localStorage sob chave 'aw-console-max-lines'",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-012-smart-scroll.md"
+  },
+  {
+    "id": "F-039",
+    "name": "Wave Timing Frontend",
+    "description": "Seção de timing em wave-detail.tsx abaixo do progress bar: tempo decorrido total (formatDuration helper), média por step, '~Xm restantes' com opacidade reduzida (opacity-60), hora prevista HH:MM. Quando não há steps concluídos, exibir apenas decorrido. Step com status running na timeline exibe tempo decorrido em tempo real via setInterval 10s (cleanup no unmount). Layout responsivo: em mobile os valores empilham verticalmente.",
+    "status": "passing",
+    "priority": 10,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-038"
+    ],
+    "tests": [
+      "Seção de timing aparece no wave detail abaixo do progress bar",
+      "Tempo decorrido é exibido quando há pelo menos um step",
+      "Média por step e estimativa de conclusão aparecem quando há steps concluídos",
+      "Estimativa exibe hora prevista no formato HH:MM",
+      "Step running exibe tempo decorrido atualizado em tempo real",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-014-time-estimates.md",
+    "completed_at": "2026-03-10T06:24:42.427Z"
+  },
+  {
+    "id": "F-036",
+    "name": "Wave & Step Visual Hierarchy",
+    "description": "Aplicar padrões visuais por status em wave-detail.tsx: running com bg-blue-500/10 border-blue-500/30 e ícone animado (animate-spin ou animate-pulse), completed com bg-green-500/10 border-green-500/30, failed com bg-red-500/10 border-red-500/30, interrupted com bg-amber-500/10 border-amber-500/30 (integrar com F-030), pending com opacity-60. Progress bar com h-3 e números absolutos (ex: '3/7 steps'). Counters de steps com tipografia maior (text-2xl). Feature loop progress ring visual. Step detail com metadados em grid de cards compactos e status badge grande no topo.",
+    "status": "passing",
+    "completed_at": "2026-03-10T17:00:00.000Z",
+    "priority": 11,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-030"
+    ],
+    "tests": [
+      "Steps running exibem fundo azul e ícone animado",
+      "Steps completed exibem fundo verde sutil",
+      "Steps failed exibem fundo vermelho",
+      "Steps interrupted exibem fundo amber",
+      "Steps pending exibem opacidade reduzida (60%)",
+      "Progress bar tem altura h-3 com contagem absoluta",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-013-look-and-feel.md"
+  },
+  {
+    "id": "F-037",
+    "name": "Project Cards & Console Polish",
+    "description": "Cards de projeto em projects.tsx com dot pulsante (animate-pulse) quando há run ativo (consultar /api/v1/runs/active). project-detail.tsx com seção de runs ativos em destaque visual (fundo, borda, ícone). Botão de execução mais proeminente quando não há run ativo. Console pages/console.tsx com área de input visualmente distinta (fundo/borda diferente do feed). Feed items com espaçamento adequado (gap-2 entre items). Consistência entre temas claro/escuro verificada.",
+    "status": "passing",
+    "completed_at": "2026-03-10T18:00:00.000Z",
+    "priority": 12,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-033"
+    ],
+    "tests": [
+      "Cards de projeto exibem dot pulsante quando há run ativo",
+      "Detalhe do projeto exibe seção de runs ativos com destaque visual",
+      "Botão de execução é proeminente quando não há run ativo",
+      "Área de input da Console tem fundo/borda distintos do feed",
+      "Feed items têm espaçamento visual adequado",
+      "Visual é consistente entre tema claro e escuro",
+      "Build compila sem erros (npm run typecheck)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-013-look-and-feel.md"
+  }
+]

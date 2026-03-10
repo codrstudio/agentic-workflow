@@ -53,8 +53,6 @@ function useBreadcrumbs(): BreadcrumbItem[] {
     }
   } else if (segments[0] === "console") {
     crumbs.push({ label: "Console" })
-  } else if (segments[0] === "events") {
-    crumbs.push({ label: "Eventos" })
   }
 
   return crumbs

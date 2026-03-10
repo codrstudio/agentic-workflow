@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
-import { FolderKanban, Terminal, Activity, Menu, X, Check } from "lucide-react"
+import { FolderKanban, Terminal, Menu, X, Check } from "lucide-react"
 import { Drawer } from "vaul"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -13,7 +13,6 @@ export type NavItemDef = {
 export const ALL_NAV_ITEMS: NavItemDef[] = [
   { to: "/projects", label: "Projetos", icon: FolderKanban },
   { to: "/console", label: "Console", icon: Terminal },
-  { to: "/events", label: "Eventos", icon: Activity },
 ]
 
 const SHORTCUTS_KEY = "bottom-nav-shortcuts"

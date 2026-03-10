@@ -8,6 +8,7 @@ import { projects } from './routes/projects.js';
 import { workflows } from './routes/workflows.js';
 import { sse } from './routes/sse.js';
 import { agentActions } from './routes/agent-actions.js';
+import { pid, activeRuns } from './routes/pid.js';
 import { authMiddleware } from './middleware/auth.js';
 
 const app = new Hono().basePath('/api/v1');
@@ -30,6 +31,8 @@ app.route('/projects', projects);
 app.route('/workflows', workflows);
 app.route('/events', sse);
 app.route('/hub/projects', agentActions);
+app.route('/pid', pid);
+app.route('/runs', activeRuns);
 
 const PORT = parseInt(process.env['SERVER_PORT']!, 10);
 
