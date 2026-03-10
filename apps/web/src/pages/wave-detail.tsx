@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, Link } from "@tanstack/react-router"
 import {
   CheckCircle2,
@@ -8,6 +8,7 @@ import {
   RefreshCcw,
   ChevronRight,
   AlertTriangle,
+  Clock,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { FeatureLoopDashboard } from "@/components/wave/feature-loop-dashboard"
@@ -25,6 +26,16 @@ interface Step {
   exit_code?: number
 }
 
+interface WaveTiming {
+  started_at: string
+  elapsed_ms: number
+  completed_steps_avg_ms: number
+  completed_steps_total_ms: number
+  remaining_steps: number
+  estimated_remaining_ms: number
+  estimated_completion: string
+}
+
 interface WaveDetail {
   wave_number: number
   status: StepStatus
@@ -33,6 +44,7 @@ interface WaveDetail {
   steps_failed: number
   progress: number
   steps: Step[]
+  timing: WaveTiming | null
 }
 
 function formatDuration(ms?: number): string {
@@ -41,7 +53,62 @@ function formatDuration(ms?: number): string {
   if (seconds < 60) return `${seconds}s`
   const minutes = Math.floor(seconds / 60)
   const secs = seconds % 60
-  return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`
+  if (minutes < 60) return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`
+}
+
+function formatHHMM(isoString: string): string {
+  const d = new Date(isoString)
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+}
+
+function TimingSection({ timing, steps, now }: { timing: WaveTiming | null; steps: Step[]; now: number }) {
+  // When timing is null (no completed steps), compute elapsed from first started step
+  const firstStarted = steps.find((s) => s.started_at)
+  const elapsedMs = timing
+    ? timing.elapsed_ms
+    : firstStarted?.started_at
+      ? now - new Date(firstStarted.started_at).getTime()
+      : null
+
+  if (elapsedMs == null) return null
+
+  const hasCompleted = timing != null
+
+  return (
+    <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-6 gap-y-2 rounded-lg border border-border/60 bg-muted/40 px-4 py-3 text-sm">
+      <div className="flex items-center gap-2 shrink-0">
+        <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+        <span className="text-muted-foreground text-xs">Decorrido</span>
+        <span className="font-medium tabular-nums">{formatDuration(elapsedMs)}</span>
+      </div>
+
+      {hasCompleted && timing && (
+        <>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-muted-foreground text-xs">Média/step</span>
+            <span className="font-medium tabular-nums">{formatDuration(timing.completed_steps_avg_ms)}</span>
+          </div>
+
+          {timing.remaining_steps > 0 && (
+            <div className="flex items-center gap-2 shrink-0 opacity-60">
+              <span className="text-muted-foreground text-xs">Restante</span>
+              <span className="font-medium tabular-nums">~{formatDuration(timing.estimated_remaining_ms)}</span>
+            </div>
+          )}
+
+          {timing.remaining_steps > 0 && (
+            <div className="flex items-center gap-2 shrink-0 opacity-60">
+              <span className="text-muted-foreground text-xs">Conclusão</span>
+              <span className="font-medium tabular-nums">{formatHHMM(timing.estimated_completion)}</span>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
 }
 
 function StatusIcon({ status }: { status: StepStatus }) {
@@ -87,6 +154,8 @@ export function WaveDetailPage() {
   const [wave, setWave] = useState<WaveDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -100,6 +169,21 @@ export function WaveDetailPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }, [slug, waveNumber])
+
+  // Interval to update elapsed time for running steps every 10s
+  useEffect(() => {
+    const steps = wave?.steps ?? []
+    const hasRunning = steps.some((s) => s.status === "running" && s.started_at)
+    if (hasRunning) {
+      intervalRef.current = setInterval(() => setNow(Date.now()), 10_000)
+    }
+    return () => {
+      if (intervalRef.current != null) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [wave])
 
   if (loading) {
     return (
@@ -154,6 +238,9 @@ export function WaveDetailPage() {
         </div>
       </div>
 
+      {/* Timing section */}
+      <TimingSection timing={wave.timing} steps={steps} now={now} />
+
       {/* Timeline */}
       {steps.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhum step encontrado.</p>
@@ -198,6 +285,11 @@ export function WaveDetailPage() {
                         <span className="flex items-center gap-1">
                           <RefreshCcw className="w-3 h-3 animate-spin" />
                           em execução
+                          {step.started_at && (
+                            <span className="ml-1 tabular-nums">
+                              · {formatDuration(now - new Date(step.started_at).getTime())}
+                            </span>
+                          )}
                         </span>
                       ) : step.status === "interrupted" ? (
                         <span className="text-amber-500">Interrompido</span>

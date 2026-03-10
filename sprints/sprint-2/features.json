@@ -192,7 +192,7 @@
     "id": "F-039",
     "name": "Wave Timing Frontend",
     "description": "Seção de timing em wave-detail.tsx abaixo do progress bar: tempo decorrido total (formatDuration helper), média por step, '~Xm restantes' com opacidade reduzida (opacity-60), hora prevista HH:MM. Quando não há steps concluídos, exibir apenas decorrido. Step com status running na timeline exibe tempo decorrido em tempo real via setInterval 10s (cleanup no unmount). Layout responsivo: em mobile os valores empilham verticalmente.",
-    "status": "pending",
+    "status": "passing",
     "priority": 10,
     "agent": "coder",
     "task": "vibe-code",
@@ -207,7 +207,8 @@
       "Step running exibe tempo decorrido atualizado em tempo real",
       "Build compila sem erros (npm run typecheck)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-014-time-estimates.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-014-time-estimates.md",
+    "completed_at": "2026-03-10T06:24:42.427Z"
   },
   {
     "id": "F-036",
