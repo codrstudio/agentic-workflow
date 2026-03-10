@@ -126,7 +126,7 @@
     "id": "F-033",
     "name": "Events Route Removal & Cleanup",
     "description": "Remover pages/events.tsx. Alterar router: substituir eventsRoute por redirect /events → /console. Remover item 'Eventos' de NAV_ITEMS em app-shell.tsx. Limpar bottom-nav (remover referência a eventos). Sidebar fica com: Projetos + Console (+ demais itens existentes). Verificar que build compila sem referências órfãs a events.tsx ou eventsRoute.",
-    "status": "pending",
+    "status": "passing",
     "priority": 7,
     "agent": "coder",
     "task": "vibe-code",
@@ -141,7 +141,8 @@
       "Nenhuma referência órfã a events.tsx ou eventsRoute no código",
       "Build compila sem erros (npm run typecheck)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-011-console-events-fusion.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-011-console-events-fusion.md",
+    "completed_at": "2026-03-10T06:15:32Z"
   },
   {
     "id": "F-034",

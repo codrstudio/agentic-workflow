@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
-import { FolderKanban, Terminal, Activity, ChevronLeft, ChevronRight, Sun, Moon, Monitor, LogOut, Check } from "lucide-react"
+import { FolderKanban, Terminal, ChevronLeft, ChevronRight, Sun, Moon, Monitor, LogOut, Check } from "lucide-react"
 import * as Popover from "@radix-ui/react-popover"
 import { AnimatePresence, motion } from "framer-motion"
 import { cn } from "@workspace/ui/lib/utils"
@@ -14,7 +14,6 @@ import { SSEProvider } from "@/contexts/sse-context"
 const NAV_ITEMS = [
   { to: "/projects", label: "Projetos", icon: FolderKanban },
   { to: "/console", label: "Console", icon: Terminal },
-  { to: "/events", label: "Eventos", icon: Activity },
 ] as const
 
 const COLLAPSED_KEY = "sidebar-collapsed"
