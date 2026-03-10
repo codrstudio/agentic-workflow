@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { getAwRoot } from '../lib/paths.js';
+import { isPidAlive } from '../lib/pid-check.js';
 
 const app = new Hono();
 
@@ -40,12 +41,18 @@ interface LoopJson {
   max_features?: number | null;
 }
 
-type StepStatus = 'pending' | 'running' | 'completed' | 'failed';
+type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'interrupted';
 
 function deriveStatus(spawn: SpawnJson | null, dirExists: boolean): StepStatus {
   if (!dirExists) return 'pending';
   if (!spawn) return 'running';
-  if (spawn.exit_code === undefined || spawn.exit_code === null) return 'running';
+  if (spawn.exit_code === undefined || spawn.exit_code === null) {
+    // Process started but not finished — check if PID is still alive
+    if (spawn.pid !== undefined && spawn.pid !== null) {
+      return isPidAlive(spawn.pid) ? 'running' : 'interrupted';
+    }
+    return 'running';
+  }
   return spawn.exit_code === 0 ? 'completed' : 'failed';
 }
 
@@ -92,7 +99,12 @@ async function readStepSummary(
     } else if (loop.status === 'failed') {
       status = 'failed';
     } else {
-      status = 'running';
+      // Loop is in progress — check if PID is still alive
+      if (loop.pid !== undefined && loop.pid !== null) {
+        status = isPidAlive(loop.pid) ? 'running' : 'interrupted';
+      } else {
+        status = 'running';
+      }
     }
 
     return {
@@ -187,9 +199,11 @@ app.get('/', async (c) => {
       const completed = steps.filter((s) => s!.status === 'completed').length;
       const failed = steps.filter((s) => s!.status === 'failed').length;
       const running = steps.filter((s) => s!.status === 'running').length;
+      const interrupted = steps.filter((s) => s!.status === 'interrupted').length;
 
       let waveStatus: StepStatus = 'pending';
       if (running > 0) waveStatus = 'running';
+      else if (interrupted > 0) waveStatus = 'interrupted';
       else if (failed > 0) waveStatus = 'failed';
       else if (completed === total && total > 0) waveStatus = 'completed';
       else if (completed > 0) waveStatus = 'running';

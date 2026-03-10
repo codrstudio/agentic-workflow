@@ -22,7 +22,7 @@
     "id": "F-029",
     "name": "Wave Interruption Detection Backend",
     "description": "Adicionar 'interrupted' ao tipo StepStatus em routes/waves.ts. Alterar deriveStatus() para checar PID via isPidAlive() quando spawn.json existe com pid mas sem exit_code: se PID morto, retornar 'interrupted'. Aplicar mesma lógica em loop steps via loop.json.pid. Wave status geral deve refletir o estado interrupted (se algum step está interrupted sem steps posteriores running/completed, a wave é interrupted).",
-    "status": "pending",
+    "status": "passing",
     "priority": 2,
     "agent": "coder",
     "task": "vibe-code",
@@ -36,7 +36,8 @@
       "Wave status reflete interrupted quando último step ativo está interrupted",
       "Build compila sem erros (npm run typecheck no apps/server)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-010-pid-monitoring-wave-interruption.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-010-pid-monitoring-wave-interruption.md",
+    "completed_at": "2026-03-10T05:53:41Z"
   },
   {
     "id": "F-031",
