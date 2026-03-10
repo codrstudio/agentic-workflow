@@ -8,6 +8,9 @@ import { useSSEContext, type SSEEvent } from "@/contexts/sse-context"
 // ---- Constants ----
 
 const MAX_EVENTS = 500
+const MAX_LINES_OPTIONS = [50, 100, 200, 500] as const
+const LS_MAX_LINES_KEY = "aw-console-max-lines"
+const DEFAULT_MAX_LINES = 100
 
 type EventCategory = "workflow" | "feature" | "agent" | "loop" | "gutter" | "queue"
 type MessageStatus = "queued" | "processing" | "done"
@@ -318,6 +321,13 @@ export function ConsolePage() {
   const [sending, setSending] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [hasNewBelow, setHasNewBelow] = useState(false)
+  const [maxLines, setMaxLines] = useState<number>(() => {
+    const stored = localStorage.getItem(LS_MAX_LINES_KEY)
+    const parsed = stored ? parseInt(stored, 10) : NaN
+    return MAX_LINES_OPTIONS.includes(parsed as (typeof MAX_LINES_OPTIONS)[number])
+      ? parsed
+      : DEFAULT_MAX_LINES
+  })
   const inputRef = useRef<HTMLInputElement>(null)
   const feedRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef(true)
@@ -563,8 +573,11 @@ export function ConsolePage() {
     }
 
     // Sort ascending by timestamp (oldest first → newest at bottom, chat style)
-    return items.sort((a, b) => a.timestamp - b.timestamp)
-  }, [messages, engineEvents, selectedSlug, showOp, enabledCategories, searchQuery])
+    items.sort((a, b) => a.timestamp - b.timestamp)
+
+    // Discard oldest entries beyond maxLines limit
+    return items.length > maxLines ? items.slice(-maxLines) : items
+  }, [messages, engineEvents, selectedSlug, showOp, enabledCategories, searchQuery, maxLines])
 
   const emptyMessage = selectedSlug
     ? "Aguardando mensagens e eventos…"
@@ -596,6 +609,26 @@ export function ConsolePage() {
             </option>
           ))}
         </select>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <label htmlFor="max-lines-select" className="text-xs text-muted-foreground whitespace-nowrap">
+            Linhas:
+          </label>
+          <select
+            id="max-lines-select"
+            value={maxLines}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10)
+              setMaxLines(val)
+              localStorage.setItem(LS_MAX_LINES_KEY, String(val))
+            }}
+            className="rounded-md border border-input bg-background px-2 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {MAX_LINES_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </div>
 
         <button
           onClick={() => setFiltersOpen((o) => !o)}
