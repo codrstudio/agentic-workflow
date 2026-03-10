@@ -7,11 +7,12 @@ import {
   Circle,
   RefreshCcw,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { FeatureLoopDashboard } from "@/components/wave/feature-loop-dashboard"
 
-type StepStatus = "pending" | "running" | "completed" | "failed"
+type StepStatus = "pending" | "running" | "completed" | "failed" | "interrupted"
 
 interface Step {
   index: number
@@ -52,6 +53,13 @@ function StatusIcon({ status }: { status: StepStatus }) {
   }
   if (status === "running") {
     return <Loader2 className="w-5 h-5 text-blue-500 shrink-0 animate-spin" />
+  }
+  if (status === "interrupted") {
+    return (
+      <span title="Processo encerrado inesperadamente (PID não encontrado)">
+        <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+      </span>
+    )
   }
   return <Circle className="w-5 h-5 text-muted-foreground/40 shrink-0" />
 }
@@ -164,7 +172,11 @@ export function WaveDetailPage() {
                   waveNumber,
                   stepIndex: String(step.index),
                 }}
-                className="group relative flex items-start gap-4 py-3 rounded-lg px-2 -mx-2 hover:bg-muted/50 transition-colors cursor-pointer"
+                className={`group relative flex items-start gap-4 py-3 rounded-lg px-2 -mx-2 hover:bg-muted/50 transition-colors cursor-pointer border ${
+                  step.status === "interrupted"
+                    ? "bg-amber-500/10 border-amber-500/30"
+                    : "border-transparent"
+                }`}
               >
                 {/* Status icon (sits on the vertical line) */}
                 <div className="relative z-10 mt-0.5 bg-background">
@@ -180,13 +192,15 @@ export function WaveDetailPage() {
                     <span className="text-sm font-medium truncate">{step.task}</span>
                     <TypeBadge type={step.type} />
                   </div>
-                  {(step.duration_ms != null || step.status === "running") && (
+                  {(step.duration_ms != null || step.status === "running" || step.status === "interrupted") && (
                     <div className="flex items-center gap-1 pl-10 text-xs text-muted-foreground">
                       {step.status === "running" ? (
                         <span className="flex items-center gap-1">
                           <RefreshCcw className="w-3 h-3 animate-spin" />
                           em execução
                         </span>
+                      ) : step.status === "interrupted" ? (
+                        <span className="text-amber-500">Interrompido</span>
                       ) : (
                         <span>{formatDuration(step.duration_ms)}</span>
                       )}
