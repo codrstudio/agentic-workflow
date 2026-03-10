@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams, Link } from "@tanstack/react-router"
-import { CheckCircle2, XCircle, Loader2, Circle } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, Circle, Play } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { AgentActionsList, type AgentAction } from "@/components/ui/agent-actions-list"
@@ -264,31 +264,35 @@ export function ProjectDetailPage() {
             type="button"
             onClick={handleExecute}
             disabled={!selectedWorkflow || executing}
-            className="self-start px-4 py-2 rounded bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className={
+              activeRuns.length === 0
+                ? "w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                : "self-start flex items-center gap-2 px-4 py-2 rounded bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            }
           >
+            {executing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
             {executing ? "Iniciando..." : "Executar"}
           </button>
         </div>
       </section>
 
       {/* Active runs */}
-      <section>
-        <h2 className="text-sm font-semibold mb-3">
-          Execuções Ativas
-          {activeRuns.length > 0 && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              ({activeRuns.length})
-            </span>
-          )}
-        </h2>
-        {activeRuns.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nenhuma execução ativa.</p>
-        ) : (
+      {activeRuns.length > 0 && (
+        <section className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+          <h2 className="text-sm font-semibold mb-3 text-blue-700 dark:text-blue-400 flex items-center gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Execuções Ativas
+            <span className="ml-1 text-xs font-normal">({activeRuns.length})</span>
+          </h2>
           <div className="flex flex-col gap-2">
             {activeRuns.map((run) => (
               <div
                 key={run.id}
-                className="bg-card border rounded-lg px-4 py-3 flex items-center justify-between gap-4"
+                className="bg-card border border-border rounded-lg px-4 py-3 flex items-center justify-between gap-4"
               >
                 <div className="flex flex-col gap-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -313,8 +317,8 @@ export function ProjectDetailPage() {
               </div>
             ))}
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
       {/* Finished runs */}
       {finishedRuns.length > 0 && (

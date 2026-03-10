@@ -668,7 +668,7 @@ export function ConsolePage() {
         <div
           ref={feedRef}
           onScroll={handleFeedScroll}
-          className="h-full overflow-y-auto space-y-2"
+          className="h-full overflow-y-auto space-y-2 py-1"
         >
           {feedItems.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-8">{emptyMessage}</p>
@@ -706,8 +706,8 @@ export function ConsolePage() {
         </AnimatePresence>
       </div>
 
-      {/* Message input */}
-      <div className="flex gap-2 border-t border-border pt-3">
+      {/* Message input — visually distinct from feed */}
+      <div className="rounded-lg border border-input bg-muted/40 px-3 py-2.5 flex gap-2 dark:bg-muted/20">
         <input
           ref={inputRef}
           type="text"
