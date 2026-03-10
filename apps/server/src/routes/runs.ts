@@ -6,9 +6,9 @@ import readline from 'node:readline';
 import { eventBus } from '../lib/event-bus.js';
 import { getAwRoot } from '../lib/paths.js';
 
-type RunStatus = 'running' | 'completed' | 'failed';
+export type RunStatus = 'running' | 'completed' | 'failed';
 
-interface Run {
+export interface Run {
   id: string;
   slug: string;
   workflow: string;
@@ -19,7 +19,7 @@ interface Run {
   exitCode?: number;
 }
 
-const runs = new Map<string, Run>();
+export const runsStore = new Map<string, Run>();
 
 const app = new Hono();
 
@@ -85,7 +85,7 @@ app.post('/', async (c) => {
     status: 'running',
     startedAt: new Date().toISOString(),
   };
-  runs.set(runId, run);
+  runsStore.set(runId, run);
 
   eventBus.broadcast({
     type: 'run:started',
@@ -94,7 +94,7 @@ app.post('/', async (c) => {
   });
 
   child.on('exit', (code: number | null) => {
-    const r = runs.get(runId);
+    const r = runsStore.get(runId);
     if (r) {
       r.status = code === 0 ? 'completed' : 'failed';
       if (code !== null) r.exitCode = code;
@@ -113,14 +113,14 @@ app.post('/', async (c) => {
 // GET /api/v1/projects/:slug/runs
 app.get('/', (c) => {
   const slug = c.req.param('slug');
-  const result = [...runs.values()].filter((r) => r.slug === slug);
+  const result = [...runsStore.values()].filter((r) => r.slug === slug);
   return c.json(result);
 });
 
 // DELETE /api/v1/projects/:slug/runs/:runId
 app.delete('/:runId', (c) => {
   const runId = c.req.param('runId');
-  const run = runs.get(runId);
+  const run = runsStore.get(runId);
 
   if (!run) {
     return c.json({ error: 'Run not found' }, 404);

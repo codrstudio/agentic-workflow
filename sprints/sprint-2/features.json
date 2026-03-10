@@ -3,7 +3,8 @@
     "id": "F-028",
     "name": "PID Check Utility & Endpoints",
     "description": "Criar apps/server/src/lib/pid-check.ts com função isPidAlive(pid) usando process.kill(pid, 0) com try/catch. Adicionar rota GET /api/v1/pid/:pid/alive que retorna { alive: boolean }. Validar PID não-numérico retornando 400. Adicionar GET /api/v1/runs/active que lista runs com status running, enriquecidos com campo alive via isPidAlive(). Exportar isPidAlive para uso em outros módulos.",
-    "status": "pending",
+    "status": "passing",
+    "completed_at": "2026-03-10T07:00:00.000Z",
     "priority": 1,
     "agent": "coder",
     "task": "vibe-code",
@@ -25,7 +26,9 @@
     "priority": 2,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-028"],
+    "dependencies": [
+      "F-028"
+    ],
     "tests": [
       "'interrupted' é um valor válido no tipo StepStatus",
       "deriveStatus() retorna 'interrupted' quando spawn.json tem pid sem exit_code e isPidAlive retorna false",
@@ -77,11 +80,13 @@
     "id": "F-030",
     "name": "Wave Interruption Detection Frontend",
     "description": "Adicionar estado visual 'interrupted' em pages/wave-detail.tsx: ícone AlertTriangle de lucide-react com cor amber-500, texto 'Interrompido' no lugar de 'Em execução' para steps com status interrupted. Aplicar fundo bg-amber-500/10 border-amber-500/30 no step da timeline. Tooltip explicativo: 'Processo encerrado inesperadamente (PID não encontrado)'. Manter consistência entre temas claro e escuro.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 5,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-029"],
+    "dependencies": [
+      "F-029"
+    ],
     "tests": [
       "Step com status 'interrupted' exibe ícone AlertTriangle amber",
       "Step com status 'interrupted' exibe texto 'Interrompido'",
@@ -95,11 +100,13 @@
     "id": "F-032",
     "name": "Console Filters",
     "description": "Adicionar painel de filtros colapsável na Console fusionada: checkboxes por categoria de evento (workflow, feature, agent, loop, gutter, queue) + checkbox para operator messages. Select de projeto (já existente, integrar). Busca textual por conteúdo (input de texto filtrando por substring no summary/message). Filtros persistem na URL via query params (useSearch do TanStack Router). Painel abre/fecha com botão de toggle.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 6,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-031"],
+    "dependencies": [
+      "F-031"
+    ],
     "tests": [
       "Painel de filtros abre e fecha com botão toggle",
       "Checkboxes por categoria filtram os engine events no feed",
@@ -114,11 +121,13 @@
     "id": "F-033",
     "name": "Events Route Removal & Cleanup",
     "description": "Remover pages/events.tsx. Alterar router: substituir eventsRoute por redirect /events → /console. Remover item 'Eventos' de NAV_ITEMS em app-shell.tsx. Limpar bottom-nav (remover referência a eventos). Sidebar fica com: Projetos + Console (+ demais itens existentes). Verificar que build compila sem referências órfãs a events.tsx ou eventsRoute.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 7,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-031"],
+    "dependencies": [
+      "F-031"
+    ],
     "tests": [
       "Arquivo pages/events.tsx não existe mais",
       "Navegar para /events redireciona para /console",
@@ -133,11 +142,13 @@
     "id": "F-034",
     "name": "Autoscroll Inteligente",
     "description": "Container do feed da Console com scroll interno (flex: 1; min-height: 0; overflow-y: auto — sem page scroll). Detectar posição do scroll (threshold 50px do bottom). Autoscroll ativo quando no bottom — novas entradas rolam automaticamente via scrollTo. Autoscroll suspenso quando usuário rola para cima. Botão flutuante '↓ Novas entradas' posicionado fixo no bottom do container quando há conteúdo novo abaixo com autoscroll suspenso; clique rola ao bottom e reativa autoscroll.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 8,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-031"],
+    "dependencies": [
+      "F-031"
+    ],
     "tests": [
       "Feed da Console usa scroll interno (container não causa page scroll)",
       "Novas entradas rolam automaticamente quando usuário está no bottom",
@@ -152,11 +163,13 @@
     "id": "F-035",
     "name": "Controle de Linhas Visíveis",
     "description": "Select com opções predefinidas (50, 100, 200, 500) posicionado ao lado dos filtros no header da Console. Padrão: 100. Entradas mais antigas descartadas quando total excede o limite (feedItems.slice(-maxLines)). Valor persiste em localStorage com chave 'aw-console-max-lines'. Ao mudar o valor, o feed é imediatamente truncado ao novo limite.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 9,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-031"],
+    "dependencies": [
+      "F-031"
+    ],
     "tests": [
       "Select de linhas visíveis está presente no header da Console",
       "Opções são 50, 100, 200, 500",
@@ -171,11 +184,13 @@
     "id": "F-039",
     "name": "Wave Timing Frontend",
     "description": "Seção de timing em wave-detail.tsx abaixo do progress bar: tempo decorrido total (formatDuration helper), média por step, '~Xm restantes' com opacidade reduzida (opacity-60), hora prevista HH:MM. Quando não há steps concluídos, exibir apenas decorrido. Step com status running na timeline exibe tempo decorrido em tempo real via setInterval 10s (cleanup no unmount). Layout responsivo: em mobile os valores empilham verticalmente.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 10,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-038"],
+    "dependencies": [
+      "F-038"
+    ],
     "tests": [
       "Seção de timing aparece no wave detail abaixo do progress bar",
       "Tempo decorrido é exibido quando há pelo menos um step",
@@ -190,11 +205,13 @@
     "id": "F-036",
     "name": "Wave & Step Visual Hierarchy",
     "description": "Aplicar padrões visuais por status em wave-detail.tsx: running com bg-blue-500/10 border-blue-500/30 e ícone animado (animate-spin ou animate-pulse), completed com bg-green-500/10 border-green-500/30, failed com bg-red-500/10 border-red-500/30, interrupted com bg-amber-500/10 border-amber-500/30 (integrar com F-030), pending com opacity-60. Progress bar com h-3 e números absolutos (ex: '3/7 steps'). Counters de steps com tipografia maior (text-2xl). Feature loop progress ring visual. Step detail com metadados em grid de cards compactos e status badge grande no topo.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 11,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-030"],
+    "dependencies": [
+      "F-030"
+    ],
     "tests": [
       "Steps running exibem fundo azul e ícone animado",
       "Steps completed exibem fundo verde sutil",
@@ -210,11 +227,13 @@
     "id": "F-037",
     "name": "Project Cards & Console Polish",
     "description": "Cards de projeto em projects.tsx com dot pulsante (animate-pulse) quando há run ativo (consultar /api/v1/runs/active). project-detail.tsx com seção de runs ativos em destaque visual (fundo, borda, ícone). Botão de execução mais proeminente quando não há run ativo. Console pages/console.tsx com área de input visualmente distinta (fundo/borda diferente do feed). Feed items com espaçamento adequado (gap-2 entre items). Consistência entre temas claro/escuro verificada.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 12,
     "agent": "coder",
     "task": "vibe-code",
-    "dependencies": ["F-033"],
+    "dependencies": [
+      "F-033"
+    ],
     "tests": [
       "Cards de projeto exibem dot pulsante quando há run ativo",
       "Detalhe do projeto exibe seção de runs ativos com destaque visual",
