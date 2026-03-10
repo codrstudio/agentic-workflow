@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Send, Filter, ChevronDown } from "lucide-react"
+import { Send, Filter, ChevronDown, ArrowDown } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useSearch, useNavigate } from "@tanstack/react-router"
 import { apiFetch } from "@/lib/api"
@@ -317,7 +317,10 @@ export function ConsolePage() {
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [hasNewBelow, setHasNewBelow] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const feedRef = useRef<HTMLDivElement>(null)
+  const autoScrollRef = useRef(true)
   const selectedSlugRef = useRef(selectedSlug)
   selectedSlugRef.current = selectedSlug
 
@@ -492,6 +495,36 @@ export function ConsolePage() {
     }
   }
 
+  // Autoscroll: scroll handler detects position
+  const handleFeedScroll = useCallback(() => {
+    const el = feedRef.current
+    if (!el) return
+    const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 50
+    if (isAtBottom) {
+      autoScrollRef.current = true
+      setHasNewBelow(false)
+    } else {
+      autoScrollRef.current = false
+    }
+  }, [])
+
+  // Autoscroll: when feed items change, scroll to bottom if autoscroll active
+  useEffect(() => {
+    if (autoScrollRef.current) {
+      feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight })
+    } else {
+      setHasNewBelow(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feedItems])
+
+  // Scroll to bottom and reactivate autoscroll
+  const scrollToBottom = useCallback(() => {
+    autoScrollRef.current = true
+    setHasNewBelow(false)
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" })
+  }, [])
+
   // Build unified chronological feed with filters applied
   const feedItems = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = []
@@ -598,17 +631,44 @@ export function ConsolePage() {
       </AnimatePresence>
 
       {/* Unified feed */}
-      <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
-        {feedItems.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-8">{emptyMessage}</p>
-        )}
-        <AnimatePresence initial={false}>
-          {feedItems.map((item) =>
-            item.kind === "operator-message" ? (
-              <OperatorMessageRow key={item.id} msg={item.msg} />
-            ) : (
-              <EngineEventRow key={item.id} ev={item.ev} />
-            )
+      <div className="relative flex-1 min-h-0">
+        <div
+          ref={feedRef}
+          onScroll={handleFeedScroll}
+          className="h-full overflow-y-auto space-y-2"
+        >
+          {feedItems.length === 0 && (
+            <p className="text-sm text-muted-foreground text-center py-8">{emptyMessage}</p>
+          )}
+          <AnimatePresence initial={false}>
+            {feedItems.map((item) =>
+              item.kind === "operator-message" ? (
+                <OperatorMessageRow key={item.id} msg={item.msg} />
+              ) : (
+                <EngineEventRow key={item.id} ev={item.ev} />
+              )
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Floating button: shown when there is new content below and autoscroll is suspended */}
+        <AnimatePresence>
+          {hasNewBelow && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10"
+            >
+              <button
+                onClick={scrollToBottom}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/90 backdrop-blur-sm px-4 py-1.5 text-sm font-medium shadow-md hover:bg-accent transition-colors"
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+                Novas entradas
+              </button>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
