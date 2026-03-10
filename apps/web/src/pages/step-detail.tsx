@@ -346,7 +346,7 @@ export function StepDetailPage() {
           {/* Success/failure badge */}
           {!isRunning && (
             <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 ${
+              className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold shrink-0 ${
                 isSuccess
                   ? "bg-green-500/15 text-green-700 dark:text-green-400"
                   : "bg-red-500/15 text-red-700 dark:text-red-400"
@@ -356,36 +356,36 @@ export function StepDetailPage() {
             </span>
           )}
           {isRunning && (
-            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-500/15 text-blue-700 dark:text-blue-400 shrink-0">
+            <span className="inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold bg-blue-500/15 text-blue-700 dark:text-blue-400 shrink-0">
               running
             </span>
           )}
         </div>
 
         {/* Meta grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+          <div className="rounded-md bg-muted/50 px-3 py-2">
             <p className="text-muted-foreground mb-0.5">Task</p>
-            <p className="font-mono font-medium">{meta.task ?? "—"}</p>
+            <p className="font-mono font-medium truncate">{meta.task ?? "—"}</p>
           </div>
-          <div>
+          <div className="rounded-md bg-muted/50 px-3 py-2">
             <p className="text-muted-foreground mb-0.5">Agent</p>
             <p className="font-mono font-medium">{meta.agent ?? "—"}</p>
           </div>
-          <div>
+          <div className="rounded-md bg-muted/50 px-3 py-2">
             <p className="text-muted-foreground mb-0.5 flex items-center gap-1">
               <Clock className="w-3 h-3" /> Início
             </p>
             <p className="font-mono">{formatTime(meta.started_at)}</p>
           </div>
-          <div>
+          <div className="rounded-md bg-muted/50 px-3 py-2">
             <p className="text-muted-foreground mb-0.5 flex items-center gap-1">
               <Clock className="w-3 h-3" /> Duração
             </p>
             <p className="font-mono">{meta.duration_ms != null ? formatDuration(meta.duration_ms) : isRunning ? "em execução" : "—"}</p>
           </div>
           {meta.model_used && (
-            <div className="col-span-2">
+            <div className="col-span-2 rounded-md bg-muted/50 px-3 py-2">
               <p className="text-muted-foreground mb-0.5">Modelo</p>
               <p className="font-mono">{meta.model_used}</p>
             </div>
