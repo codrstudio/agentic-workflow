@@ -144,6 +144,51 @@ async function readStepSummary(
   };
 }
 
+interface TimingResult {
+  started_at: string;
+  elapsed_ms: number;
+  completed_steps_avg_ms: number;
+  completed_steps_total_ms: number;
+  remaining_steps: number;
+  estimated_remaining_ms: number;
+  estimated_completion: string;
+}
+
+function computeTiming(steps: Array<{
+  status: StepStatus;
+  started_at?: string;
+  finished_at?: string;
+  duration_ms?: number;
+}>): TimingResult | null {
+  const firstStarted = steps.find((s) => s.started_at);
+  if (!firstStarted?.started_at) return null;
+
+  const completedSteps = steps.filter((s) => s.status === 'completed' && s.duration_ms !== undefined);
+  if (completedSteps.length === 0) return null;
+
+  const now = Date.now();
+  const startedAtMs = new Date(firstStarted.started_at).getTime();
+  const elapsed_ms = now - startedAtMs;
+
+  const completed_steps_total_ms = completedSteps.reduce((sum, s) => sum + (s.duration_ms ?? 0), 0);
+  const completed_steps_avg_ms = completed_steps_total_ms / completedSteps.length;
+
+  const completed = steps.filter((s) => s.status === 'completed').length;
+  const remaining_steps = steps.length - completed;
+  const estimated_remaining_ms = remaining_steps * completed_steps_avg_ms;
+  const estimated_completion = new Date(now + estimated_remaining_ms).toISOString();
+
+  return {
+    started_at: firstStarted.started_at,
+    elapsed_ms,
+    completed_steps_avg_ms,
+    completed_steps_total_ms,
+    remaining_steps,
+    estimated_remaining_ms,
+    estimated_completion,
+  };
+}
+
 async function listWaveDirs(workspaceDir: string): Promise<string[]> {
   let entries: string[];
   try {
@@ -257,6 +302,8 @@ app.get('/:waveNumber', async (c) => {
   else if (completed === total && total > 0) waveStatus = 'completed';
   else if (completed > 0) waveStatus = 'running';
 
+  const timing = computeTiming(steps.filter(Boolean) as NonNullable<Awaited<ReturnType<typeof readStepSummary>>>[]);
+
   return c.json({
     wave_number: waveNumber,
     status: waveStatus,
@@ -265,6 +312,7 @@ app.get('/:waveNumber', async (c) => {
     steps_failed: failed,
     progress: total > 0 ? Math.round((completed / total) * 100) : 0,
     steps: steps,
+    timing,
   });
 });
 

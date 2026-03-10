@@ -64,7 +64,7 @@
     "id": "F-038",
     "name": "Wave Timing Backend",
     "description": "Criar função computeTiming(steps) em routes/waves.ts que calcula: started_at (do primeiro step com started_at), elapsed_ms (Date.now() - started_at), completed_steps_avg_ms (média de duração dos steps concluídos), completed_steps_total_ms, remaining_steps (total - completed), estimated_remaining_ms (remaining * avg), estimated_completion (new Date(now + estimated_remaining_ms)). Retornar null quando não há steps concluídos. Incluir objeto timing na resposta de GET /api/v1/projects/:slug/waves/:waveNumber.",
-    "status": "pending",
+    "status": "passing",
     "priority": 4,
     "agent": "coder",
     "task": "vibe-code",
@@ -76,7 +76,8 @@
       "timing.estimated_completion é uma data ISO quando há steps concluídos e steps restantes",
       "Build compila sem erros (npm run typecheck no apps/server)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-014-time-estimates.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-014-time-estimates.md",
+    "completed_at": "2026-03-10T06:02:19Z"
   },
   {
     "id": "F-030",
