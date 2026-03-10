@@ -104,7 +104,7 @@
     "id": "F-032",
     "name": "Console Filters",
     "description": "Adicionar painel de filtros colapsável na Console fusionada: checkboxes por categoria de evento (workflow, feature, agent, loop, gutter, queue) + checkbox para operator messages. Select de projeto (já existente, integrar). Busca textual por conteúdo (input de texto filtrando por substring no summary/message). Filtros persistem na URL via query params (useSearch do TanStack Router). Painel abre/fecha com botão de toggle.",
-    "status": "pending",
+    "status": "passing",
     "priority": 6,
     "agent": "coder",
     "task": "vibe-code",
@@ -119,7 +119,8 @@
       "Filtros persistem na URL (recarregar página mantém filtros ativos)",
       "Build compila sem erros (npm run typecheck)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-011-console-events-fusion.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/aw-monitor-milestone-2/wave-1/worktree/sprints/sprint-2/3-prps/PRP-011-console-events-fusion.md",
+    "completed_at": "2026-03-10T06:11:49Z"
   },
   {
     "id": "F-033",

@@ -80,6 +80,12 @@ const stepDetailRoute = createRoute({
 const consoleRoute = createRoute({
   getParentRoute: () => authRoute,
   path: "/console",
+  validateSearch: (search: Record<string, unknown>) => ({
+    project: typeof search.project === "string" ? search.project : "",
+    cats: typeof search.cats === "string" ? search.cats : "",
+    op: search.op !== false && search.op !== "false",
+    q: typeof search.q === "string" ? search.q : "",
+  }),
   component: ConsolePage,
 })
 

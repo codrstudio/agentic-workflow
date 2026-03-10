@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Send } from "lucide-react"
+import { Send, Filter, ChevronDown } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useSearch, useNavigate } from "@tanstack/react-router"
 import { apiFetch } from "@/lib/api"
 import { useSSEContext, type SSEEvent } from "@/contexts/sse-context"
 
@@ -10,6 +11,8 @@ const MAX_EVENTS = 500
 
 type EventCategory = "workflow" | "feature" | "agent" | "loop" | "gutter" | "queue"
 type MessageStatus = "queued" | "processing" | "done"
+
+const ALL_CATEGORIES: EventCategory[] = ["workflow", "feature", "agent", "loop", "gutter", "queue"]
 
 const CATEGORY_COLORS: Record<EventCategory, string> = {
   workflow: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
@@ -33,7 +36,6 @@ const STATUS_COLORS: Record<MessageStatus, string> = {
 }
 
 // Event types to subscribe for the engine events feed
-// (operator:message:queued is handled separately via its own subscription)
 const ENGINE_EVENT_TYPES = [
   "engine:event",
   "engine:log",
@@ -159,6 +161,87 @@ function nextId() {
   return String(++_id)
 }
 
+// ---- Filter Panel ----
+
+interface FilterPanelProps {
+  enabledCategories: Set<EventCategory>
+  showOp: boolean
+  searchQuery: string
+  onCategoryToggle: (cat: EventCategory, checked: boolean) => void
+  onShowOpChange: (checked: boolean) => void
+  onSearchQueryChange: (q: string) => void
+}
+
+function FilterPanel({
+  enabledCategories,
+  showOp,
+  searchQuery,
+  onCategoryToggle,
+  onShowOpChange,
+  onSearchQueryChange,
+}: FilterPanelProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
+      className="overflow-hidden"
+    >
+      <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+        {/* Category checkboxes */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Categorias de evento
+          </p>
+          <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+            {ALL_CATEGORIES.map((cat) => (
+              <label
+                key={cat}
+                className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+              >
+                <input
+                  type="checkbox"
+                  checked={enabledCategories.has(cat)}
+                  onChange={(e) => onCategoryToggle(cat, e.target.checked)}
+                  className="w-3.5 h-3.5 rounded accent-primary"
+                />
+                <span className={`px-1.5 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[cat]}`}>
+                  {cat}
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Operator messages toggle */}
+        <div>
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showOp}
+              onChange={(e) => onShowOpChange(e.target.checked)}
+              className="w-3.5 h-3.5 rounded accent-primary"
+            />
+            <span className="text-muted-foreground">Mensagens do operador</span>
+          </label>
+        </div>
+
+        {/* Text search */}
+        <div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchQueryChange(e.target.value)}
+            placeholder="Buscar por conteúdo…"
+            className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 // ---- Sub-components ----
 
 function OperatorMessageRow({ msg }: { msg: HubMessage }) {
@@ -223,15 +306,52 @@ function EngineEventRow({ ev }: { ev: EngineEventItem }) {
 
 export function ConsolePage() {
   const { subscribe } = useSSEContext()
+  const navigate = useNavigate()
+  const { project: selectedSlug, cats: catsParam, op: showOp, q: searchQuery } = useSearch({
+    from: "/console",
+  })
+
   const [projects, setProjects] = useState<Project[]>([])
-  const [selectedSlug, setSelectedSlug] = useState<string>("")
   const [messages, setMessages] = useState<HubMessage[]>([])
   const [engineEvents, setEngineEvents] = useState<EngineEventItem[]>([])
   const [text, setText] = useState("")
   const [sending, setSending] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const selectedSlugRef = useRef(selectedSlug)
   selectedSlugRef.current = selectedSlug
+
+  // Parse enabled categories from URL
+  const enabledCategories = useMemo<Set<EventCategory>>(() => {
+    if (!catsParam) return new Set(ALL_CATEGORIES)
+    const parsed = catsParam
+      .split(",")
+      .filter((c): c is EventCategory => ALL_CATEGORIES.includes(c as EventCategory))
+    return parsed.length > 0 ? new Set(parsed) : new Set(ALL_CATEGORIES)
+  }, [catsParam])
+
+  // Filter handlers (update URL search params)
+  const handleProjectChange = (slug: string) => {
+    setMessages([])
+    void navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, project: slug }), replace: true })
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  const handleCategoryToggle = (cat: EventCategory, checked: boolean) => {
+    const next = new Set(enabledCategories)
+    if (checked) next.add(cat)
+    else next.delete(cat)
+    const catsStr = next.size === ALL_CATEGORIES.length ? "" : [...next].join(",")
+    void navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, cats: catsStr }), replace: true })
+  }
+
+  const handleShowOpChange = (checked: boolean) => {
+    void navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, op: checked }), replace: true })
+  }
+
+  const handleSearchQueryChange = (q: string) => {
+    void navigate({ search: (prev: Record<string, unknown>) => ({ ...prev, q }), replace: true })
+  }
 
   // Fetch projects on mount
   useEffect(() => {
@@ -239,12 +359,19 @@ export function ConsolePage() {
       .then((r) => r.json() as Promise<Project[]>)
       .then((data) => {
         setProjects(data)
-        if (data.length > 0 && data[0]) {
-          setSelectedSlug(data[0].slug)
-        }
       })
       .catch(() => undefined)
   }, [])
+
+  // Auto-select first project if none selected
+  useEffect(() => {
+    if (!selectedSlug && projects.length > 0 && projects[0]) {
+      void navigate({
+        search: (prev: Record<string, unknown>) => ({ ...prev, project: projects[0]!.slug }),
+        replace: true,
+      })
+    }
+  }, [selectedSlug, projects, navigate])
 
   // Fetch messages when project changes
   useEffect(() => {
@@ -262,12 +389,6 @@ export function ConsolePage() {
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
-
-  const handleProjectChange = (slug: string) => {
-    setSelectedSlug(slug)
-    setMessages([])
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }
 
   // SSE: new operator message queued
   const handleQueued = useCallback((event: SSEEvent) => {
@@ -371,25 +492,34 @@ export function ConsolePage() {
     }
   }
 
-  // Build unified chronological feed
+  // Build unified chronological feed with filters applied
   const feedItems = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = []
+    const q = searchQuery.toLowerCase()
 
     // Operator messages (already filtered by selectedSlug via fetch)
-    for (const msg of messages) {
-      items.push({
-        kind: "operator-message",
-        id: `msg-${msg.id}`,
-        timestamp: new Date(msg.timestamp).getTime(),
-        msg,
-      })
+    if (showOp) {
+      for (const msg of messages) {
+        if (q && !msg.message.toLowerCase().includes(q)) continue
+        items.push({
+          kind: "operator-message",
+          id: `msg-${msg.id}`,
+          timestamp: new Date(msg.timestamp).getTime(),
+          msg,
+        })
+      }
     }
 
-    // Engine events — filter by selectedSlug when one is selected
+    // Engine events — filter by selectedSlug, category, and text
     for (const ev of engineEvents) {
+      if (!enabledCategories.has(ev.category)) continue
       if (selectedSlug) {
         const slug = getEventSlug(ev.type, ev.data)
         if (slug && slug !== selectedSlug) continue
+      }
+      if (q) {
+        const text = `${ev.label} ${ev.summary}`.toLowerCase()
+        if (!text.includes(q)) continue
       }
       items.push({
         kind: "engine-event",
@@ -401,16 +531,22 @@ export function ConsolePage() {
 
     // Sort ascending by timestamp (oldest first → newest at bottom, chat style)
     return items.sort((a, b) => a.timestamp - b.timestamp)
-  }, [messages, engineEvents, selectedSlug])
+  }, [messages, engineEvents, selectedSlug, showOp, enabledCategories, searchQuery])
 
   const emptyMessage = selectedSlug
     ? "Aguardando mensagens e eventos…"
     : "Selecione um projeto ou aguarde eventos globais."
 
+  // Count active filters for badge
+  const activeFilterCount =
+    (catsParam ? ALL_CATEGORIES.length - enabledCategories.size : 0) +
+    (!showOp ? 1 : 0) +
+    (searchQuery ? 1 : 0)
+
   return (
-    <div className="flex flex-col h-full p-4 gap-4 max-w-4xl mx-auto w-full">
-      {/* Project select */}
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full p-4 gap-3 max-w-4xl mx-auto w-full">
+      {/* Top bar: project select + filters toggle */}
+      <div className="flex items-center gap-2">
         <label htmlFor="project-select" className="text-sm font-medium whitespace-nowrap">
           Projeto:
         </label>
@@ -427,7 +563,39 @@ export function ConsolePage() {
             </option>
           ))}
         </select>
+
+        <button
+          onClick={() => setFiltersOpen((o) => !o)}
+          className="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-sm shadow-sm hover:bg-accent transition-colors relative"
+          aria-expanded={filtersOpen}
+          aria-label="Abrir painel de filtros"
+        >
+          <Filter className="w-3.5 h-3.5" />
+          Filtros
+          {activeFilterCount > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+              {activeFilterCount}
+            </span>
+          )}
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform duration-150 ${filtersOpen ? "rotate-180" : ""}`}
+          />
+        </button>
       </div>
+
+      {/* Collapsible filter panel */}
+      <AnimatePresence initial={false}>
+        {filtersOpen && (
+          <FilterPanel
+            enabledCategories={enabledCategories}
+            showOp={showOp}
+            searchQuery={searchQuery}
+            onCategoryToggle={handleCategoryToggle}
+            onShowOpChange={handleShowOpChange}
+            onSearchQueryChange={handleSearchQueryChange}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Unified feed */}
       <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
