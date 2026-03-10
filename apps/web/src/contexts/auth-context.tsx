@@ -15,6 +15,7 @@ export type AuthState =
 
 export type AuthContextValue = {
   user: AuthState
+  loading: boolean
   login: (username: string, password: string) => Promise<void>
   logout: () => Promise<void>
 }
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username: null,
     role: null,
   })
+  const [loading, setLoading] = React.useState(true)
 
   // Register 401 handler — redirects to /login and clears state
   React.useEffect(() => {
@@ -44,12 +46,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const data = (await res.json()) as { username: string; role: string }
           setUser({ isAuthenticated: true, username: data.username, role: data.role })
-          void router.invalidate()
         }
       })
       .catch(() => {
         // network error — stay unauthenticated
       })
+      .finally(() => setLoading(false))
   }, [])
 
   const login = React.useCallback(async (username: string, password: string) => {
@@ -81,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void router.navigate({ to: "/login", replace: true })
   }, [])
 
-  const value = React.useMemo(() => ({ user, login, logout }), [user, login, logout])
+  const value = React.useMemo(() => ({ user, loading, login, logout }), [user, loading, login, logout])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

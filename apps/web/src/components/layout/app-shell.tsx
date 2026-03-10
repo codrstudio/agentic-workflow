@@ -1,13 +1,14 @@
 import * as React from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
-import { FolderKanban, Terminal, Activity, ChevronLeft, ChevronRight, Sun, Moon, Monitor, LogOut } from "lucide-react"
+import { FolderKanban, Terminal, Activity, ChevronLeft, ChevronRight, Sun, Moon, Monitor, LogOut, Check } from "lucide-react"
+import * as Popover from "@radix-ui/react-popover"
 import { AnimatePresence, motion } from "framer-motion"
 import { cn } from "@workspace/ui/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { useTheme } from "@/components/theme-provider"
 import { BottomNav } from "@/components/layout/bottom-nav"
 import { Breadcrumb } from "@/components/layout/breadcrumb"
-import { SSEIndicator } from "@/components/layout/sse-indicator"
+import { useSSEContext, type SSEStatus } from "@/contexts/sse-context"
 import { SSEProvider } from "@/contexts/sse-context"
 
 const NAV_ITEMS = [
@@ -77,14 +78,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NavItem key={to} to={to} label={label} icon={Icon} collapsed={collapsed} />
           ))}
         </nav>
-
-        {/* SSE connection indicator */}
-        <div className={cn(
-          "px-4 py-1.5",
-          collapsed ? "flex justify-center px-0" : ""
-        )}>
-          <SSEIndicator compact={collapsed} />
-        </div>
 
         {/* User menu */}
         <UserMenu collapsed={collapsed} />
@@ -156,81 +149,113 @@ function NavItem({
   )
 }
 
-const THEME_CYCLE: Record<"light" | "dark" | "system", "dark" | "light" | "system"> = {
-  light: "dark",
-  dark: "system",
-  system: "light",
-}
-
-const THEME_ICONS: Record<"light" | "dark" | "system", React.ComponentType<{ className?: string }>> = {
-  light: Sun,
-  dark: Moon,
-  system: Monitor,
-}
-
-const THEME_LABELS: Record<"light" | "dark" | "system", string> = {
-  light: "Tema: claro",
-  dark: "Tema: escuro",
-  system: "Tema: sistema",
-}
+const THEME_OPTIONS: { value: "light" | "dark" | "system"; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: "light", label: "Claro", icon: Sun },
+  { value: "dark", label: "Escuro", icon: Moon },
+  { value: "system", label: "Auto", icon: Monitor },
+]
 
 function UserMenu({ collapsed }: { collapsed: boolean }) {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
 
   const username = user.isAuthenticated ? user.username : ""
+  const role = user.isAuthenticated ? user.role : ""
   const initials = username.slice(0, 2).toUpperCase() || "?"
-  const ThemeIcon = THEME_ICONS[theme]
-  const nextTheme = THEME_CYCLE[theme]
-  const themeLabel = THEME_LABELS[theme]
 
   return (
-    <div className={cn(
-      "flex flex-col gap-1 border-t border-border p-2",
-    )}>
-      {/* Avatar + username */}
-      <div
-        className={cn(
-          "flex items-center gap-2.5 rounded-md px-2 py-1.5",
-          collapsed ? "justify-center" : "",
-        )}
-        title={collapsed ? username : undefined}
-      >
-        <div className="flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
-          {initials}
-        </div>
-        {!collapsed && (
-          <span className="truncate text-sm font-medium text-foreground">{username}</span>
-        )}
-      </div>
+    <div className="border-t border-border p-2">
+      <Popover.Root>
+        <Popover.Trigger asChild>
+          <button
+            className={cn(
+              "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors hover:bg-muted",
+              collapsed ? "justify-center" : "",
+            )}
+            title={collapsed ? username : undefined}
+          >
+            <div className="relative flex size-6 flex-shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+              {initials}
+              <SSEDot />
+            </div>
+            {!collapsed && (
+              <span className="truncate text-sm font-medium text-foreground">{username}</span>
+            )}
+          </button>
+        </Popover.Trigger>
 
-      {/* Theme toggle */}
-      <button
-        onClick={() => setTheme(nextTheme)}
-        title={themeLabel}
-        aria-label={themeLabel}
-        className={cn(
-          "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-          collapsed ? "justify-center" : "",
-        )}
-      >
-        <ThemeIcon className="size-4 flex-shrink-0" />
-        {!collapsed && <span>{themeLabel}</span>}
-      </button>
+        <Popover.Portal>
+          <Popover.Content
+            side="top"
+            align="start"
+            sideOffset={8}
+            className="z-50 w-56 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95"
+          >
+            {/* User info */}
+            <div className="flex items-center gap-2.5 px-2 py-2">
+              <div className="relative flex size-8 flex-shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                {initials}
+                <SSEDot />
+              </div>
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate text-sm font-medium text-foreground">{username}</span>
+                {role && <span className="truncate text-xs text-muted-foreground">{role}</span>}
+              </div>
+            </div>
 
-      {/* Logout */}
-      <button
-        onClick={() => void logout()}
-        title={collapsed ? "Sair" : undefined}
-        aria-label="Sair"
-        className={cn(
-          "flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-          collapsed ? "justify-center" : "",
-        )}
-      >
-        <LogOut className="size-4 flex-shrink-0" />
-        {!collapsed && <span>Sair</span>}
-      </button>
+            <div className="mx-1 my-1 h-px bg-border" />
+
+            {/* Theme options */}
+            <div className="flex flex-col gap-0.5">
+              {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setTheme(value)}
+                  className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <Icon className="size-4 flex-shrink-0" />
+                  <span>{label}</span>
+                  {theme === value && <Check className="ml-auto size-3.5" />}
+                </button>
+              ))}
+            </div>
+
+            <div className="mx-1 my-1 h-px bg-border" />
+
+            {/* Logout */}
+            <button
+              onClick={() => void logout()}
+              className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="size-4 flex-shrink-0" />
+              <span>Sair</span>
+            </button>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
     </div>
+  )
+}
+
+const SSE_DOT_CLASS: Record<SSEStatus, string> = {
+  connected: "bg-green-500",
+  reconnecting: "bg-yellow-500 animate-pulse",
+  disconnected: "bg-red-500",
+}
+
+const SSE_DOT_LABEL: Record<SSEStatus, string> = {
+  connected: "SSE conectado",
+  reconnecting: "SSE reconectando…",
+  disconnected: "SSE desconectado",
+}
+
+function SSEDot() {
+  const { status } = useSSEContext()
+
+  return (
+    <span
+      className={cn("absolute -right-0.5 -top-0.5 size-2 rounded-full ring-1 ring-background", SSE_DOT_CLASS[status])}
+      title={SSE_DOT_LABEL[status]}
+    />
   )
 }

@@ -25,7 +25,7 @@ const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/login",
   beforeLoad: ({ context }) => {
-    if (context.auth.user.isAuthenticated) {
+    if (context.auth?.user.isAuthenticated) {
       throw redirect({ to: "/projects" })
     }
   },
@@ -37,7 +37,7 @@ const authRoute = createRoute({
   getParentRoute: () => rootRoute,
   id: "_auth",
   beforeLoad: ({ context }) => {
-    if (!context.auth.user.isAuthenticated) {
+    if (!context.auth?.user.isAuthenticated) {
       throw redirect({ to: "/login" })
     }
   },
@@ -104,6 +104,7 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
+  basepath: "/web",
   context: { auth: undefined! },
 })
 

@@ -19,7 +19,7 @@ interface SSEOptions {
   bufferSize?: number
 }
 
-const DEFAULT_URL = "/api/v1/sse"
+const DEFAULT_URL = "/api/v1/events"
 const DEFAULT_BUFFER_SIZE = 100
 const INITIAL_RETRY_MS = 1_000
 const MAX_RETRY_MS = 30_000

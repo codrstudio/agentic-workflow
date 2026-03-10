@@ -28,7 +28,7 @@ export function LoginPage() {
     <div className="flex min-h-svh items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-semibold">AW Monitor</h1>
+          <h1 className="text-2xl font-semibold">Agentic Workflow</h1>
           <p className="text-muted-foreground mt-1 text-sm">Entre com suas credenciais</p>
         </div>
 
