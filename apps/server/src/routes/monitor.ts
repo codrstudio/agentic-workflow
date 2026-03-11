@@ -3,194 +3,19 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { getAwRoot } from '../lib/paths.js';
 import { isPidAlive } from '../lib/pid-check.js';
+import {
+  readJson,
+  buildStepList,
+  listWaveDirs,
+  listStepDirs,
+  parseStepDir,
+  readStepSummary,
+  parseSpawnJsonl,
+  type StepStatus,
+  type LoopJson,
+} from '../lib/wave-state.js';
 
 const app = new Hono();
-
-async function readJson(filePath: string): Promise<unknown> {
-  const content = await fs.readFile(filePath, 'utf-8');
-  return JSON.parse(content) as unknown;
-}
-
-interface WorkflowStateStep {
-  index: number;
-  task: string;
-  type: string;
-  status: string;
-  started_at: string | null;
-  completed_at: string | null;
-  exit_code: number | null;
-}
-
-interface WorkflowState {
-  workflow: string;
-  wave: number;
-  sprint: number;
-  initialized_at: string;
-  steps: WorkflowStateStep[];
-}
-
-async function readWorkflowState(waveDir: string): Promise<WorkflowState | null> {
-  try {
-    return await readJson(path.join(waveDir, 'workflow-state.json')) as WorkflowState;
-  } catch {
-    return null;
-  }
-}
-
-interface SpawnJson {
-  task?: string;
-  agent?: string;
-  wave?: number;
-  step?: number;
-  pid?: number;
-  parent_pid?: number;
-  started_at?: string;
-  finished_at?: string;
-  exit_code?: number;
-  timed_out?: boolean;
-  model_used?: string;
-}
-
-interface LoopJson {
-  status?: string;
-  pid?: number;
-  iteration?: number;
-  total?: number;
-  done?: number;
-  remaining?: number;
-  features_done?: number;
-  started_at?: string;
-  updated_at?: string;
-  feature_id?: string;
-  current_feature?: string;
-  exit_reason?: string;
-}
-
-type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'interrupted';
-
-function deriveStatus(spawn: SpawnJson | null, dirExists: boolean): StepStatus {
-  if (!dirExists) return 'pending';
-  if (!spawn) return 'running';
-  if (spawn.exit_code === undefined || spawn.exit_code === null) {
-    if (spawn.pid !== undefined && spawn.pid !== null) {
-      return isPidAlive(spawn.pid) ? 'running' : 'interrupted';
-    }
-    return 'running';
-  }
-  return spawn.exit_code === 0 ? 'completed' : 'failed';
-}
-
-function parseStepDir(dirName: string): { index: number; task: string; isLoop: boolean } | null {
-  const match = /^step-(\d+)-(.+)$/.exec(dirName);
-  if (!match) return null;
-  const index = parseInt(match[1]!, 10);
-  const task = match[2]!;
-  return { index, task, isLoop: task === 'ralph-wiggum-loop' };
-}
-
-async function readStepSummary(
-  waveDir: string,
-  dirName: string
-): Promise<{
-  index: number;
-  task: string;
-  type: 'spawn-agent' | 'ralph-wiggum-loop';
-  status: StepStatus;
-  started_at?: string;
-  finished_at?: string;
-  duration_ms?: number;
-  exit_code?: number;
-} | null> {
-  const parsed = parseStepDir(dirName);
-  if (!parsed) return null;
-  const stepDir = path.join(waveDir, dirName);
-
-  if (parsed.isLoop) {
-    const loopFile = path.join(stepDir, 'loop.json');
-    let loop: LoopJson | null = null;
-    try { loop = await readJson(loopFile) as LoopJson; } catch { /* may not exist */ }
-
-    let status: StepStatus = 'running';
-    if (!loop) {
-      status = 'running';
-    } else if (loop.status === 'exited') {
-      status = (loop.exit_reason ?? '').startsWith('error:') ? 'failed' : 'completed';
-    } else if (loop.status === 'starting' || loop.status === 'running' || loop.status === 'between') {
-      if (loop.pid !== undefined && loop.pid !== null) {
-        status = isPidAlive(loop.pid) ? 'running' : 'interrupted';
-      }
-    }
-
-    let duration_ms: number | undefined;
-    if (loop?.started_at && loop.updated_at) {
-      duration_ms = new Date(loop.updated_at).getTime() - new Date(loop.started_at).getTime();
-    }
-    return { index: parsed.index, task: parsed.task, type: 'ralph-wiggum-loop', status, started_at: loop?.started_at, finished_at: loop?.updated_at, duration_ms };
-  }
-
-  const spawnFile = path.join(stepDir, 'spawn.json');
-  let spawn: SpawnJson | null = null;
-  try { spawn = await readJson(spawnFile) as SpawnJson; } catch { /* may not exist */ }
-
-  const status = deriveStatus(spawn, true);
-  let duration_ms: number | undefined;
-  if (spawn?.started_at && spawn?.finished_at) {
-    duration_ms = new Date(spawn.finished_at).getTime() - new Date(spawn.started_at).getTime();
-  }
-  return { index: parsed.index, task: parsed.task, type: 'spawn-agent', status, started_at: spawn?.started_at, finished_at: spawn?.finished_at, duration_ms, exit_code: spawn?.exit_code };
-}
-
-async function listWaveDirs(workspaceDir: string): Promise<string[]> {
-  let entries: string[];
-  try { entries = await fs.readdir(workspaceDir); } catch { return []; }
-  return entries
-    .filter((e) => /^wave-\d+$/.test(e))
-    .sort((a, b) => parseInt(a.replace('wave-', ''), 10) - parseInt(b.replace('wave-', ''), 10));
-}
-
-async function listStepDirs(waveDir: string): Promise<string[]> {
-  let entries: string[];
-  try { entries = await fs.readdir(waveDir); } catch { return []; }
-  return entries
-    .filter((e) => /^step-\d+-.+$/.test(e))
-    .sort((a, b) => parseInt(a.replace(/^step-/, ''), 10) - parseInt(b.replace(/^step-/, ''), 10));
-}
-
-type LogLineType = 'system' | 'assistant' | 'tool_use' | 'tool_result' | 'user';
-interface ParsedLogLine { index: number; type: LogLineType; raw: unknown; }
-
-function classifyLine(obj: Record<string, unknown>): LogLineType {
-  const t = obj['type'];
-  if (t === 'assistant') {
-    const content = Array.isArray((obj['message'] as Record<string, unknown> | undefined)?.['content'])
-      ? ((obj['message'] as Record<string, unknown>)['content'] as Array<Record<string, unknown>>)
-      : [];
-    if (content.some((c) => c['type'] === 'tool_use')) return 'tool_use';
-    return 'assistant';
-  }
-  if (t === 'user') {
-    const content = Array.isArray((obj['message'] as Record<string, unknown> | undefined)?.['content'])
-      ? ((obj['message'] as Record<string, unknown>)['content'] as Array<Record<string, unknown>>)
-      : [];
-    if (content.some((c) => c['type'] === 'tool_result')) return 'tool_result';
-    return 'user';
-  }
-  return 'system';
-}
-
-async function parseSpawnJsonl(jsonlPath: string): Promise<ParsedLogLine[]> {
-  let content: string;
-  try { content = await fs.readFile(jsonlPath, 'utf-8'); } catch { return []; }
-  const lines = content.split('\n').filter((l) => l.trim());
-  const result: ParsedLogLine[] = [];
-  for (let i = 0; i < lines.length; i++) {
-    try {
-      const obj = JSON.parse(lines[i]!) as Record<string, unknown>;
-      result.push({ index: i, type: classifyLine(obj), raw: obj });
-    } catch { /* skip */ }
-  }
-  return result;
-}
 
 async function formatLastOutput(jsonlPath: string): Promise<string[]> {
   const lines = await parseSpawnJsonl(jsonlPath);
@@ -242,48 +67,6 @@ async function getLastOutputAge(jsonlPath: string): Promise<number | null> {
     const stat = await fs.stat(jsonlPath);
     return Date.now() - stat.mtimeMs;
   } catch { return null; }
-}
-
-type StepSummary = NonNullable<Awaited<ReturnType<typeof readStepSummary>>>;
-
-/**
- * Build step list from workflow-state.json as the authoritative source,
- * enriched with runtime data from step directories when available.
- * Falls back to directory-only scanning if workflow-state.json doesn't exist.
- */
-async function buildStepList(wavePath: string): Promise<StepSummary[]> {
-  const wfState = await readWorkflowState(wavePath);
-  const stepDirNames = await listStepDirs(wavePath);
-
-  if (!wfState || !Array.isArray(wfState.steps)) {
-    // Fallback: directory-only (old behavior)
-    return (await Promise.all(stepDirNames.map((d) => readStepSummary(wavePath, d)))).filter(Boolean) as StepSummary[];
-  }
-
-  // Build a map of runtime step data from directories
-  const runtimeSteps = new Map<number, StepSummary>();
-  for (const dirName of stepDirNames) {
-    const summary = await readStepSummary(wavePath, dirName);
-    if (summary) runtimeSteps.set(summary.index, summary);
-  }
-
-  // Use workflow-state steps as the base, enrich with runtime data
-  return wfState.steps.map((ws) => {
-    const runtime = runtimeSteps.get(ws.index);
-    if (runtime) return runtime; // Prefer runtime data (has PID checks, accurate status)
-
-    // No directory yet — pending step from workflow-state
-    return {
-      index: ws.index,
-      task: ws.task,
-      type: (ws.type === 'ralph-wiggum-loop' ? 'ralph-wiggum-loop' : 'spawn-agent') as 'spawn-agent' | 'ralph-wiggum-loop',
-      status: 'pending' as StepStatus,
-      started_at: undefined,
-      finished_at: undefined,
-      duration_ms: undefined,
-      exit_code: undefined,
-    };
-  });
 }
 
 // GET /api/v1/projects/:slug/monitor

@@ -76,6 +76,100 @@ app.get('/:slug', async (c) => {
   });
 });
 
+// POST /api/v1/projects
+app.post('/', async (c) => {
+  const body = await c.req.json() as {
+    name?: string;
+    slug?: string;
+    description?: string;
+    repo?: { url: string; source_branch: string; target_branch?: string };
+    task_content?: string;
+  };
+
+  if (!body.name || !body.slug) {
+    return c.json({ error: 'name and slug are required' }, 400);
+  }
+  if (body.repo && !body.repo.source_branch) {
+    return c.json({ error: 'repo.source_branch is required when repo is provided' }, 400);
+  }
+
+  const awRoot = getAwRoot();
+  const projectDir = path.join(awRoot, 'context', 'projects', body.slug);
+
+  try {
+    await fs.access(projectDir);
+    return c.json({ error: 'Slug already exists' }, 400);
+  } catch {
+    // directory doesn't exist, proceed
+  }
+
+  await fs.mkdir(projectDir, { recursive: true });
+
+  const projectJson: Record<string, unknown> = {
+    name: body.name,
+    slug: body.slug,
+    created_at: new Date().toISOString(),
+    status: 'brainstorming',
+  };
+  if (body.description) projectJson['description'] = body.description;
+  if (body.repo) projectJson['repo'] = body.repo;
+
+  await fs.writeFile(path.join(projectDir, 'project.json'), JSON.stringify(projectJson, null, 2));
+  await fs.writeFile(path.join(projectDir, 'TASK.md'), body.task_content ?? '');
+
+  return c.json({ slug: body.slug }, 201);
+});
+
+// GET /api/v1/projects/:slug/task
+app.get('/:slug/task', async (c) => {
+  const slug = c.req.param('slug');
+  const awRoot = getAwRoot();
+  const taskFile = path.join(awRoot, 'context', 'projects', slug, 'TASK.md');
+  try {
+    const content = await fs.readFile(taskFile, 'utf-8');
+    return c.json({ content });
+  } catch {
+    return c.json({ content: '' });
+  }
+});
+
+// PUT /api/v1/projects/:slug/task
+app.put('/:slug/task', async (c) => {
+  const slug = c.req.param('slug');
+  const body = await c.req.json() as { content?: string };
+  const awRoot = getAwRoot();
+  const taskFile = path.join(awRoot, 'context', 'projects', slug, 'TASK.md');
+  await fs.writeFile(taskFile, body.content ?? '');
+  return c.json({ ok: true });
+});
+
+// POST /api/v1/projects/:slug/artifacts
+app.post('/:slug/artifacts', async (c) => {
+  const slug = c.req.param('slug');
+  const awRoot = getAwRoot();
+  const projectDir = path.join(awRoot, 'context', 'projects', slug);
+  const form = await c.req.formData();
+  const files = form.getAll('file');
+  let uploaded = 0;
+  for (const f of files) {
+    const file = f as File;
+    const dest = path.join(projectDir, 'artifacts', file.name);
+    await fs.mkdir(path.dirname(dest), { recursive: true });
+    await fs.writeFile(dest, Buffer.from(await file.arrayBuffer()));
+    uploaded++;
+  }
+  // Update project.json with target_folder
+  const projectFile = path.join(projectDir, 'project.json');
+  try {
+    const data = await readJson(projectFile) as Record<string, unknown>;
+    data['target_folder'] = 'artifacts';
+    await fs.writeFile(projectFile, JSON.stringify(data, null, 2));
+  } catch {
+    // ignore if project.json missing
+  }
+  return c.json({ uploaded });
+});
+
 app.route('/:slug/runs', runs);
 app.route('/:slug/waves', waves);
 app.route('/:slug/messages', messages);

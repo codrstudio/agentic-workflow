@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "@tanstack/react-router"
+import { Plus } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
 
@@ -36,7 +37,16 @@ export function ProjectsPage() {
   if (loading) {
     return (
       <div className="flex flex-col p-6">
-        <h1 className="mb-6 text-xl font-semibold">Projetos</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold">Projetos</h1>
+          <Link
+            to="/projects/new"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Projeto
+          </Link>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
@@ -56,7 +66,16 @@ export function ProjectsPage() {
   if (projects.length === 0) {
     return (
       <div className="flex flex-col p-6">
-        <h1 className="mb-6 text-xl font-semibold">Projetos</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold">Projetos</h1>
+          <Link
+            to="/projects/new"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Projeto
+          </Link>
+        </div>
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <p className="text-muted-foreground text-sm">Nenhum projeto encontrado.</p>
           <p className="text-muted-foreground text-xs mt-1">

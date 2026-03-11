@@ -203,6 +203,9 @@ async function main(): Promise<void> {
   // Execute workflow
   const execResult = await runner.execute(ctx);
 
+  // Drain spawn-workflow / chain-workflow background runners before merge and exit
+  await runner.waitForBackground();
+
   // Merge worktree into target branch (skip if stopped by signal)
   if (execResult.exitCode === 0 && execResult.reason !== 'stopped') {
     const mergeResult = await runner.spawnMerge(ctx);

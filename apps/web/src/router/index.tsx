@@ -19,6 +19,9 @@ import { WaveSprintsPage } from "@/pages/wave-sprints"
 import { StepDetailPage } from "@/pages/step-detail"
 import { ProjectMonitorPage } from "@/pages/project-monitor"
 import { AppShell } from "@/components/layout/app-shell"
+import { ProjectNewPage } from "@/pages/project-new"
+import { ProjectTaskEditPage } from "@/pages/project-task-edit"
+import { ProjectRunNewPage } from "@/pages/project-run-new"
 
 // Root route with context type
 const rootRoute = createRootRouteWithContext<{ auth: AuthContextValue }>()({
@@ -62,6 +65,18 @@ const projectsRoute = createRoute({
   getParentRoute: () => authRoute,
   path: "/projects",
   component: ProjectsPage,
+})
+
+const projectNewRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/new",
+  component: ProjectNewPage,
+})
+
+const projectTaskEditRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/task/edit",
+  component: ProjectTaskEditPage,
 })
 
 const projectDetailRoute = createRoute({
@@ -124,11 +139,19 @@ const projectMonitorRoute = createRoute({
   component: ProjectMonitorPage,
 })
 
+const projectRunNewRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/runs/new",
+  component: ProjectRunNewPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authRoute.addChildren([
     indexRoute,
     projectsRoute,
+    projectNewRoute,
+    projectTaskEditRoute,
     projectDetailRoute,
     projectInfoRoute,
     projectWavesRoute,
@@ -139,6 +162,7 @@ const routeTree = rootRoute.addChildren([
     waveSprintsRoute,
     stepDetailRoute,
     projectMonitorRoute,
+    projectRunNewRoute,
   ]),
 ])
 

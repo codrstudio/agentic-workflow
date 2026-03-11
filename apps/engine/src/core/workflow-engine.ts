@@ -58,6 +58,12 @@ export class WorkflowRunner {
   readonly operatorQueue = new OperatorQueue(this.state, this.spawner, this.notifier, this.renderer, this.acrInjector);
 
   private stopRequested = false;
+  private backgroundPromises: Promise<unknown>[] = [];
+
+  async waitForBackground(): Promise<void> {
+    await Promise.allSettled(this.backgroundPromises);
+    this.backgroundPromises = [];
+  }
 
   async execute(ctx: WorkflowRunnerContext): Promise<{ exitCode: number; reason: string }> {
     const { workflow } = ctx;
@@ -1019,11 +1025,27 @@ export class WorkflowRunner {
       to: workflowSlug,
     });
 
-    // Execute chained workflow in the same wave context
-    return this.execute({
+    // Fire-and-forget: child runs in isolated runner so stopRequested/backgroundPromises don't collide
+    const childRunner = new WorkflowRunner();
+    childRunner.notifier.on('engine:event', (event) => {
+      this.notifier.emitEngineEvent(event);
+    });
+
+    const childCtx: WorkflowRunnerContext = {
       ...ctx,
       workflow: result.data,
-    });
+      workflowSlug,
+    };
+
+    const promise = childRunner.execute(childCtx)
+      .then((r) => childRunner.waitForBackground().then(() => r))
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.emitEvent('workflow:end', { reason: `chain_error: ${msg}`, workflow: workflowSlug });
+      });
+
+    this.backgroundPromises.push(promise);
+    return { exitCode: 0, reason: 'chained' };
   }
 
   private async executeSpawnWorkflow(
@@ -1050,7 +1072,7 @@ export class WorkflowRunner {
       to: workflowSlug,
     });
 
-    // Bootstrap new wave for the spawned workflow
+    // Bootstrap new wave (awaited — wave must exist on disk before returning so monitor sees it)
     const newWaveNumber = await detectNextWave(ctx.workspaceDir);
     const newSprintNumber = await resolveSprintForWave(ctx.workspaceDir, ctx.repoDir, newWaveNumber);
     const { waveDir, worktreeInfo, sprintDir } = await setupWave(
@@ -1062,16 +1084,32 @@ export class WorkflowRunner {
       ctx.targetBranch,
     );
 
-    // Execute spawned workflow in its own wave context
-    return this.execute({
+    // Fire-and-forget: child runs in isolated runner so stopRequested/backgroundPromises don't collide
+    const childRunner = new WorkflowRunner();
+    childRunner.notifier.on('engine:event', (event) => {
+      this.notifier.emitEngineEvent(event);
+    });
+
+    const childCtx: WorkflowRunnerContext = {
       ...ctx,
       workflow: result.data,
+      workflowSlug,
       waveDir,
       worktreeDir: worktreeInfo.path,
       sprintDir,
       waveNumber: newWaveNumber,
       sprintNumber: newSprintNumber,
-    });
+    };
+
+    const promise = childRunner.execute(childCtx)
+      .then((r) => childRunner.waitForBackground().then(() => r))
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.emitEvent('workflow:end', { reason: `spawn_error: ${msg}`, workflow: workflowSlug });
+      });
+
+    this.backgroundPromises.push(promise);
+    return { exitCode: 0, reason: 'spawned' };
   }
 
   private executeStopOnWaveLimit(ctx: WorkflowRunnerContext): { exitCode: number; reason: string } {
