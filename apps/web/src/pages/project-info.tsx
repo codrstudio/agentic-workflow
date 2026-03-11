@@ -106,6 +106,7 @@ export function ProjectInfoPage() {
   const [metaEdit, setMetaEdit] = useState<MetaEdit | null>(null)
   const [metaSaving, setMetaSaving] = useState(false)
   const [metaError, setMetaError] = useState<string | null>(null)
+  const [gitTestStatus, setGitTestStatus] = useState<'idle' | 'testing' | 'ok' | 'error'>('idle')
 
   useEffect(() => {
     setLoading(true)
@@ -151,6 +152,23 @@ export function ProjectInfoPage() {
     setEditingMeta(false)
     setMetaEdit(null)
     setMetaError(null)
+    setGitTestStatus('idle')
+  }
+
+  const testGitAccess = async () => {
+    if (!metaEdit?.repoUrl) return
+    setGitTestStatus('testing')
+    try {
+      const res = await apiFetch(`/api/v1/projects/${slug}/test-git`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: metaEdit.repoUrl }),
+      })
+      const data = await res.json() as { ok: boolean }
+      setGitTestStatus(data.ok ? 'ok' : 'error')
+    } catch {
+      setGitTestStatus('error')
+    }
   }
 
   const saveMeta = async () => {
@@ -361,10 +379,24 @@ export function ProjectInfoPage() {
                     <input
                       type="text"
                       value={metaEdit.repoUrl}
-                      onChange={e => setMetaEdit(m => m ? { ...m, repoUrl: e.target.value } : m)}
+                      onChange={e => { setMetaEdit(m => m ? { ...m, repoUrl: e.target.value } : m); setGitTestStatus('idle'); }}
                       className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                       placeholder="https://github.com/org/repo.git"
                     />
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => void testGitAccess()}
+                        disabled={!metaEdit.repoUrl || gitTestStatus === 'testing'}
+                        className="flex items-center gap-1 px-2 py-1 rounded border text-xs hover:bg-muted transition-colors disabled:opacity-40"
+                      >
+                        {gitTestStatus === 'testing'
+                          ? <><Loader2 className="w-3 h-3 animate-spin" /> Testando...</>
+                          : 'Testar acesso'}
+                      </button>
+                      {gitTestStatus === 'ok' && <span className="text-xs text-green-600 dark:text-green-400">✓ Acessível</span>}
+                      {gitTestStatus === 'error' && <span className="text-xs text-destructive">✗ Sem acesso</span>}
+                    </div>
                   </div>
                   {metaEdit.repoUrl && (
                     <div className="grid grid-cols-2 gap-2">
