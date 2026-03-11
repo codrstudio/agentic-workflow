@@ -28,8 +28,9 @@ Desktop.ini
 !.env.example
 
 # Runtime workspaces, samples and project data (generated/private)
-context/workspaces/*/
-context/projects/*/
+context/workspaces/*/**
+context/projects/*/**
+context/*/x-*
 sprints/
 !.gitkeep
 
@@ -39,5 +40,3 @@ npm-debug.log*
 
 .drafts
 .data/
-
-context/*/x-*

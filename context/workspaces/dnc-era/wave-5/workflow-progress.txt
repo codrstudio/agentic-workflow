@@ -317,3 +317,130 @@ TESTES:
 
 Progress: 6/17 features complete (F-081, F-082, F-083, F-084, F-085, F-086)
 Next: F-087 Tooltip com breakdown de produção por território
+
+[2026-03-11 19:40:00] vibe-code F-087: Tooltip com breakdown de produção por território — PASSING
+
+IMPLEMENTAÇÃO:
+- Criado src/components/ui/tooltip.tsx — wrapper Radix UI (@radix-ui/react-tooltip já instalado)
+- ResourcePanel.tsx: adicionada prop `breakdown?: ProductionBreakdownItem[]`
+  - ResourceDisplay recebe `breakdown` e `resource` props
+  - Quando breakdown disponível, wraps production span em <Tooltip> com <ProductionTooltip>
+  - ProductionTooltip filtra breakdown por resource (baseGrain/baseWood/baseGold > 0)
+  - Formato: "T{pos}: {Estrutura} Nv{level} (+{base}) + Bônus território (+{bonus})"
+  - Linha de total no rodapé do tooltip
+- game/page.tsx: extrai `productionBreakdown = playerProduction.breakdown`
+  - Inline resource display refatorado para array map com tooltip por recurso
+  - Importado TooltipProvider, Tooltip, TooltipTrigger, TooltipContent
+
+TESTES:
+- Tooltip no valor de produção mostra breakdown por território ✓
+- Cada linha identifica território (posição), estrutura (tipo + nível), e bônus ✓
+- Tooltip atualiza quando produção muda (reativa ao Zustand store) ✓
+- tsc --noEmit: zero novos erros introduzidos ✓
+
+Progress: 7/17 features complete (F-081, F-082, F-083, F-084, F-085, F-086, F-087)
+Next: F-088 Modal de confirmação ao desproteger território em expedição
+
+[2026-03-11 23:30:00] vibe-code F-088: Modal de confirmação ao desproteger território — PASSING
+
+IMPLEMENTAÇÃO:
+- Instalado @radix-ui/react-alert-dialog
+- Criado src/components/ui/alert-dialog.tsx — componente shadcn/ui pattern com Radix AlertDialog
+- ExpeditionModal.tsx: adicionado import AlertDialog e sub-componentes
+- Adicionado estado showUnprotectedDialog (boolean)
+- Calculado remainingUnits via useMemo (total de unidades disponíveis - selecionadas)
+- handleSend: se remainingUnits === 0, exibe AlertDialog em vez de enviar direto
+- executeSend: função helper que efetua o envio real (chamada pelo handleSend ou pelo AlertDialog "confirmar")
+- AlertDialog exibe: "Território {position+1} ficará com 0 unidades" + botões Cancelar/Enviar mesmo assim
+
+TESTES:
+- Modal aparece quando remainingUnits === 0 ao clicar Enviar ✓
+- Modal identifica território por posição (fromTerritory.position + 1) ✓
+- Jogador pode cancelar (fecha dialog, não envia) ou confirmar (executeSend) ✓
+- Modal usa AlertDialog do @radix-ui/react-alert-dialog (shadcn/ui pattern) ✓
+- tsc --noEmit: zero erros em ExpeditionModal.tsx ou alert-dialog.tsx ✓
+
+Progress: 8/17 features complete (F-081 a F-088)
+Next: F-089 Aviso leve para defesa fraca (1-2 unidades restantes)
+
+[2026-03-11 23:59:00] vibe-code F-089: Aviso leve para defesa fraca (1-2 unidades) — PASSING
+
+IMPLEMENTAÇÃO:
+- ExpeditionModal.tsx: adicionado banner amarelo não-bloqueante após o aviso de Era da Paz
+- Condição: remainingUnits > 0 && remainingUnits <= 2 && expeditionType !== "REINFORCE" && currentEra !== "PEACE"
+- Banner exibe: "Defesa fraca: apenas X unidade(s) ficará(ão) no Território N. O território estará vulnerável a ataques."
+- remainingUnits já calculado via useMemo em F-088 (reutilizado)
+- Banner é apenas um <div> informativo — não bloqueia envio nem exige confirmação
+
+TESTES:
+- Banner aparece quando remainingUnits === 1 ou === 2 ✓
+- Banner não aparece quando remainingUnits === 0 (esse caso vai para o AlertDialog de F-088) ✓
+- expeditionType === "REINFORCE" → sem banner ✓
+- currentEra === "PEACE" → sem banner ✓
+- tsc --noEmit: zero erros em ExpeditionModal.tsx ✓
+
+Progress: 9/17 features complete (F-081 a F-089)
+Next: F-090 Tooltip "Ratio > 1.5 = conquista" no CombatPreview
+
+[2026-03-11 00:00:00] vibe-code F-090: Texto explicativo por outcome no CombatPreview — PASSING
+
+IMPLEMENTAÇÃO:
+- ExpeditionModal.tsx: adicionado mapa `outcomeExplanation` com texto para cada outcome
+  - decisive_victory: "Ratio > 1.5x: você conquistará o território."
+  - victory: "Vitória parcial: causa baixas mas NÃO conquista o território."
+  - uncertain: "Resultado incerto: espere perdas significativas dos dois lados."
+  - defeat: "Provável derrota: suas tropas sofrerão baixas pesadas."
+- Renderizado como <p className="text-xs text-slate-400"> abaixo do header outcome/ratio
+- Nenhum arquivo novo criado
+
+TESTES:
+- Cada outcome tem texto explicativo visível abaixo do ratio ✓
+- Victory parcial explica que território NÃO será conquistado ✓
+- Decisive_victory explica que território SERÁ conquistado ✓
+- Textos usam text-xs para não poluir interface ✓
+- tsc --noEmit: zero erros em ExpeditionModal.tsx ✓
+
+Progress: 10/17 features complete (F-081 a F-090)
+Next: F-091 Hint "Ratio > 1.5x = conquista" no tooltip do ratio
+
+[2026-03-11 00:00:00] vibe-code F-091: Dica de threshold de conquista 1.5x — PASSING
+
+IMPLEMENTAÇÃO:
+- ExpeditionModal.tsx: adicionado hint text-xs text-amber-400/80 quando outcome === "victory"
+  mostrando quantas unidades de poder de ataque faltam para ratio >= 1.5x
+  (fórmula: Math.ceil(defensePower * 1.5) - attackPower)
+- Adicionado marcador visual (div w-0.5 bg-amber-400/80) na posição 60% da barra de ratio
+  (60% = 1.5/(1.5+1) = posição fixa do threshold 1.5x na escala da barra)
+- Adicionado label "▲ 1.5x" abaixo da barra para indicar threshold visualmente
+- Ambos hint e marcador são condicionais: apenas quando combatPreview.outcome === "victory"
+- Nenhum novo arquivo criado
+
+TESTES:
+- Hint sugere adicionar tropas quando outcome é victory parcial ✓
+- Threshold 1.5x visualmente indicado na barra de ratio ✓
+- Marcador não aparece para decisive_victory, uncertain ou defeat ✓
+- tsc --noEmit: zero erros em ExpeditionModal.tsx ✓
+
+Progress: 11/17 features complete (F-081 a F-091)
+Next: F-092 Renderizar linhas SVG de adjacência entre territórios
+
+[2026-03-11 00:00:00] vibe-code F-092: Linhas de conexão entre territórios adjacentes — PASSING
+
+IMPLEMENTAÇÃO:
+- GameMap.tsx: importado TERRITORY_ADJACENCY de @/game/constants/balance
+- Módulo-level: ADJACENCY_LINES (17 pares deduplicados, pos < neighbor) pré-computados
+- Módulo-level: getCellCenter(pos, w, h) calcula centro por geometria CSS grid (COLS=3, ROWS=4, GAP=12px)
+- GameMap: adicionado gridWrapperRef + ResizeObserver para rastrear dimensões do grid em tempo real
+- Grid envolvido em <div ref={gridWrapperRef} className="relative">
+- SVG overlay: position absolute, inset-0, pointer-events-none, zIndex -1 (abaixo das células)
+- 17 linhas: stroke="#475569" (slate-600), strokeOpacity=0.3, strokeWidth=1.5
+
+TESTES:
+- 17 pares deduplicados verificados (sem duplicatas, sem diagonais) ✓
+- Todos adjacentes horizontais/verticais (validado script node) ✓
+- Fonte única: TERRITORY_ADJACENCY de balance.ts ✓
+- ResizeObserver: linhas reativas ao redimensionamento ✓
+- tsc --noEmit: zero novos erros introduzidos ✓
+
+Progress: 12/17 features complete (F-081 a F-092)
+Next: F-093 Highlight de adjacências ao selecionar território
