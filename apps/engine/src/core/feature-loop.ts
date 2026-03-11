@@ -9,10 +9,9 @@ import { TemplateRenderer } from './template-renderer.js';
 import { PlanResolver } from './plan-resolver.js';
 import type { AcrInjector } from './acr-injector.js';
 import type { TokenUsageReporter } from './token-usage-reporter.js';
-import type { AgentActionReporter } from './agent-action-reporter.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { Feature } from '../schemas/feature.js';
-import type { EngineEventType } from '../schemas/event.js';
+import type { EngineEvent, EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
 import { ModelResolver } from './model-resolver.js';
 import { runCoverageGate, formatCoverageFailureContext, type CoverageGateConfig } from './coverage-gate.js';
@@ -65,7 +64,6 @@ export class FeatureLoop {
     readonly notifier: Notifier,
     private readonly acrInjector?: AcrInjector,
     private readonly tokenReporter?: TokenUsageReporter,
-    private readonly actionReporter?: AgentActionReporter,
   ) {}
 
   async execute(
@@ -215,20 +213,6 @@ export class FeatureLoop {
 
         await this.spawner.writeSpawnMeta(attemptDir, meta);
 
-        // Register AgentAction with hub
-        let featureActionId: string | null = null;
-        const featureStartedAt = meta.started_at;
-        if (this.actionReporter && ctx.projectSlug) {
-          featureActionId = await this.actionReporter.reportStart({
-            projectSlug: ctx.projectSlug,
-            actionType: 'feature_spawn',
-            agentProfile: agentName,
-            taskName: taskSlug,
-            featureId: feature.id,
-            spawnDir: attemptDir,
-          });
-        }
-
         const result = await this.spawner.spawnAgent({
           prompt,
           cwd: worktreeDir,
@@ -261,17 +245,6 @@ export class FeatureLoop {
             phase: taskSlug,
             featureId: feature.id,
             resolvedModel: resolved.model,
-          });
-        }
-
-        // Complete AgentAction
-        if (featureActionId && ctx.projectSlug) {
-          await this.actionReporter!.reportComplete({
-            projectSlug: ctx.projectSlug,
-            actionId: featureActionId,
-            exitCode: result.code,
-            startedAt: featureStartedAt,
-            outputDir: attemptDir,
           });
         }
 
@@ -458,13 +431,15 @@ export class FeatureLoop {
     this.notifier.emitEngineEvent({
       type,
       timestamp: now(),
+      project_slug: ctx.projectSlug,
+      wave_number: ctx.waveNumber,
       data: {
         ...data,
         iteration: this.iteration,
         features_done: this.featuresDone,
         project: ctx.project,
       },
-    });
+    } as unknown as EngineEvent);
   }
 
   private sleep(ms: number): Promise<void> {

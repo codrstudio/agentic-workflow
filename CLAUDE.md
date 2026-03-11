@@ -31,6 +31,16 @@ There are no test scripts configured. No linter is configured.
 - **PROIBIDO polling. Polling gasta trafego de rede demais a toa e nós temos custo por trafego.**
 - **Use SSE para realtime**
 
+## Eventos da Engine
+
+O canal de eventos é unificado via `Notifier`. Guia completo: [`guides/engine-events/GUIDE.md`](guides/engine-events/GUIDE.md)
+
+Regras obrigatórias ao mexer em `workflow-engine.ts`, `feature-loop.ts` ou `operator-queue.ts`:
+- **Nunca recriar `AgentActionReporter`** — foi deletado intencionalmente.
+- **Emitir eventos via `emitEvent()` privado** de cada classe — não chamar `notifier.emitEngineEvent()` diretamente nos step runners.
+- **Novos tipos de evento** exigem: (1) entrada no enum `EngineEventTypeSchema`, (2) entrada no `z.discriminatedUnion` em `apps/engine/src/schemas/event.ts`, (3) case no `logEvent()` de `cli.ts`.
+- `project_slug` e `wave_number` são adicionados automaticamente pelos `emitEvent()` internos — não passar manualmente.
+
 ## Architecture
 
 ### Monorepo Structure

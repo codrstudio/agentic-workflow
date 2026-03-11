@@ -4,7 +4,7 @@ import { eventBus, type HubEvent } from '../lib/event-bus.js';
 
 const app = new Hono();
 
-// GET /api/v1/sse
+// GET /api/v1/events
 app.get('/', (c) => {
   return streamSSE(c, async (stream) => {
     const handler = async (event: HubEvent) => {
@@ -43,4 +43,4 @@ app.get('/', (c) => {
   });
 });
 
-export { app as sse };
+export { app as events };

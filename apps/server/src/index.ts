@@ -6,8 +6,8 @@ import { health } from './routes/health.js';
 import { auth } from './routes/auth.js';
 import { projects } from './routes/projects.js';
 import { workflows } from './routes/workflows.js';
-import { sse } from './routes/sse.js';
-import { agentActions } from './routes/agent-actions.js';
+import { events } from './routes/events.js';
+import { engineEvents } from './routes/engine-events.js';
 import { pid, activeRuns } from './routes/pid.js';
 import { authMiddleware } from './middleware/auth.js';
 
@@ -29,8 +29,8 @@ app.route('/health', health);
 app.route('/auth', auth);
 app.route('/projects', projects);
 app.route('/workflows', workflows);
-app.route('/events', sse);
-app.route('/hub/projects', agentActions);
+app.route('/events', events);
+app.route('/hub/engine-events', engineEvents);
 app.route('/pid', pid);
 app.route('/runs', activeRuns);
 

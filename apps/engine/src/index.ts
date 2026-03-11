@@ -12,7 +12,7 @@ export { SSEAdapter } from './core/sse-adapter.js';
 export { ModelResolver } from './core/model-resolver.js';
 export { OperatorQueue } from './core/operator-queue.js';
 export { TokenUsageReporter } from './core/token-usage-reporter.js';
-export { AgentActionReporter } from './core/agent-action-reporter.js';
+export { EngineEventForwarder } from './core/engine-event-forwarder.js';
 export { installCrashHandlers, setLogPath, logEvent, logInfo, logError, getLogPath } from './core/engine-logger.js';
 export { bootstrap } from './core/bootstrap.js';
 

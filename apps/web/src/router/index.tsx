@@ -22,6 +22,7 @@ import { AppShell } from "@/components/layout/app-shell"
 import { ProjectNewPage } from "@/pages/project-new"
 import { ProjectTaskEditPage } from "@/pages/project-task-edit"
 import { ProjectRunNewPage } from "@/pages/project-run-new"
+import { ProjectArtifactsPage } from "@/pages/project-artifacts"
 
 // Root route with context type
 const rootRoute = createRootRouteWithContext<{ auth: AuthContextValue }>()({
@@ -145,6 +146,12 @@ const projectRunNewRoute = createRoute({
   component: ProjectRunNewPage,
 })
 
+const projectArtifactsRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/artifacts",
+  component: ProjectArtifactsPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authRoute.addChildren([
@@ -163,6 +170,7 @@ const routeTree = rootRoute.addChildren([
     stepDetailRoute,
     projectMonitorRoute,
     projectRunNewRoute,
+    projectArtifactsRoute,
   ]),
 ])
 

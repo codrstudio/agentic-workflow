@@ -13,7 +13,6 @@ import {
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { AgentActionsList, type AgentAction } from "@/components/ui/agent-actions-list"
 
 interface Project {
   name: string
@@ -45,7 +44,6 @@ export function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [waves, setWaves] = useState<Wave[]>([])
   const [runs, setRuns] = useState<Run[]>([])
-  const [agentActions, setAgentActions] = useState<AgentAction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -60,15 +58,11 @@ export function ProjectDetailPage() {
       apiFetch(`/api/v1/projects/${slug}/runs`)
         .then((r) => r.json() as Promise<Run[]>)
         .catch(() => [] as Run[]),
-      apiFetch(`/api/v1/projects/${slug}/agent-actions`)
-        .then((r) => (r.ok ? (r.json() as Promise<AgentAction[]>) : Promise.resolve([])))
-        .catch(() => [] as AgentAction[]),
     ])
-      .then(([p, w, r, a]) => {
+      .then(([p, w, r]) => {
         setProject(p)
         setWaves(w)
         setRuns(r)
-        setAgentActions(a)
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
@@ -200,18 +194,6 @@ export function ProjectDetailPage() {
         </Link>
       </section>
 
-      {/* Agent Actions */}
-      <section>
-        <h2 className="text-sm font-semibold mb-3">
-          Agent Actions
-          {agentActions.length > 0 && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              ({agentActions.length})
-            </span>
-          )}
-        </h2>
-        <AgentActionsList actions={agentActions} />
-      </section>
     </div>
   )
 }

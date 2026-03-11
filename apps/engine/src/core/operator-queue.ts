@@ -7,7 +7,7 @@ import { Notifier } from './notifier.js';
 import { TemplateRenderer } from './template-renderer.js';
 import type { AcrInjector } from './acr-injector.js';
 import { OperatorMessageSchema, type OperatorMessage } from '../schemas/operator-queue.js';
-import type { EngineEventType } from '../schemas/event.js';
+import type { EngineEvent, EngineEventType } from '../schemas/event.js';
 
 export interface OperatorQueueDrainConfig {
   worktreeDir: string;
@@ -91,7 +91,7 @@ export class OperatorQueue {
       this.emitEvent('queue:processing', {
         count: messages.length,
         project: config.project,
-      });
+      }, config.projectSlug, config.waveNumber);
 
       this.drainCount++;
       const outputDir = join(config.waveDir, 'operator-queue', `drain-${this.drainCount}`);
@@ -143,7 +143,7 @@ export class OperatorQueue {
         timed_out: result.timedOut,
         drain: this.drainCount,
         project: config.project,
-      });
+      }, config.projectSlug, config.waveNumber);
     }
   }
 
@@ -198,10 +198,10 @@ export class OperatorQueue {
     return `${agentPrompt}\n\n---\n\n# Task: operator-message\n\n${taskPrompt}${acrSection}`;
   }
 
-  private emitEvent(type: EngineEventType, data: Record<string, unknown>): void {
+  private emitEvent(type: EngineEventType, data: Record<string, unknown>, project_slug?: string, wave_number?: number): void {
     const timestamp = now();
     // Tee: log engine event
     this.appendLog({ role: 'engine', timestamp, event: type, data, drain: this.drainCount });
-    this.notifier.emitEngineEvent({ type, timestamp, data });
+    this.notifier.emitEngineEvent({ type, timestamp, project_slug, wave_number, data } as unknown as EngineEvent);
   }
 }

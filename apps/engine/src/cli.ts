@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process';
 import chalk from 'chalk';
 import { bootstrap, writeEnginePid } from './core/bootstrap.js';
 import { WorkflowRunner, type WorkflowRunnerContext } from './core/workflow-engine.js';
+import { EngineEventForwarder } from './core/engine-event-forwarder.js';
 import { installCrashHandlers, setLogPath, logEvent as writeLogEvent, logInfo, logError } from './core/engine-logger.js';
 import type { EngineEvent } from './schemas/event.js';
 
@@ -31,7 +32,7 @@ function timestamp(): string {
 
 function logEvent(event: EngineEvent): void {
   const ts = chalk.gray(`[${timestamp()}]`);
-  const d = event.data;
+  const d = event.data as unknown as Record<string, unknown>;
 
   switch (event.type) {
     case 'workflow:start':
@@ -104,6 +105,18 @@ function logEvent(event: EngineEvent): void {
       break;
     default:
       console.log(`${ts} ${chalk.gray(event.type)}  ${JSON.stringify(d)}`);
+  }
+}
+
+async function checkServerAvailable(baseUrl: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${baseUrl}/api/v1/health`, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(1_000),
+    });
+    return res.ok;
+  } catch {
+    return false;
   }
 }
 
@@ -191,6 +204,14 @@ async function main(): Promise<void> {
     logEvent(event);
     writeLogEvent(event);
   });
+
+  // Attach forwarder if server is available
+  const serverUrl = process.env.AW_WEB_URL ?? 'http://localhost:3000';
+  const serverAvailable = await checkServerAvailable(serverUrl);
+  if (serverAvailable) {
+    const forwarder = new EngineEventForwarder(serverUrl);
+    runner.notifier.on('engine:event', (event: EngineEvent) => forwarder.forward(event));
+  }
 
   // Signal handling
   const onSignal = () => {
