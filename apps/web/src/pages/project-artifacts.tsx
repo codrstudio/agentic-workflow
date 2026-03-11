@@ -3,7 +3,7 @@ import { useParams, Link } from "@tanstack/react-router"
 import MDEditor from "@uiw/react-md-editor"
 import {
   Folder,
-  File,
+  File as FileIcon,
   Upload,
   Trash2,
   Download,
@@ -487,7 +487,7 @@ export function ProjectArtifactsPage() {
                   {item.type === "dir" ? (
                     <Folder className="w-4 h-4 text-muted-foreground shrink-0" />
                   ) : (
-                    <File className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <FileIcon className="w-4 h-4 text-muted-foreground shrink-0" />
                   )}
                   <button
                     className={`font-mono text-xs truncate text-left ${
@@ -677,7 +677,7 @@ export function ProjectArtifactsPage() {
                 )
               ) : (
                 <div className="flex flex-col items-center gap-4 py-8 text-muted-foreground">
-                  <File className="w-12 h-12" />
+                  <FileIcon className="w-12 h-12" />
                   <p className="text-sm">{drawerFileName}</p>
                   <a
                     href={`/api/v1/projects/${slug}/artifacts/${drawer.filePath}`}

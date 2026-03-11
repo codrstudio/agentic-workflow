@@ -49,16 +49,16 @@ app.get('/', async (c) => {
   try {
     entries = await fs.readdir(projectsDir);
   } catch {
-    return c.json([]);
+    return c.json({ total: 0, offset: 0, limit: 12, projects: [] });
   }
 
-  const projects: Array<{ name: string; slug: string; description?: string; status?: string }> = [];
+  const allProjects: Array<{ name: string; slug: string; description?: string; status?: string }> = [];
 
   for (const entry of entries) {
     const projectFile = path.join(projectsDir, entry, 'project.json');
     try {
       const data = await readJson(projectFile) as Record<string, unknown>;
-      projects.push({
+      allProjects.push({
         name: data['name'] as string,
         slug: data['slug'] as string,
         description: data['description'] as string | undefined,
@@ -69,7 +69,16 @@ app.get('/', async (c) => {
     }
   }
 
-  return c.json(projects);
+  allProjects.sort((a, b) => a.name.localeCompare(b.name));
+
+  const rawOffset = parseInt(c.req.query('offset') ?? '0', 10);
+  const rawLimit = parseInt(c.req.query('limit') ?? '12', 10);
+  const offset = isNaN(rawOffset) || rawOffset < 0 ? 0 : rawOffset;
+  const limit = isNaN(rawLimit) || rawLimit < 1 ? 12 : Math.min(rawLimit, 100);
+
+  const projects = allProjects.slice(offset, offset + limit);
+
+  return c.json({ total: allProjects.length, offset, limit, projects });
 });
 
 // GET /api/v1/projects/:slug

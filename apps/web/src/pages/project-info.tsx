@@ -383,20 +383,6 @@ export function ProjectInfoPage() {
                       className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                       placeholder="https://github.com/org/repo.git"
                     />
-                    <div className="flex items-center gap-2 mt-1">
-                      <button
-                        type="button"
-                        onClick={() => void testGitAccess()}
-                        disabled={!metaEdit.repoUrl || gitTestStatus === 'testing'}
-                        className="flex items-center gap-1 px-2 py-1 rounded border text-xs hover:bg-muted transition-colors disabled:opacity-40"
-                      >
-                        {gitTestStatus === 'testing'
-                          ? <><Loader2 className="w-3 h-3 animate-spin" /> Testando...</>
-                          : 'Testar acesso'}
-                      </button>
-                      {gitTestStatus === 'ok' && <span className="text-xs text-green-600 dark:text-green-400">✓ Acessível</span>}
-                      {gitTestStatus === 'error' && <span className="text-xs text-destructive">✗ Sem acesso</span>}
-                    </div>
                   </div>
                   {metaEdit.repoUrl && (
                     <div className="grid grid-cols-2 gap-2">
@@ -424,7 +410,20 @@ export function ProjectInfoPage() {
                   )}
                 </div>
 
-                <div className="flex gap-2 justify-end pt-1">
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => void testGitAccess()}
+                    disabled={!metaEdit.repoUrl || gitTestStatus === 'testing'}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded border text-xs hover:bg-muted transition-colors disabled:opacity-40"
+                  >
+                    {gitTestStatus === 'testing'
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Testando...</>
+                      : 'Testar acesso'}
+                  </button>
+                  {gitTestStatus === 'ok' && <span className="text-xs text-green-600 dark:text-green-400">✓ Acessível</span>}
+                  {gitTestStatus === 'error' && <span className="text-xs text-destructive">✗ Sem acesso</span>}
+                  <div className="flex-1" />
                   <button
                     type="button"
                     onClick={cancelEdit}

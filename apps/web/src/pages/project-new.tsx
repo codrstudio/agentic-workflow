@@ -46,7 +46,8 @@ export function ProjectNewPage() {
   }
 
   return (
-    <div className="flex flex-col p-6 max-w-2xl mx-auto">
+    <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+      <div className="flex flex-col col-span-1">
       <div className="flex items-center gap-3 mb-6">
         <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
           ← Projetos
@@ -116,6 +117,7 @@ export function ProjectNewPage() {
           </button>
         </div>
       </form>
+      </div>
     </div>
   )
 }

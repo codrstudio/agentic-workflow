@@ -31,6 +31,17 @@ There are no test scripts configured. No linter is configured.
 - **PROIBIDO polling. Polling gasta trafego de rede demais a toa e nós temos custo por trafego.**
 - **Use SSE para realtime**
 
+## Layout de páginas (UI)
+
+- **Padrão**: grid de colunas que cresce com a largura disponível. O conteúdo ocupa a(s) primeira(s) coluna(s); o espaço vazio fica à direita.
+  ```tsx
+  <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+    <div className="col-span-1">
+      {/* conteúdo */}
+    </div>
+  </div>
+  ```
+
 ## Eventos da Engine
 
 O canal de eventos é unificado via `Notifier`. Guia completo: [`guides/engine-events/GUIDE.md`](guides/engine-events/GUIDE.md)
