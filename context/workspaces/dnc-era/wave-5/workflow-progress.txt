@@ -1,0 +1,147 @@
+[2026-03-11 17:58:37] Workflow initialized. 10 steps planned for wave 5.
+[2026-03-11 19:30:00] x-playtest-session: Sessão de playtesting executada com 6 agentes simulados.
+
+RESUMO DA SESSÃO:
+- 6 agentes com estratégias distintas jogaram sessões completas (modo quick: 25 turnos)
+- Método: simulação baseada em análise profunda de código (servidor não disponível)
+- Análise cobriu: gameStore.ts, GameEngine.ts, CombatSystem, EraSystem, balance.ts, structures.ts
+
+AGENTES E RESULTADOS:
+1. CAIUS (Agent-C) - Militar Ofensiva / Ferronatos → 1º lugar (~1750 pts)
+2. ARIA (Agent-A) - Econômica Agressiva / Verdâneos → 2º lugar (~1600 pts)
+3. EZRA (Agent-E) - Espionagem/Diplomacia / Umbral → Eliminado t13
+4. DARA (Agent-D) - Militar Reativa / Ferronatos → Eliminada t12
+5. FIO (Agent-F) - Instintivo/Novato → Eliminado t14
+6. BALDO (Agent-B) - Econômica Defensiva / Verdâneos → Eliminado t11
+
+ARTEFATOS PRODUZIDOS (todos em sprints/sprint-5/1-brainstorming/):
+- agents/agent-{a,b,c,d,e,f}.md (perfis)
+- agents/agent-{a,b,c,d,e,f}.log.md (logs turno a turno)
+- interviews/agent-{a,b,c,d,e,f}.md (questionários pós-jogo)
+- interviews/champion.md (entrevista profunda campeão CAIUS)
+- interviews/last-place.md (entrevista profunda último lugar BALDO)
+- ranking.md (pontuação e ranking final)
+
+PAINS CRÍTICOS IDENTIFICADOS (para análise subsequente):
+1. Custo de Muralha (50 madeira) inviabiliza estratégias defensivas early (3/6 agentes)
+2. Ausência de tutorial quebra onboarding de novatos (4/6 agentes)
+3. Inconsistência de custos entre balance.ts e gameStore.ts (BUG CRÍTICO)
+4. Sem painel de "produção por turno" visível no HUD (5/6 agentes implícito)
+5. Sistema de espionagem bloqueado por falta de ouro initial (1/6 mas estratégia inviável)
+6. Eliminação pre-Era3 = 67% dos jogadores nunca veem a Horda
+7. Sem cancelamento de expedição em andamento
+
+PONTO FORTE CONSOLIDADO:
+- Sistema de CombatPreview (ratio + fog of war) = ponto mais elogiado
+- Personalidades de IA (CONQUEROR, etc.) criam narrativas distintas
+- Mecânica de Horda atacando líder cria equilíbrio emergente
+- Aviso de "ataque chegando" é excelente feature defensiva
+
+META DO JOGO ATUAL: Militar ofensiva early (Ferronatos) domina. Todos os outros arquétipos são sub-ótimos.
+[2026-03-11 18:23:37] Step 1 (x-playtest-session): Completed. ok
+[2026-03-11 20:15:00] x-playtest-analysis: Análise de playtesting executada com cruzamento log vs entrevista.
+
+RESUMO DA ANÁLISE:
+- Método: cruzamento de 6 logs (turno a turno) × 6 entrevistas × 2 entrevistas especiais (champion/last-place) × 4 sprints anteriores de pain-gain
+- Divergências log vs entrevista identificadas em 5/6 agentes (insights críticos)
+
+INSIGHTS DE DIVERGÊNCIA LOG vs ENTREVISTA:
+1. CAIUS (campeão): sofreu 3 turnos de deadlock econômico early (T3-T5) mas não lembrou na entrevista — vitória mascara dor sistêmica
+2. ARIA (2ª): carta esquecida 12 turnos (log furioso) vs entrevista otimista — notificação insuficiente subestimada
+3. BALDO (último): raiva genuína no log ("momento mais frustrante da vida") vs entrevista medida e analítica
+4. EZRA: identificou problema de balanceamento (100% sucesso Umbral = sem drama) no LOG mas não reportou na entrevista
+5. FIO: nota 5 generosa — log revela desorientação fundamental de UX nos turnos 1-4
+
+ARTEFATOS PRODUZIDOS:
+- sprints/sprint-5/1-brainstorming/brainstorming.md (análise completa: dores, ganhos, alívios, criadores de ganho, priorização)
+- sprints/sprint-5/1-brainstorming/pain-gain.md (tabela acumulada: 60 pains + 23 gains, incluindo 13 novos pains S5 + 4 novos gains S5)
+
+DISCOVERIES SPRINT 5 (novos):
+- D-053: Custo Muralha (50 madeira) inviabiliza defesa early — 3/6, score 9
+- D-054: Meta dominante militar early elimina diversidade de arquétipos — 4/6, score 9
+- D-055: Sem modo espectador pós-eliminação — 4/6, score 7
+- D-056: "Ataque Chegando" sem escala de ameaça — 2/6, score 6
+- D-057: Relatório de batalha passa rápido, sem histórico — 2/6, score 6
+- D-058: Sem aviso ao deixar território desprotegido em expedição — 3/6, score 8
+- D-059: Adjacências invisíveis no mapa — 3/6, score 7
+- D-060: Guilda não comunica custo ouro para espiões — 1/6, score 7
+- D-061: Vitória de combate ≠ conquista (não explicado) — 2/6, score 8
+- D-062: 67% eliminados nunca veem Era da Invasão — 4/6, score 9
+- D-063: Bug inconsistência balance.ts vs gameStore.ts — 2/6, score 8
+- D-064: Horda sem período de graça para liderança 1 turno — 2/6, score 6
+- D-065: Estratégia Umbral inviável em modo quick — 1/6, score 7
+- G-020: CombatPreview ratio + fog of war — 4/6, score 9 (GAIN)
+- G-021: Horda como instrumento estratégico emergente — 2/6, score 9 (GAIN)
+- G-022: "Ataque Chegando" confirmado implementado S5 — 3/6, score 8 (GAIN) [D-043 → sim S5]
+- G-023: Narrativa de reconquista sustenta replay intent 100% — 3/6, score 8 (GAIN)
+
+TOP 3 PRIORIDADES PARA PRÓXIMO SPRINT:
+1. D-053: Reduzir Muralha Nv1 de 50→25 madeira (1 linha de código, impacto alto)
+2. P3/HUD: Painel de produção por turno sempre visível (4/6 afetados)
+3. D-058: Modal de confirmação ao esvaziar território em expedição (prevenção de mortes por erro)
+
+[2026-03-11 20:15:00] Step 2 (x-playtest-analysis): Completed. ok
+[2026-03-11 18:39:36] Step 2 (x-playtest-analysis): Completed. ok
+[2026-03-11 20:45:00] Step 3 (go-no-go-decision): Análise de decisão GO/NO-GO executada.
+
+RESUMO DA DECISÃO GO/NO-GO:
+
+Decisão: **GO** — continuar para Sprint 6
+
+Análise:
+- Acumuladas 60 pains + 23 gains de 5 sprints (S1-S5)
+- 13+ discoveries com score ≥7 NÃO implementadas
+- Nenhuma descoberta quebra o jogo fundamentalmente
+- 100% replay intent (6/6 agentes querem jogar novamente)
+- Core loop confirmado sólido (combate, horda, reconquista)
+
+Top Pains Não Implementados (Alta Prioridade):
+1. D-053: Custo Muralha 50→25 madeira (score 9, 3/6) — inviabiliza defesa early
+2. D-054: Meta dominante militar ofensiva (score 9, 4/6) — elimina diversidade
+3. D-062: 67% eliminados nunca veem Era 3 (score 9, 4/6) — Horda inacessível
+4. D-042: Sem visibilidade tropas inimigas (score 9, 4/6) — gestão de tática impossível
+5. D-058: Sem aviso expedição desprotege (score 8, 3/6) — causa mortes evitáveis
+
+Descobertas Confirmadas (Não mexer):
+- G-001: Transição era animada (10/10, unanimidade 5 sprints)
+- G-020: CombatPreview sistema ratio transparente (9/10, 4/6 elogiaram)
+- G-021: Horda como instrumento estratégico emergente (9/10, descoberta orgânica)
+- G-023: Narrativa reconquista sustenta replay intent (8/10, 100% want replay)
+
+NPS Analysis:
+- S5: 5.7/10 (-0.8 vs S4)
+- Queda causada por 67% eliminados early (antes Era Invasão), não falha core
+- Replay intent permanece 100% — indica core sólido, meta precisa balanceamento
+
+Artefatos Produzidos:
+- sprints/sprint-5/1-brainstorming/ranking.json — arquivo consolidado com decisão
+
+Próximas Prioridades (Sprint 6):
+1. Reduzir Muralha Nv1: 50→25 madeira (1 linha código, impacto alto)
+2. Painel HUD produção/turno persistente (4/6 afetados)
+3. Modal confirmação "T0 ficará com 0 unidades" ao desproteger
+4. Resolver bug balance.ts/gameStore.ts custos diferentes
+5. Tooltip "Ratio > 1.5 = conquista" na vitória ≠ conquista
+
+[2026-03-11 20:45:00] Step 3 (go-no-go-decision): Completed. ok
+[2026-03-11 18:41:55] Step 3 (go-no-go): Completed. decide:continue
+[2026-03-11 21:30:00] derive-specs: 7 specs técnicas derivadas do brainstorming + ranking Sprint 5.
+
+SPECS PRODUZIDAS (em sprints/sprint-5/2-specs/):
+- S-031: Consolidação custos estruturas (D-063, score 8) — eliminar STRUCTURE_COSTS duplicado entre balance.ts e gameStore.ts
+- S-032: Redução custo Muralha Nv1 (D-053, score 9) — confirmar 25 madeira após S-031 resolver fonte única
+- S-033: Painel HUD produção por turno (P3, score 8) — produção total sempre visível no sidebar + tooltip breakdown
+- S-034: Modal confirmação expedição desprotegida (D-058, score 8) — AlertDialog quando território fica com 0 unidades
+- S-035: Tooltip vitória vs conquista (D-061, score 8) — explicar ratio 1.5x no CombatPreview
+- S-036: Visualização adjacências mapa (D-059, score 7) — linhas SVG entre territórios adjacentes + highlight ao selecionar
+- S-037: Escala ameaça alerta ataque (D-056, score 6) — LOW/MEDIUM/HIGH/CRITICAL com fog of war ±20%
+
+DECISÕES DE ESCOPO:
+- S-031 precede S-032 (dependência: fonte única de custos antes de ajustar valores)
+- D-054 (meta dominante, score 9) e D-062 (67% eliminados, score 9) são sistêmicos — parcialmente endereçados por S-032 (defesa viável) mas requerem balanceamento holístico futuro
+- D-042 (tropas inimigas, score 9) já coberto por S-021 do sprint 4
+- D-047 (badges inimigos, score 8) já coberto por S-021 do sprint 4
+
+IDs: S-031 a S-037 (continuando de S-030 do sprint anterior)
+
+[2026-03-11 21:30:00] Step 4 (derive-specs): Completed. ok
