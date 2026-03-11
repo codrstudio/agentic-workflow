@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { promises as fs } from 'node:fs';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { runs } from './runs.js';
@@ -294,6 +295,21 @@ app.put('/:slug/artifacts/*', async (c) => {
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.writeFile(target, body.content ?? '');
   return c.json({ ok: true });
+});
+
+// POST /api/v1/projects/:slug/test-git
+app.post('/:slug/test-git', async (c) => {
+  const body = await c.req.json() as { url?: string };
+  if (!body.url) return c.json({ ok: false, error: 'URL obrigatória' }, 400);
+
+  const ok = await new Promise<boolean>(resolve => {
+    const proc = spawn('git', ['ls-remote', '--exit-code', body.url!, 'HEAD']);
+    const timer = setTimeout(() => { proc.kill(); resolve(false); }, 10_000);
+    proc.on('close', code => { clearTimeout(timer); resolve(code === 0); });
+    proc.on('error', () => { clearTimeout(timer); resolve(false); });
+  });
+
+  return c.json({ ok });
 });
 
 app.route('/:slug/runs', runs);
