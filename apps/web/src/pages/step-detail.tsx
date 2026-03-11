@@ -26,6 +26,22 @@ interface LogLine {
   raw: unknown
 }
 
+interface AttemptMeta {
+  dir: string
+  feature: string
+  attempt: number
+  task?: string
+  agent?: string
+  pid?: number
+  started_at?: string
+  finished_at?: string
+  exit_code?: number
+  timed_out?: boolean
+  model_used?: string
+  status: "pending" | "running" | "completed" | "failed" | "interrupted"
+  duration_ms?: number
+}
+
 interface StepMeta {
   index: number
   dir: string
@@ -38,6 +54,15 @@ interface StepMeta {
   model_used?: string
   status: "pending" | "running" | "completed" | "failed"
   duration_ms?: number
+  // loop-specific
+  type?: string
+  iteration?: number
+  total?: number
+  done?: number
+  remaining?: number
+  features_done?: number
+  exit_reason?: string
+  attempts?: AttemptMeta[]
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -237,6 +262,99 @@ function LogViewer({ lines }: { lines: LogLine[] }) {
   )
 }
 
+// ─── AttemptLogPanel ──────────────────────────────────────────────────────────
+
+function AttemptLogPanel({
+  slug,
+  waveNumber,
+  stepIndex,
+  attempt,
+}: {
+  slug: string
+  waveNumber: string
+  stepIndex: string
+  attempt: AttemptMeta
+}) {
+  const [allLines, setAllLines] = useState<LogLine[]>([])
+  const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+
+    async function load() {
+      const BATCH = 500
+      let offset = 0
+      const collected: LogLine[] = []
+      while (true) {
+        const logRes = await apiFetch(
+          `/api/v1/projects/${slug}/waves/${waveNumber}/steps/${stepIndex}/log?attempt=${attempt.dir}&offset=${offset}&limit=${BATCH}`
+        )
+        if (!logRes.ok) break
+        const data = await logRes.json() as { total: number; offset: number; limit: number; lines: LogLine[] }
+        if (cancelled) return
+        collected.push(...data.lines)
+        if (offset + BATCH >= data.total) break
+        offset += BATCH
+      }
+      if (!cancelled) {
+        setAllLines(collected)
+        setLoading(false)
+      }
+    }
+
+    load().catch(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [slug, waveNumber, stepIndex, attempt.dir])
+
+  const filteredLines = search.trim()
+    ? allLines.filter((line) => extractText(line).toLowerCase().includes(search.toLowerCase()))
+    : allLines
+
+  if (loading) {
+    return <div className="h-32 bg-muted rounded animate-pulse m-2" />
+  }
+
+  return (
+    <div className="flex flex-col gap-2 p-3 border-t border-border bg-muted/30">
+      <div className="flex items-center gap-3 justify-between flex-wrap">
+        <span className="text-xs text-muted-foreground">
+          {search.trim()
+            ? `${filteredLines.length} / ${allLines.length} linhas`
+            : `${allLines.length} linhas`}
+        </span>
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <input
+            type="search"
+            placeholder="Filtrar linhas..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {(Object.entries(TYPE_CONFIG) as [LogLineType, (typeof TYPE_CONFIG)[LogLineType]][]).map(([type, cfg]) => (
+          <span key={type} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${cfg.bgClass} border ${cfg.borderClass} ${cfg.textClass}`}>
+            {cfg.label}
+          </span>
+        ))}
+      </div>
+      {filteredLines.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-4 text-center">
+          {allLines.length === 0 ? "Log ainda não disponível." : "Nenhuma linha encontrada."}
+        </p>
+      ) : (
+        <div className="rounded-lg border border-border overflow-hidden">
+          <LogViewer lines={filteredLines} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── StepDetailPage ───────────────────────────────────────────────────────────
 
 export function StepDetailPage() {
@@ -249,8 +367,9 @@ export function StepDetailPage() {
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [expandedAttempt, setExpandedAttempt] = useState<string | null>(null)
 
-  // Fetch step metadata + all log lines
+  // Fetch step metadata + log lines (only for non-loop steps)
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -265,6 +384,9 @@ export function StepDetailPage() {
       const metaData = await metaRes.json() as StepMeta
       if (cancelled) return
       setMeta(metaData)
+
+      // Skip log loading for loop steps — logs are per-attempt
+      if (metaData.type === "ralph-wiggum-loop") return
 
       // Load all log lines in batches
       const BATCH = 500
@@ -323,6 +445,7 @@ export function StepDetailPage() {
 
   const isSuccess = meta.exit_code === 0
   const isRunning = meta.status === "running"
+  const isLoop = meta.type === "ralph-wiggum-loop"
 
   return (
     <div className="flex flex-col p-6 gap-5 max-w-5xl">
@@ -368,10 +491,12 @@ export function StepDetailPage() {
             <p className="text-muted-foreground mb-0.5">Task</p>
             <p className="font-mono font-medium truncate">{meta.task ?? "—"}</p>
           </div>
-          <div className="rounded-md bg-muted/50 px-3 py-2">
-            <p className="text-muted-foreground mb-0.5">Agent</p>
-            <p className="font-mono font-medium">{meta.agent ?? "—"}</p>
-          </div>
+          {!isLoop && (
+            <div className="rounded-md bg-muted/50 px-3 py-2">
+              <p className="text-muted-foreground mb-0.5">Agent</p>
+              <p className="font-mono font-medium">{meta.agent ?? "—"}</p>
+            </div>
+          )}
           <div className="rounded-md bg-muted/50 px-3 py-2">
             <p className="text-muted-foreground mb-0.5 flex items-center gap-1">
               <Clock className="w-3 h-3" /> Início
@@ -384,6 +509,18 @@ export function StepDetailPage() {
             </p>
             <p className="font-mono">{meta.duration_ms != null ? formatDuration(meta.duration_ms) : isRunning ? "em execução" : "—"}</p>
           </div>
+          {isLoop && (
+            <>
+              <div className="rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-muted-foreground mb-0.5">Features</p>
+                <p className="font-mono font-medium">{meta.done ?? 0} / {meta.total ?? 0}</p>
+              </div>
+              <div className="rounded-md bg-muted/50 px-3 py-2">
+                <p className="text-muted-foreground mb-0.5">Iterações</p>
+                <p className="font-mono font-medium">{meta.iteration ?? 0}</p>
+              </div>
+            </>
+          )}
           {meta.model_used && (
             <div className="col-span-2 rounded-md bg-muted/50 px-3 py-2">
               <p className="text-muted-foreground mb-0.5">Modelo</p>
@@ -393,52 +530,99 @@ export function StepDetailPage() {
         </div>
       </div>
 
-      {/* ── Log section ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3">
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 justify-between flex-wrap">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold">Log</h2>
-            <span className="text-xs text-muted-foreground">
-              {search.trim()
-                ? `${filteredLines.length} / ${allLines.length} linhas`
-                : `${allLines.length} linhas`}
-            </span>
-          </div>
-
-          {/* Search */}
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              type="search"
-              placeholder="Filtrar linhas..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-            />
+      {/* ── Loop attempts section ─────────────────────────────────────── */}
+      {isLoop && meta.attempts && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold">Feature Attempts ({meta.attempts.length})</h2>
+          <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
+            {meta.attempts.map((a) => {
+              const aSuccess = a.exit_code === 0
+              const aRunning = a.status === "running"
+              const isExpanded = expandedAttempt === a.dir
+              return (
+                <div key={a.dir}>
+                  <button
+                    onClick={() => setExpandedAttempt(isExpanded ? null : a.dir)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                  >
+                    {aRunning ? (
+                      <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+                    ) : aSuccess ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                    )}
+                    <span className="font-mono text-sm font-medium min-w-[4rem]">{a.feature}</span>
+                    <span className="text-xs text-muted-foreground">attempt {a.attempt}</span>
+                    {a.agent && <span className="text-xs text-muted-foreground ml-auto hidden sm:inline">{a.agent}</span>}
+                    {a.duration_ms != null && (
+                      <span className="text-xs text-muted-foreground ml-2">{formatDuration(a.duration_ms)}</span>
+                    )}
+                    <span className="text-xs text-muted-foreground">{isExpanded ? "▲" : "▼"}</span>
+                  </button>
+                  {isExpanded && (
+                    <AttemptLogPanel
+                      slug={slug}
+                      waveNumber={waveNumber}
+                      stepIndex={stepIndex}
+                      attempt={a}
+                    />
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
+      )}
 
-        {/* Type legend */}
-        <div className="flex flex-wrap gap-2">
-          {(Object.entries(TYPE_CONFIG) as [LogLineType, (typeof TYPE_CONFIG)[LogLineType]][]).map(([type, cfg]) => (
-            <span key={type} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${cfg.bgClass} border ${cfg.borderClass} ${cfg.textClass}`}>
-              {cfg.label}
-            </span>
-          ))}
-        </div>
+      {/* ── Log section (regular steps only) ──────────────────────────── */}
+      {!isLoop && (
+        <div className="flex flex-col gap-3">
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 justify-between flex-wrap">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold">Log</h2>
+              <span className="text-xs text-muted-foreground">
+                {search.trim()
+                  ? `${filteredLines.length} / ${allLines.length} linhas`
+                  : `${allLines.length} linhas`}
+              </span>
+            </div>
 
-        {/* Log viewer */}
-        {filteredLines.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-8 text-center">
-            {allLines.length === 0 ? "Log ainda não disponível." : "Nenhuma linha encontrada para o filtro."}
-          </p>
-        ) : (
-          <div className="rounded-lg border border-border overflow-hidden">
-            <LogViewer lines={filteredLines} />
+            {/* Search */}
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <input
+                type="search"
+                placeholder="Filtrar linhas..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Type legend */}
+          <div className="flex flex-wrap gap-2">
+            {(Object.entries(TYPE_CONFIG) as [LogLineType, (typeof TYPE_CONFIG)[LogLineType]][]).map(([type, cfg]) => (
+              <span key={type} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${cfg.bgClass} border ${cfg.borderClass} ${cfg.textClass}`}>
+                {cfg.label}
+              </span>
+            ))}
+          </div>
+
+          {/* Log viewer */}
+          {filteredLines.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              {allLines.length === 0 ? "Log ainda não disponível." : "Nenhuma linha encontrada para o filtro."}
+            </p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <LogViewer lines={filteredLines} />
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

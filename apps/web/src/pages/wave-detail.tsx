@@ -210,122 +210,150 @@ export function WaveDetailPage() {
   }
 
   const steps = wave.steps ?? []
+  const hasFeatureLoop = steps.some((s) => s.type === "ralph-wiggum-loop")
 
   return (
-    <div className="flex flex-col p-6 gap-6 max-w-2xl">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-semibold">Wave {wave.wave_number}</h1>
-        <div className="flex items-baseline gap-2 mt-1">
-          <span className="text-2xl font-bold tabular-nums">{wave.steps_completed}</span>
-          <span className="text-sm text-muted-foreground">/ {wave.steps_total} steps</span>
-          {wave.steps_failed > 0 && (
-            <span className="text-red-500 text-sm ml-1">· {wave.steps_failed} falhou</span>
+    <div className="p-6">
+      <div className={`grid gap-6 ${hasFeatureLoop ? "xl:grid-cols-2 xl:items-start" : "max-w-2xl"}`}>
+        {/* Column 1 — Wave & Steps */}
+        <div className="flex flex-col gap-6 max-w-2xl">
+          {/* Header */}
+          <div>
+            <h1 className="text-xl font-semibold">Wave {wave.wave_number}</h1>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-2xl font-bold tabular-nums">{wave.steps_completed}</span>
+              <span className="text-sm text-muted-foreground">/ {wave.steps_total} steps</span>
+              {wave.steps_failed > 0 && (
+                <span className="text-red-500 text-sm ml-1">· {wave.steps_failed} falhou</span>
+              )}
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div>
+            <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
+              <span>Progresso</span>
+              <span>{wave.steps_completed}/{wave.steps_total} steps · {wave.progress}%</span>
+            </div>
+            <div className="h-3 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-300"
+                style={{ width: `${wave.progress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Timing section */}
+          <TimingSection timing={wave.timing} steps={steps} now={now} />
+
+          {/* Timeline */}
+          {steps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum step encontrado.</p>
+          ) : (
+            <div className="relative flex flex-col">
+              {/* Vertical line */}
+              <div className="absolute left-[9px] top-6 bottom-6 w-px bg-border" />
+
+              <div className="flex flex-col gap-0">
+                {steps.map((step, idx) => {
+                  const statusClass =
+                    step.status === "running"
+                      ? "bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/15"
+                      : step.status === "completed"
+                      ? "bg-green-500/10 border-green-500/30 hover:bg-green-500/15"
+                      : step.status === "failed"
+                      ? "bg-red-500/10 border-red-500/30 hover:bg-red-500/15"
+                      : step.status === "interrupted"
+                      ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15"
+                      : step.status === "pending"
+                      ? "border-transparent opacity-60"
+                      : "border-transparent hover:bg-muted/50"
+
+                  const inner = (
+                    <>
+                      {/* Status icon (sits on the vertical line) */}
+                      <div className="relative z-10 mt-0.5 bg-background">
+                        <StatusIcon status={step.status} />
+                      </div>
+
+                      {/* Step info */}
+                      <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-muted-foreground font-mono w-8 shrink-0">
+                            {String(step.index).padStart(2, "0")}
+                          </span>
+                          <span className="text-sm font-medium truncate">{step.task}</span>
+                          <TypeBadge type={step.type} />
+                        </div>
+                        {(step.duration_ms != null || step.status === "running" || step.status === "interrupted") && (
+                          <div className="flex items-center gap-1 pl-10 text-xs text-muted-foreground">
+                            {step.status === "running" ? (
+                              <span className="flex items-center gap-1">
+                                <RefreshCcw className="w-3 h-3 animate-spin" />
+                                em execução
+                                {step.started_at && (
+                                  <span className="ml-1 tabular-nums">
+                                    · {formatDuration(now - new Date(step.started_at).getTime())}
+                                  </span>
+                                )}
+                              </span>
+                            ) : step.status === "interrupted" ? (
+                              <span className="text-amber-500">Interrompido</span>
+                            ) : (
+                              <span>{formatDuration(step.duration_ms)}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {step.status !== "pending" && (
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/0 group-hover:text-muted-foreground shrink-0 mt-0.5 transition-colors" />
+                      )}
+
+                      {/* Connector line gap for last item */}
+                      {idx === steps.length - 1 && <div />}
+                    </>
+                  )
+
+                  if (step.status === "pending") {
+                    return (
+                      <div
+                        key={step.index}
+                        className={`group relative flex items-start gap-4 py-3 rounded-lg px-2 -mx-2 border ${statusClass}`}
+                      >
+                        {inner}
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <Link
+                      key={step.index}
+                      to="/projects/$slug/waves/$waveNumber/steps/$stepIndex"
+                      params={{
+                        slug,
+                        waveNumber,
+                        stepIndex: String(step.index),
+                      }}
+                      className={`group relative flex items-start gap-4 py-3 rounded-lg px-2 -mx-2 transition-colors cursor-pointer border ${statusClass}`}
+                    >
+                      {inner}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* Progress bar */}
-      <div>
-        <div className="flex justify-between text-xs text-muted-foreground mb-1.5">
-          <span>Progresso</span>
-          <span>{wave.steps_completed}/{wave.steps_total} steps · {wave.progress}%</span>
-        </div>
-        <div className="h-3 bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary rounded-full transition-all duration-300"
-            style={{ width: `${wave.progress}%` }}
-          />
-        </div>
-      </div>
-
-      {/* Timing section */}
-      <TimingSection timing={wave.timing} steps={steps} now={now} />
-
-      {/* Timeline */}
-      {steps.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhum step encontrado.</p>
-      ) : (
-        <div className="relative flex flex-col">
-          {/* Vertical line */}
-          <div className="absolute left-[9px] top-6 bottom-6 w-px bg-border" />
-
-          <div className="flex flex-col gap-0">
-            {steps.map((step, idx) => (
-              <Link
-                key={step.index}
-                to="/projects/$slug/waves/$waveNumber/steps/$stepIndex"
-                params={{
-                  slug,
-                  waveNumber,
-                  stepIndex: String(step.index),
-                }}
-                className={`group relative flex items-start gap-4 py-3 rounded-lg px-2 -mx-2 transition-colors cursor-pointer border ${
-                  step.status === "running"
-                    ? "bg-blue-500/10 border-blue-500/30 hover:bg-blue-500/15"
-                    : step.status === "completed"
-                    ? "bg-green-500/10 border-green-500/30 hover:bg-green-500/15"
-                    : step.status === "failed"
-                    ? "bg-red-500/10 border-red-500/30 hover:bg-red-500/15"
-                    : step.status === "interrupted"
-                    ? "bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/15"
-                    : step.status === "pending"
-                    ? "border-transparent opacity-60 hover:opacity-100 hover:bg-muted/50"
-                    : "border-transparent hover:bg-muted/50"
-                }`}
-              >
-                {/* Status icon (sits on the vertical line) */}
-                <div className="relative z-10 mt-0.5 bg-background">
-                  <StatusIcon status={step.status} />
-                </div>
-
-                {/* Step info */}
-                <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-muted-foreground font-mono w-8 shrink-0">
-                      {String(step.index).padStart(2, "0")}
-                    </span>
-                    <span className="text-sm font-medium truncate">{step.task}</span>
-                    <TypeBadge type={step.type} />
-                  </div>
-                  {(step.duration_ms != null || step.status === "running" || step.status === "interrupted") && (
-                    <div className="flex items-center gap-1 pl-10 text-xs text-muted-foreground">
-                      {step.status === "running" ? (
-                        <span className="flex items-center gap-1">
-                          <RefreshCcw className="w-3 h-3 animate-spin" />
-                          em execução
-                          {step.started_at && (
-                            <span className="ml-1 tabular-nums">
-                              · {formatDuration(now - new Date(step.started_at).getTime())}
-                            </span>
-                          )}
-                        </span>
-                      ) : step.status === "interrupted" ? (
-                        <span className="text-amber-500">Interrompido</span>
-                      ) : (
-                        <span>{formatDuration(step.duration_ms)}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <ChevronRight className="w-4 h-4 text-muted-foreground/0 group-hover:text-muted-foreground shrink-0 mt-0.5 transition-colors" />
-
-                {/* Connector line gap for last item */}
-                {idx === steps.length - 1 && <div />}
-              </Link>
-            ))}
+        {/* Column 2 — Feature Loop (only when wave has a ralph-wiggum-loop step) */}
+        {hasFeatureLoop && (
+          <div className="flex flex-col gap-3">
+            <h2 className="text-base font-semibold">Feature Loop</h2>
+            <FeatureLoopDashboard slug={slug} waveNumber={waveNumber} />
           </div>
-        </div>
-      )}
-
-      {/* Feature Loop Dashboard — shown when the wave has a ralph-wiggum-loop step */}
-      {steps.some((s) => s.type === "ralph-wiggum-loop") && (
-        <div>
-          <h2 className="text-base font-semibold mb-3">Feature Loop</h2>
-          <FeatureLoopDashboard slug={slug} waveNumber={waveNumber} />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

@@ -9,9 +9,15 @@ import type { AuthContextValue } from "@/contexts/auth-context"
 import { LoginPage } from "@/pages/login"
 import { ProjectsPage } from "@/pages/projects"
 import { ProjectDetailPage } from "@/pages/project-detail"
+import { ProjectInfoPage } from "@/pages/project-info"
+import { ProjectWavesPage } from "@/pages/project-waves"
+import { ProjectConsolePickerPage } from "@/pages/project-console-picker"
+import { ProjectSprintsPickerPage } from "@/pages/project-sprints-picker"
 import { WaveDetailPage } from "@/pages/wave-detail"
-import { ConsolePage } from "@/pages/console"
+import { WaveConsolePage } from "@/pages/wave-console"
+import { WaveSprintsPage } from "@/pages/wave-sprints"
 import { StepDetailPage } from "@/pages/step-detail"
+import { ProjectMonitorPage } from "@/pages/project-monitor"
 import { AppShell } from "@/components/layout/app-shell"
 
 // Root route with context type
@@ -64,10 +70,46 @@ const projectDetailRoute = createRoute({
   component: ProjectDetailPage,
 })
 
+const projectInfoRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/info",
+  component: ProjectInfoPage,
+})
+
+const projectWavesRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/waves",
+  component: ProjectWavesPage,
+})
+
+const projectConsoleRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/console",
+  component: ProjectConsolePickerPage,
+})
+
+const projectSprintsRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/sprints",
+  component: ProjectSprintsPickerPage,
+})
+
 const waveDetailRoute = createRoute({
   getParentRoute: () => authRoute,
   path: "/projects/$slug/waves/$waveNumber",
   component: WaveDetailPage,
+})
+
+const waveConsoleRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/waves/$waveNumber/console",
+  component: WaveConsolePage,
+})
+
+const waveSprintsRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/waves/$waveNumber/sprints",
+  component: WaveSprintsPage,
 })
 
 const stepDetailRoute = createRoute({
@@ -76,24 +118,10 @@ const stepDetailRoute = createRoute({
   component: StepDetailPage,
 })
 
-const consoleRoute = createRoute({
+const projectMonitorRoute = createRoute({
   getParentRoute: () => authRoute,
-  path: "/console",
-  validateSearch: (search: Record<string, unknown>) => ({
-    project: typeof search.project === "string" ? search.project : "",
-    cats: typeof search.cats === "string" ? search.cats : "",
-    op: search.op !== false && search.op !== "false",
-    q: typeof search.q === "string" ? search.q : "",
-  }),
-  component: ConsolePage,
-})
-
-const eventsRoute = createRoute({
-  getParentRoute: () => authRoute,
-  path: "/events",
-  beforeLoad: () => {
-    throw redirect({ to: "/console" })
-  },
+  path: "/projects/$slug/monitor",
+  component: ProjectMonitorPage,
 })
 
 const routeTree = rootRoute.addChildren([
@@ -102,10 +130,15 @@ const routeTree = rootRoute.addChildren([
     indexRoute,
     projectsRoute,
     projectDetailRoute,
+    projectInfoRoute,
+    projectWavesRoute,
+    projectConsoleRoute,
+    projectSprintsRoute,
     waveDetailRoute,
+    waveConsoleRoute,
+    waveSprintsRoute,
     stepDetailRoute,
-    consoleRoute,
-    eventsRoute,
+    projectMonitorRoute,
   ]),
 ])
 

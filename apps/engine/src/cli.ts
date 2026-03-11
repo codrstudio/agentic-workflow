@@ -2,7 +2,7 @@ import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import chalk from 'chalk';
-import { bootstrap } from './core/bootstrap.js';
+import { bootstrap, writeEnginePid } from './core/bootstrap.js';
 import { WorkflowRunner, type WorkflowRunnerContext } from './core/workflow-engine.js';
 import { installCrashHandlers, setLogPath, logEvent as writeLogEvent, logInfo, logError } from './core/engine-logger.js';
 import type { EngineEvent } from './schemas/event.js';
@@ -135,8 +135,11 @@ async function main(): Promise<void> {
   // Bootstrap
   const result = await bootstrap(contextDir, projectSlug, workflowSlug, planSlug);
 
+  // Write engine PID to workspace.json so the monitor can track liveness
+  await writeEnginePid(result.workspaceDir, process.pid);
+
   // Activate engine log file now that we know the wave dir
-  const engineLogPath = join(result.waveDir, 'engine.log');
+  const engineLogPath = join(result.waveDir, 'engine.jsonl');
   setLogPath(engineLogPath);
   logInfo('engine started', {
     project: projectSlug,

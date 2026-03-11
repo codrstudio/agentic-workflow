@@ -24,6 +24,7 @@ export interface OperatorQueueDrainConfig {
 
 export class OperatorQueue {
   private drainCount = 0;
+  private logPath: string | undefined;
 
   constructor(
     private readonly state: StateManager,
@@ -32,6 +33,11 @@ export class OperatorQueue {
     private readonly renderer: TemplateRenderer,
     private readonly acrInjector?: AcrInjector,
   ) {}
+
+  private async appendLog(entry: Record<string, unknown>): Promise<void> {
+    if (!this.logPath) return;
+    await this.state.appendLine(this.logPath, JSON.stringify(entry));
+  }
 
   /**
    * Enqueue a message from the operator into the JSONL queue file.
@@ -64,9 +70,23 @@ export class OperatorQueue {
    * Returns when the queue is empty after a drain cycle.
    */
   async drainAll(queuePath: string, config: OperatorQueueDrainConfig): Promise<void> {
+    this.logPath = join(config.waveDir, 'operator-log.jsonl');
+
     while (await this.hasPending(queuePath)) {
       const messages = await this.consumeMessages(queuePath);
       if (messages.length === 0) break;
+
+      // Tee: log operator messages before processing
+      for (const msg of messages) {
+        await this.appendLog({
+          role: 'user',
+          id: msg.id,
+          timestamp: msg.timestamp,
+          message: msg.message,
+          source: msg.source,
+          drain: this.drainCount + 1,
+        });
+      }
 
       this.emitEvent('queue:processing', {
         count: messages.length,
@@ -179,10 +199,9 @@ export class OperatorQueue {
   }
 
   private emitEvent(type: EngineEventType, data: Record<string, unknown>): void {
-    this.notifier.emitEngineEvent({
-      type,
-      timestamp: now(),
-      data,
-    });
+    const timestamp = now();
+    // Tee: log engine event
+    this.appendLog({ role: 'engine', timestamp, event: type, data, drain: this.drainCount });
+    this.notifier.emitEngineEvent({ type, timestamp, data });
   }
 }

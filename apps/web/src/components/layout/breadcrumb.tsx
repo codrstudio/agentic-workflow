@@ -9,50 +9,88 @@ export type BreadcrumbItem = {
   href?: string
 }
 
+const SUB_ROUTE_LABELS: Record<string, string> = {
+  info: "Projeto",
+  waves: "Waves",
+  console: "Console",
+  sprints: "Sprints",
+}
+
 function useBreadcrumbs(): BreadcrumbItem[] {
   const routerState = useRouterState()
   const pathname = routerState.location.pathname
 
-  // /projects — no breadcrumb (handled by parent)
   if (pathname === "/projects" || pathname === "/") return []
 
   const crumbs: BreadcrumbItem[] = []
-
   const segments = pathname.split("/").filter(Boolean)
-  // segments: e.g. ["projects", "my-slug", "waves", "1", "steps", "0"]
 
-  if (segments[0] === "projects") {
-    crumbs.push({ label: "Projetos", href: "/projects" })
+  if (segments[0] !== "projects") return []
 
-    if (segments[1]) {
-      const slug = segments[1]
-      if (segments.length === 2) {
-        // /projects/:slug — last level, no href
-        crumbs.push({ label: slug })
-      } else {
-        crumbs.push({ label: slug, href: `/projects/${slug}` })
-      }
+  crumbs.push({ label: "Projetos", href: "/projects" })
+
+  if (!segments[1]) return crumbs
+
+  const slug = segments[1]
+
+  // /projects/:slug — Dashboard (last level)
+  if (segments.length === 2) {
+    crumbs.push({ label: slug })
+    return crumbs
+  }
+
+  // Has sub-route — slug is always a link
+  crumbs.push({ label: slug, href: `/projects/${slug}` })
+
+  const subRoute = segments[2]
+
+  // /projects/:slug/info, /projects/:slug/console (picker), /projects/:slug/sprints (picker)
+  if (subRoute && subRoute !== "waves" && segments.length === 3) {
+    crumbs.push({ label: SUB_ROUTE_LABELS[subRoute] ?? subRoute })
+    return crumbs
+  }
+
+  // /projects/:slug/waves
+  if (subRoute === "waves") {
+    if (segments.length === 3) {
+      crumbs.push({ label: "Waves" })
+      return crumbs
     }
 
-    if (segments[2] === "waves" && segments[3]) {
-      const waveNumber = segments[3]
-      const slug = segments[1]!
-      if (segments.length === 4) {
-        crumbs.push({ label: `Wave ${waveNumber}` })
-      } else {
-        crumbs.push({
-          label: `Wave ${waveNumber}`,
-          href: `/projects/${slug}/waves/${waveNumber}`,
-        })
-      }
+    // Has wave number
+    const waveNumber = segments[3]!
+    if (segments.length === 4) {
+      crumbs.push({ label: "Waves", href: `/projects/${slug}/waves` })
+      crumbs.push({ label: `Wave ${waveNumber}` })
+      return crumbs
     }
 
-    if (segments[4] === "steps" && segments[5] !== undefined) {
-      const stepIndex = segments[5]
-      crumbs.push({ label: `Step ${stepIndex}` })
+    // Wave sub-routes
+    crumbs.push({ label: "Waves", href: `/projects/${slug}/waves` })
+    crumbs.push({
+      label: `Wave ${waveNumber}`,
+      href: `/projects/${slug}/waves/${waveNumber}`,
+    })
+
+    const waveSubRoute = segments[4]
+
+    // /projects/:slug/waves/:n/steps/:idx
+    if (waveSubRoute === "steps" && segments[5] !== undefined) {
+      crumbs.push({ label: `Step ${segments[5]}` })
+      return crumbs
     }
-  } else if (segments[0] === "console") {
-    crumbs.push({ label: "Console" })
+
+    // /projects/:slug/waves/:n/console
+    if (waveSubRoute === "console") {
+      crumbs.push({ label: "Console" })
+      return crumbs
+    }
+
+    // /projects/:slug/waves/:n/sprints
+    if (waveSubRoute === "sprints") {
+      crumbs.push({ label: "Sprints" })
+      return crumbs
+    }
   }
 
   return crumbs

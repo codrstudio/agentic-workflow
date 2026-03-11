@@ -712,7 +712,7 @@ async function main(): Promise<void> {
 
   // ── Print engine log (always, from current wave) ──
   // Note: Engine log is event history from workflow transitions, not live during agent work
-  const engineLogPath = join(currentWaveDir, 'engine.log');
+  const engineLogPath = join(currentWaveDir, 'engine.jsonl');
   const engineMessages = await readLastEngineMessages(engineLogPath, 3);
   if (engineMessages.length > 0) {
     // Don't show freshness for engine log - it's expected to be "old" while agent is running

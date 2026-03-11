@@ -319,6 +319,16 @@ export function resolveProjectDir(contextDir: string, projectConfig: ProjectConf
   return join(contextDir, 'projects', projectConfig.slug, targetFolder);
 }
 
+export async function writeEnginePid(workspaceDir: string, pid: number): Promise<void> {
+  const workspaceJsonPath = join(workspaceDir, 'workspace.json');
+  try {
+    const raw = await readFile(workspaceJsonPath, 'utf-8');
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    data['engine_pid'] = pid;
+    await state.writeJson(workspaceJsonPath, data);
+  } catch { /* ignore */ }
+}
+
 export async function bootstrap(
   contextDir: string,
   projectSlug: string,

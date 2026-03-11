@@ -5,6 +5,7 @@ import { parse as parseYaml } from 'yaml';
 import { runs } from './runs.js';
 import { waves } from './waves.js';
 import { messages } from './messages.js';
+import { monitor } from './monitor.js';
 import { getAllActions } from './agent-actions.js';
 import { getAwRoot } from '../lib/paths.js';
 
@@ -78,6 +79,7 @@ app.get('/:slug', async (c) => {
 app.route('/:slug/runs', runs);
 app.route('/:slug/waves', waves);
 app.route('/:slug/messages', messages);
+app.route('/:slug/monitor', monitor);
 
 // GET /api/v1/projects/:slug/agent-actions
 app.get('/:slug/agent-actions', (c) => {

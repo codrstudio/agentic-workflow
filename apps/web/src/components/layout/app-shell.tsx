@@ -1,6 +1,6 @@
 import * as React from "react"
 import { Link, useRouterState } from "@tanstack/react-router"
-import { FolderKanban, Terminal, ChevronLeft, ChevronRight, Sun, Moon, Monitor, LogOut, Check } from "lucide-react"
+import { ChevronLeft, ChevronRight, Sun, Moon, Monitor, LogOut, Check } from "lucide-react"
 import * as Popover from "@radix-ui/react-popover"
 import { AnimatePresence, motion } from "framer-motion"
 import { cn } from "@workspace/ui/lib/utils"
@@ -10,15 +10,12 @@ import { BottomNav } from "@/components/layout/bottom-nav"
 import { Breadcrumb } from "@/components/layout/breadcrumb"
 import { useSSEContext, type SSEStatus } from "@/contexts/sse-context"
 import { SSEProvider } from "@/contexts/sse-context"
-
-const NAV_ITEMS = [
-  { to: "/projects", label: "Projetos", icon: FolderKanban },
-  { to: "/console", label: "Console", icon: Terminal },
-] as const
+import { useNavItems } from "@/components/layout/nav-items"
 
 const COLLAPSED_KEY = "sidebar-collapsed"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const navItems = useNavItems()
   const [collapsed, setCollapsed] = React.useState(() => {
     try {
       return localStorage.getItem(COLLAPSED_KEY) === "true"
@@ -56,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           collapsed ? "justify-center" : "justify-between"
         )}>
           {!collapsed && (
-            <span className="text-sm font-semibold tracking-tight">AW Monitor</span>
+            <span className="text-sm font-semibold tracking-tight">Agentic Workflow</span>
           )}
           <button
             onClick={toggle}
@@ -73,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Nav items */}
         <nav className="flex flex-1 flex-col gap-1 p-2">
-          {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+          {navItems.map(({ to, label, icon: Icon }) => (
             <NavItem key={to} to={to} label={label} icon={Icon} collapsed={collapsed} />
           ))}
         </nav>
@@ -127,8 +124,12 @@ function NavItem({
   collapsed: boolean
 }) {
   const routerState = useRouterState()
-  const isActive = routerState.location.pathname === to ||
-    routerState.location.pathname.startsWith(to + "/")
+  const pathname = routerState.location.pathname
+  // Exact match for top-level list pages (/projects) and project dashboard (/projects/:slug)
+  const isExactOnly = to === "/projects" || /^\/projects\/[^/]+$/.test(to)
+  const isActive = isExactOnly
+    ? pathname === to
+    : pathname === to || pathname.startsWith(to + "/")
 
   return (
     <Link
