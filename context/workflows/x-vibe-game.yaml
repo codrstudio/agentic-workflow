@@ -1,0 +1,41 @@
+name: x-vibe-game
+description: Workflow de produto para jogos — playtesting com agentes em vez de pesquisa web
+
+steps:
+  - type: spawn-agent
+    task: x-playtest-session
+
+  - type: spawn-agent
+    task: x-playtest-analysis
+
+  - type: spawn-agent
+    task: go-no-go
+    schema:
+      type: object
+      properties:
+        stop:
+          type: boolean
+        reason:
+          type: string
+      required: [stop, reason]
+    stop_on: "r => r.stop"
+
+  - type: spawn-agent
+    task: derive-specs
+
+  - type: spawn-agent
+    task: derive-prps
+
+  - type: spawn-agent
+    task: plan-features
+
+  - type: ralph-wiggum-loop
+    task: vibe-code
+
+  - type: spawn-agent
+    task: merge-worktree
+
+  - type: stop-on-wave-limit
+
+  - type: spawn-workflow
+    workflow: x-vibe-game
