@@ -237,10 +237,12 @@ export async function buildStepList(wavePath: string): Promise<StepSummary[]> {
   return wfState.steps.map((ws) => {
     const runtime = runtimeSteps.get(ws.index);
     if (runtime) {
-      // workflow-state.json is the engine's final verdict — if it says failed, trust it
-      // even if spawn.json exit_code was 0 (e.g. Layer 3 verification failure in hybrid merge)
+      // workflow-state.json is the engine's final verdict — if it says failed OR has a
+      // non-zero exit_code, trust it even if spawn.json exit_code was 0 (e.g. Layer 3
+      // verification failure in hybrid merge, or manually-set non-standard status strings)
       const wfStatus = ws.status as StepStatus | undefined;
-      if (wfStatus === 'failed' && runtime.status === 'completed') {
+      const wfFailed = wfStatus === 'failed' || (ws.exit_code !== null && ws.exit_code !== undefined && ws.exit_code !== 0);
+      if (wfFailed && runtime.status === 'completed') {
         return { ...runtime, status: 'failed' as StepStatus };
       }
       return runtime;

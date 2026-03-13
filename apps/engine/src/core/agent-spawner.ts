@@ -24,6 +24,7 @@ export interface SpawnAgentParams {
   timeoutMs?: number;
   jsonSchema?: Record<string, unknown>;
   onSpawn?: (pid: number) => void;
+  onChunkWritten?: () => void;
 }
 
 export interface SpawnAgentResult {
@@ -136,6 +137,7 @@ export class AgentSpawner {
 
       proc.stdout?.on('data', (chunk: Buffer) => {
         logStream.write(chunk);
+        params.onChunkWritten?.();
         if (useJsonSchema) stdoutChunks.push(chunk);
       });
       proc.stderr?.pipe(logStream);

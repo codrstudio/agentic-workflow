@@ -888,3 +888,5 @@ Diagnóstico: todas as etapas já concluídas em sessão anterior.
 - merged_sha: 21ac8cdd989d3c686529f5224181bf5dcd129583
 [2026-03-13 14:07:44] Step 7 (merge-worktree): Failed (exit 1). agent_failed: agent reported failure without message
 [2026-03-13 14:08:55] Step 7 (merge-worktree): Failed (exit 1). agent_failed: agent reported failure without message
+[2026-03-13 14:11:29] Step 7 (merge-worktree): Failed (exit 1). agent_failed: agent reported failure without message
+[2026-03-13 14:37:18] Step 7 (merge-worktree): Failed (exit 1). agent_failed: agent reported failure without message

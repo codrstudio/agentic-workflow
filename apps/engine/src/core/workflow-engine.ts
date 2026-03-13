@@ -605,6 +605,8 @@ export class WorkflowRunner {
 
     this.emitEvent('agent:spawn', { task: taskSlug, agent: agentName, model: resolvedModel });
 
+    const onChunkWritten = this.makeChunkDebounce(taskSlug, agentName);
+
     const meta: SpawnMeta = {
       task: taskSlug,
       agent: agentName,
@@ -635,6 +637,7 @@ export class WorkflowRunner {
         meta.pid = pid;
         this.spawner.writeSpawnMeta(stepDir, meta);
       },
+      onChunkWritten,
     });
 
     meta.pid = result.pid;
@@ -706,18 +709,24 @@ export class WorkflowRunner {
     const writeLine = (obj: unknown) => appendFileSync(jsonlPath, JSON.stringify(obj) + '\n', 'utf-8');
     const startedAt = now();
 
+    const onChunkWritten = this.makeChunkDebounce('merge-worktree', 'deterministic');
+
     writeLine({ type: 'system', subtype: 'init', model, session_id: sessionId, cwd: ctx.repoDir });
+    onChunkWritten();
 
     try {
       writeLine({ type: 'assistant', message: { model, content: [{ type: 'tool_use', id: 'det_1', name: 'Bash', input: { command: `git checkout ${targetBranch}` } }] } });
+      onChunkWritten();
       execSync(`git -C "${ctx.repoDir}" checkout "${targetBranch}"`, { stdio: 'pipe' });
 
       writeLine({ type: 'assistant', message: { model, content: [{ type: 'tool_use', id: 'det_2', name: 'Bash', input: { command: `git merge ${branchName} --no-ff --no-edit` } }] } });
+      onChunkWritten();
       execSync(`git -C "${ctx.repoDir}" merge "${branchName}" --no-ff --no-edit`, { stdio: 'pipe' });
 
       const mergedSha = execSync(`git -C "${ctx.repoDir}" rev-parse HEAD`, { stdio: 'pipe' }).toString().trim();
 
       writeLine({ type: 'assistant', message: { model, content: [{ type: 'text', text: `[deterministic] merge concluído — SHA: ${mergedSha}` }], stop_reason: 'end_turn' } });
+      onChunkWritten();
 
 
       const meta: SpawnMeta = {
@@ -754,6 +763,9 @@ export class WorkflowRunner {
       try {
         execSync(`git -C "${ctx.repoDir}" merge --abort`, { stdio: 'pipe' });
       } catch { /* ignore */ }
+
+      writeLine({ type: 'system', subtype: 'fallback', model, content: '[deterministic→agent] iniciando fallback para agente' });
+      onChunkWritten();
 
       const customSchema = {
         type: 'object',
@@ -943,6 +955,17 @@ export class WorkflowRunner {
 
     console.log(`\n  [stop-on-wave-limit] wave ${ctx.waveNumber} of ${limit}, continuing\n`);
     return { exitCode: 0, reason: 'continue' };
+  }
+
+  private makeChunkDebounce(task: string, agent: string, delayMs = 2_000): () => void {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    return () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        this.emitEvent('agent:output', { task, agent, content_type: 'text', preview: '' });
+      }, delayMs);
+    };
   }
 
   private emitEvent(type: EngineEventType, data: Record<string, unknown>): void {

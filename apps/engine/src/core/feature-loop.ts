@@ -221,6 +221,15 @@ export class FeatureLoop {
 
         await this.spawner.writeSpawnMeta(attemptDir, meta);
 
+        let chunkTimer: ReturnType<typeof setTimeout> | null = null;
+        const onChunkWritten = () => {
+          if (chunkTimer) return;
+          chunkTimer = setTimeout(() => {
+            chunkTimer = null;
+            this.emitEvent('agent:output', ctx, { task: taskSlug, agent: agentName, content_type: 'text', preview: '' });
+          }, 2_000);
+        };
+
         const result = await this.spawner.spawnAgent({
           prompt,
           cwd: worktreeDir,
@@ -236,6 +245,7 @@ export class FeatureLoop {
             meta.pid = pid;
             this.spawner.writeSpawnMeta(attemptDir, meta);
           },
+          onChunkWritten,
         });
 
         meta.pid = result.pid;
