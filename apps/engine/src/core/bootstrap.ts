@@ -306,7 +306,6 @@ export async function setupWave(
 function stepTaskName(step: import('../schemas/workflow.js').WorkflowStep): string {
   switch (step.type) {
     case 'spawn-agent': return step.task;
-    case 'spawn-agent-call': return step.task;
     case 'ralph-wiggum-loop': return step.task;
     case 'chain-workflow': return `chain-${step.workflow}`;
     case 'spawn-workflow': return `spawn-${step.workflow}`;

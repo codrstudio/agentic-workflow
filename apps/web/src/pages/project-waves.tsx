@@ -20,6 +20,7 @@ interface Run {
   workflow: string
   pid: number
   status: "running" | "completed" | "failed"
+  mode: "spawn" | "detached"
   startedAt: string
   completedAt?: string
 }
@@ -129,6 +130,13 @@ export function ProjectWavesPage() {
                   <div className="flex items-center gap-2">
                     <StatusBadge status={run.status} />
                     <span className="text-xs font-mono text-muted-foreground">PID {run.pid}</span>
+                    <span className={`text-[10px] font-mono px-1 py-0.5 rounded ${
+                      run.mode === "spawn"
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                    }`}>
+                      {run.mode ?? "detached"}
+                    </span>
                     <span className="text-xs text-muted-foreground">{formatDuration(run.startedAt)}</span>
                   </div>
                   <span className="text-xs font-mono truncate">{run.workflow}</span>

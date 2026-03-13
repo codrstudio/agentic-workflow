@@ -7,6 +7,7 @@ import { runs } from './runs.js';
 import { waves } from './waves.js';
 import { messages } from './messages.js';
 import { monitor } from './monitor.js';
+import { crashes } from './crashes.js';
 import { getAwRoot } from '../lib/paths.js';
 
 const app = new Hono();
@@ -325,5 +326,6 @@ app.route('/:slug/runs', runs);
 app.route('/:slug/waves', waves);
 app.route('/:slug/messages', messages);
 app.route('/:slug/monitor', monitor);
+app.route('/:slug/crashes', crashes);
 
 export { app as projects };

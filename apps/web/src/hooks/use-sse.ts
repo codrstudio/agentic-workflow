@@ -33,6 +33,7 @@ const KNOWN_EVENT_TYPES = [
   "run:failed",
   "agent:action:start",
   "agent:action:end",
+  "monitor:snapshot",
 ]
 
 export function useSSE(options: SSEOptions = {}): UseSSEReturn {

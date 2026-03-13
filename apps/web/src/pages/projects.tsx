@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Link } from "@tanstack/react-router"
-import { Plus, Star } from "lucide-react"
+import { Plus, Star, AlertTriangle } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
 
@@ -20,7 +20,11 @@ interface ProjectsResponse {
 
 interface ActiveRun {
   slug: string
+  wave_status?: string | null
+  last_output_age_ms?: number | null
 }
+
+const STUCK_THRESHOLD_MS = 5 * 60_000
 
 const LIMIT = 12
 const FAV_KEY = "aw_favorites"
@@ -55,14 +59,20 @@ function Header() {
 function ProjectCard({
   project,
   isFavorite,
-  isActive,
+  activeRun,
   onToggleFavorite,
 }: {
   project: Project
   isFavorite: boolean
-  isActive: boolean
+  activeRun: ActiveRun | undefined
   onToggleFavorite: (project: Project, e: React.MouseEvent) => void
 }) {
+  const isActive = !!activeRun
+  const isStuck =
+    isActive &&
+    activeRun.last_output_age_ms != null &&
+    activeRun.last_output_age_ms > STUCK_THRESHOLD_MS
+
   return (
     <Link
       to="/projects/$slug"
@@ -80,7 +90,16 @@ function ProjectCard({
           <h2 className="font-medium text-sm leading-snug">{project.name}</h2>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <StatusBadge status={project.status} />
+          {isActive && activeRun.wave_status ? (
+            <StatusBadge status={activeRun.wave_status} />
+          ) : (
+            <StatusBadge status={project.status} />
+          )}
+          {isStuck && (
+            <span title="Possivelmente travado" className="text-amber-500">
+              <AlertTriangle className="w-3.5 h-3.5" />
+            </span>
+          )}
           <button
             onClick={(e) => onToggleFavorite(project, e)}
             className="p-0.5 rounded transition-colors"
@@ -108,7 +127,7 @@ export function ProjectsPage() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [activeSlugs, setActiveSlugs] = useState<Set<string>>(new Set())
+  const [activeRunsMap, setActiveRunsMap] = useState<Map<string, ActiveRun>>(new Map())
 
   async function fetchProjects(offset: number) {
     const res = await apiFetch(`/api/v1/projects?offset=${offset}&limit=${LIMIT}`)
@@ -128,7 +147,7 @@ export function ProjectsPage() {
   useEffect(() => {
     apiFetch("/api/v1/runs/active")
       .then((r) => r.json() as Promise<ActiveRun[]>)
-      .then((runs) => setActiveSlugs(new Set(runs.map((r) => r.slug))))
+      .then((runs) => setActiveRunsMap(new Map(runs.map((r) => [r.slug, r]))))
       .catch(() => undefined)
   }, [])
 
@@ -157,6 +176,7 @@ export function ProjectsPage() {
   const favSlugs = new Set(favorites.map((f) => f.slug))
   const visibleProjects = projects.filter((p) => !favSlugs.has(p.slug))
   const hasMore = favorites.length + projects.length < total
+
 
   if (loading) {
     return (
@@ -205,7 +225,7 @@ export function ProjectsPage() {
                 key={project.slug}
                 project={project}
                 isFavorite={true}
-                isActive={activeSlugs.has(project.slug)}
+                activeRun={activeRunsMap.get(project.slug)}
                 onToggleFavorite={toggleFavorite}
               />
             ))}
@@ -224,7 +244,7 @@ export function ProjectsPage() {
                 key={project.slug}
                 project={project}
                 isFavorite={false}
-                isActive={activeSlugs.has(project.slug)}
+                activeRun={activeRunsMap.get(project.slug)}
                 onToggleFavorite={toggleFavorite}
               />
             ))}

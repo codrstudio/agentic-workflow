@@ -9,13 +9,8 @@ const WorkflowStepBase = z.object({
 export const SpawnAgentStepSchema = WorkflowStepBase.extend({
   type: z.literal('spawn-agent'),
   task: z.string(),
-});
-
-export const SpawnAgentCallStepSchema = WorkflowStepBase.extend({
-  type: z.literal('spawn-agent-call'),
-  task: z.string(),
-  schema: z.record(z.unknown()),
-  stop_on: z.string(),
+  schema: z.record(z.unknown()).optional(),
+  stop_on: z.string().optional(),
 });
 
 export const FeatureLoopStepSchema = WorkflowStepBase.extend({
@@ -39,7 +34,6 @@ export const StopOnWaveLimitStepSchema = WorkflowStepBase.extend({
 
 export const WorkflowStepSchema = z.discriminatedUnion('type', [
   SpawnAgentStepSchema,
-  SpawnAgentCallStepSchema,
   FeatureLoopStepSchema,
   ChainWorkflowStepSchema,
   SpawnWorkflowStepSchema,
@@ -53,7 +47,7 @@ export const WorkflowSchema = z.object({
 });
 
 export type SpawnAgentStep = z.infer<typeof SpawnAgentStepSchema>;
-export type SpawnAgentCallStep = z.infer<typeof SpawnAgentCallStepSchema>;
+export type SpawnAgentCallStep = SpawnAgentStep;
 export type FeatureLoopStep = z.infer<typeof FeatureLoopStepSchema>;
 export type ChainWorkflowStep = z.infer<typeof ChainWorkflowStepSchema>;
 export type SpawnWorkflowStep = z.infer<typeof SpawnWorkflowStepSchema>;

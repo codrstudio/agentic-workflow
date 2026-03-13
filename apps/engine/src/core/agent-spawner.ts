@@ -96,7 +96,7 @@ export class AgentSpawner {
     await mkdir(outputDir, { recursive: true });
 
     const useJsonSchema = !!params.jsonSchema;
-    const args: string[] = ['-p', '-', '--verbose', '--output-format', useJsonSchema ? 'json' : 'stream-json'];
+    const args: string[] = ['-p', '-', '--verbose', '--output-format', 'stream-json'];
 
     if (useJsonSchema) {
       args.push('--json-schema', JSON.stringify(params.jsonSchema));
@@ -176,7 +176,7 @@ export class AgentSpawner {
           try {
             const raw = Buffer.concat(stdoutChunks).toString('utf-8').trim();
             const parsed = JSON.parse(raw);
-            response = parsed.result ?? parsed;
+            response = parsed.structured_output ?? (parsed.result || null);
           } catch {
             // JSON parse failed
           }

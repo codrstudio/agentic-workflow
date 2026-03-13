@@ -5,7 +5,7 @@ import chalk from 'chalk';
 import { bootstrap, writeEnginePid } from './core/bootstrap.js';
 import { WorkflowRunner, type WorkflowRunnerContext } from './core/workflow-engine.js';
 import { EngineEventForwarder } from './core/engine-event-forwarder.js';
-import { installCrashHandlers, setLogPath, logEvent as writeLogEvent, logInfo, logError } from './core/engine-logger.js';
+import { installCrashHandlers, setLogPath, setRunContext, logEvent as writeLogEvent, logInfo, logError } from './core/engine-logger.js';
 import type { EngineEvent } from './schemas/event.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -154,6 +154,7 @@ async function main(): Promise<void> {
   // Activate engine log file now that we know the wave dir
   const engineLogPath = join(result.waveDir, 'engine.jsonl');
   setLogPath(engineLogPath);
+  setRunContext({ projectSlug, waveNumber: result.waveNumber });
   logInfo('engine started', {
     project: projectSlug,
     workflow: workflowSlug,

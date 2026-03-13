@@ -444,3 +444,122 @@ TESTES:
 
 Progress: 12/17 features complete (F-081 a F-092)
 Next: F-093 Highlight de adjacências ao selecionar território
+
+[2026-03-11 20:00:00] vibe-code F-093: Highlight de adjacências ao selecionar território — PASSING
+
+IMPLEMENTAÇÃO:
+- Territory.tsx: adicionada prop isAdjacentToSelected (boolean, default false) com glow amber-400/50 (ring-2)
+- Territory.tsx: adicionado onHoverChange callback para notificar GameMap de hover
+- Territory.tsx: wrapped com React.memo para performance (evita re-render de todos os territórios)
+- GameMap.tsx: adicionado estado hoveredPosition (number | null)
+- GameMap.tsx: activePosition = hoveredPosition ?? selectedPosition (hover tem prioridade)
+- GameMap.tsx: adjacentToActive = useMemo<Set<number>> derivado de TERRITORY_ADJACENCY[activePosition]
+- GameMap.tsx: handleHoverChange via useCallback estável (evita recriação de fns inline)
+- GameMap.tsx: SVG lines — quando linha conecta ao territorio ativo: stroke amber-400 (#fbbf24) opacity 0.7, strokeWidth 2 + CSS transition
+- GameMap.tsx: isAdjacentToSelected passado a cada Territory baseado em adjacentToActive.has(position)
+
+TESTES:
+- Ao hover/click território, conexões adjacentes ficam amber-400/0.7 ✓
+- Territórios adjacentes recebem ring amber-400/50 (glow sutil) ✓
+- Highlight desaparece ao mouseleave / deselecionar ✓
+- React.memo garante re-render apenas dos ~2-4 territórios cuja prop muda ✓
+- Territory.tsx: zero erros TS ✓
+- Erros GameMap.tsx: todos pré-existentes (TerritoryWithDetails type mismatch) ✓
+
+Progress: 13/17 features complete (F-081 a F-093)
+Next: F-094 Highlight de alcance durante ExpeditionModal
+
+[2026-03-11 00:00:00] vibe-code F-094: Highlight de alcance durante ExpeditionModal — PASSING
+
+IMPLEMENTAÇÃO:
+- game/page.tsx: importado TERRITORY_ADJACENCY de @/game/constants/balance
+- game/page.tsx: dentro do map de territories, computadas 4 variáveis:
+  - expeditionOriginTerritory: território de origem quando modal está aberto
+  - isExpeditionModalOpen: booleano (expeditionTarget && expeditionOrigin ambos definidos)
+  - isOriginTerritory: true para o território de origem da expedição
+  - isReachable: true se position está em TERRITORY_ADJACENCY[originPosition]
+  - isOutOfReach: true quando modal aberto e território não é origem nem adjacente
+- motion.div recebe classe "opacity-40" quando isOutOfReach === true
+- Nenhum novo arquivo criado
+
+TESTES:
+- Territórios não adjacentes à origem ficam com opacity-40 durante expedição ✓
+- TERRITORY_ADJACENCY[originPos] usado como fonte de alcance (adjacência ortogonal) ✓
+- Quando ExpeditionModal fecha (expeditionTarget/expeditionOrigin → null), isExpeditionModalOpen = false → sem opacidade ✓
+- tsc --noEmit: zero novos erros introduzidos (erros pré-existentes em GameMap.tsx e territory/[id]/page.tsx) ✓
+
+Progress: 14/17 features complete (F-081 a F-094)
+Next: F-095 Componente base de alertas de ameaça
+
+[2026-03-11 20:05:00] vibe-code F-095: Classificação de escala de ameaça com fog of war — PASSING
+
+IMPLEMENTAÇÃO:
+- Adicionado tipo `ThreatScale = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'` em src/game/types/index.ts
+- Exportada função `classifyThreat(attackPower, defensePower): ThreatScale` em src/game/engine/GameEngine.ts
+  - ratio < 0.8 → LOW, < 1.2 → MEDIUM, < 1.5 → HIGH, >= 1.5 → CRITICAL
+- Exportada função `estimateThreatForDisplay(actualAttackPower, defensePower, hasActiveSpy)` em GameEngine.ts
+  - hasActiveSpy=true: retorna valor exato sem fog of war (isExact: true)
+  - hasActiveSpy=false: aplica ±20% (fogFactor = 1 + Math.random()*0.4 - 0.2) (isExact: false)
+- Adicionado campo `attackPower: number` à interface IncomingAttack em gameStore.ts
+- Atualizado processAI(): calcula getAttackPower(allAiUnits) e armazena em newIncomingAttacks.push(...)
+- Exportadas classifyThreat e estimateThreatForDisplay via src/game/engine/index.ts
+
+TESTES:
+- ThreatScale definido em types/index.ts ✓
+- classifyThreat calcula escala via ratio ataque/defesa ✓
+- estimateThreatForDisplay aplica ±20% fog of war ✓
+- hasActiveSpy=true bypassa fog of war, retorna valor exato ✓
+- tsc --noEmit: 74 erros (todos pré-existentes, nenhum novo introduzido) ✓
+
+DECISÕES:
+- classifyThreat é função pura standalone (testável, reutilizável por F-096/F-097)
+- estimateThreatForDisplay centraliza a lógica de fog of war para F-096/F-097 usarem
+- attackPower em IncomingAttack é o poder no momento do alerta (snapshot), F-096 usará para display
+
+Progress: 15/17 features complete (F-081 a F-095)
+Next: F-096 Indicação visual de escala de ameaça no mapa
+
+[2026-03-11 20:15:00] vibe-code F-096: Indicação visual de escala de ameaça no mapa — PASSING
+
+IMPLEMENTAÇÃO:
+- game/page.tsx: importados getDefensePower de @/stores/gameStore e classifyThreat de @/game/engine
+- Alerta de ataque iminente (F-058) convertido de badge estático para renderização escala-aware
+- Para cada ataque iminente: calcula defensePower (getDefensePower + wallLevel) e classifica ameaça (classifyThreat)
+- THREAT_CONFIG define para cada escala: ícone, cor de texto, bg, border, label, pulse
+  - LOW: ⚔️ amarelo — "Expedição pequena detectada"
+  - MEDIUM: ⚔️⚔️ laranja — "Expedição média detectada"
+  - HIGH: ⚔️⚔️⚔️ vermelho — "Expedição grande detectada"
+  - CRITICAL: 💀 vermelho escuro + animate-pulse — "Força esmagadora detectada!"
+- Tooltip por escala com border colorido correspondente
+- classifyThreat usa attackPower de IncomingAttack (adicionado em F-095)
+
+TESTES:
+- Cada escala tem ícone e cor distintos ✓
+- CRITICAL usa animate-pulse para urgência visual ✓
+- LOW/MEDIUM/HIGH/CRITICAL visualmente distinguíveis ✓
+- tsc --noEmit: 74 erros (baseline pré-existente — zero novos introduzidos) ✓
+
+Progress: 16/17 features complete (F-081 a F-096)
+Next: F-097 Tooltip com estimativa numérica no alerta
+
+[2026-03-11 20:15:00] F-097: Tooltip com estimativa numérica no alerta de ataque
+
+IMPLEMENTADO:
+- Substituído classifyThreat por estimateThreatForDisplay na seção de alerta de ataque em page.tsx
+- Adicionada detecção de espião ativo: verifica se qualquer território do clã atacante está em revealedTerritories
+- Tooltip agora exibe: poder estimado do ataque, defesa do jogador, e nota de precisão
+- Sem espião: mostra '~{estimatedPower}' com nota '±20% — envie Espião para valor exato'
+- Com espião ativo: mostra valor exato com '👁 Valor exato via espião' (sem ressalva ±20%)
+- Zero erros TypeScript novos introduzidos
+
+TESTES:
+- Tooltip mostra poder estimado vs defesa do jogador ✓
+- Tooltip sugere enviar espião para informação precisa ✓
+- Com espião ativo, tooltip mostra valor exato sem nota de ±20% ✓
+- Tooltip aparece ao hover no badge de alerta ✓
+
+[2026-03-11 20:16:13] Step 7 (ralph-wiggum-loop): Completed. completed
+[2026-03-11 20:16:30] merge-worktree via=deterministic sha=010355e95c30bc7cb06c8dc9bbe4de4c5ace0fdb
+[2026-03-11 20:16:30] Step 8 (merge-worktree): Completed. ok
+[2026-03-11 20:16:30] Step 9 (stop-on-wave-limit): Completed. continue
+[2026-03-11 22:06:11] Step 10 (spawn-x-vibe-game): Completed. decide:stop

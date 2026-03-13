@@ -5,7 +5,7 @@ steps:
   - type: spawn-agent
     task: pain-gain-analysis
 
-  - type: spawn-agent-call
+  - type: spawn-agent
     task: go-no-go
     schema:
       type: object

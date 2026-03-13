@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { useParams, Link } from "@tanstack/react-router"
 import {
   CheckCircle2,
@@ -9,6 +9,8 @@ import {
   ChevronRight,
   AlertTriangle,
   Clock,
+  Square,
+  Play,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { FeatureLoopDashboard } from "@/components/wave/feature-loop-dashboard"
@@ -146,6 +148,15 @@ function TypeBadge({ type }: { type: Step["type"] }) {
   )
 }
 
+interface RunContext {
+  run_mode: "spawn" | "detached"
+  run_id: string | null
+  engine_alive: boolean
+  resumable: boolean
+  current_wave_number: number | null
+  workflow: string
+}
+
 export function WaveDetailPage() {
   const { slug, waveNumber } = useParams({
     from: "/_auth/projects/$slug/waves/$waveNumber",
@@ -156,6 +167,8 @@ export function WaveDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [runCtx, setRunCtx] = useState<RunContext | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -169,6 +182,41 @@ export function WaveDetailPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }, [slug, waveNumber])
+
+  useEffect(() => {
+    apiFetch(`/api/v1/projects/${slug}/monitor`)
+      .then((r) => r.ok ? r.json() as Promise<Record<string, unknown>> : Promise.reject())
+      .then((d) => {
+        const activity = d['activity'] as Record<string, unknown>
+        const currentWave = d['current_wave'] as Record<string, unknown> | null
+        setRunCtx({
+          run_mode: (activity['run_mode'] as "spawn" | "detached") ?? "detached",
+          run_id: (activity['run_id'] as string | null) ?? null,
+          engine_alive: (activity['engine_alive'] as boolean) ?? false,
+          resumable: (d['resumable'] as boolean) ?? false,
+          current_wave_number: currentWave ? (currentWave['number'] as number) : null,
+          workflow: (d['project'] as Record<string, unknown>)['workflow'] as string ?? '',
+        })
+      })
+      .catch(() => { /* monitor may not exist yet */ })
+  }, [slug])
+
+  const handleStop = useCallback(() => {
+    if (!runCtx?.run_id) return
+    setActionLoading(true)
+    apiFetch(`/api/v1/projects/${slug}/runs/${runCtx.run_id}`, { method: "DELETE" })
+      .finally(() => setActionLoading(false))
+  }, [runCtx, slug])
+
+  const handleResume = useCallback(() => {
+    if (!runCtx?.workflow) return
+    setActionLoading(true)
+    apiFetch(`/api/v1/projects/${slug}/runs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workflow: runCtx.workflow }),
+    }).finally(() => setActionLoading(false))
+  }, [runCtx, slug])
 
   // Interval to update elapsed time for running steps every 10s
   useEffect(() => {
@@ -219,7 +267,38 @@ export function WaveDetailPage() {
         <div className="flex flex-col gap-6 max-w-2xl">
           {/* Header */}
           <div>
-            <h1 className="text-xl font-semibold">Wave {wave.wave_number}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold">Wave {wave.wave_number}</h1>
+              {runCtx && runCtx.current_wave_number === wave.wave_number && (
+                <>
+                  {runCtx.run_mode === "spawn" && runCtx.engine_alive && (
+                    <button
+                      onClick={handleStop}
+                      disabled={actionLoading}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+                    >
+                      <Square className="w-3 h-3" />
+                      Parar
+                    </button>
+                  )}
+                  {runCtx.run_mode === "spawn" && runCtx.resumable && (
+                    <button
+                      onClick={handleResume}
+                      disabled={actionLoading}
+                      className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 disabled:opacity-50 transition-colors"
+                    >
+                      <Play className="w-3 h-3" />
+                      Retomar
+                    </button>
+                  )}
+                  {runCtx.run_mode !== "spawn" && (runCtx.engine_alive || runCtx.resumable) && (
+                    <span className="text-xs text-muted-foreground italic">
+                      Processo externo — use a CLI para controlar
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-2xl font-bold tabular-nums">{wave.steps_completed}</span>
               <span className="text-sm text-muted-foreground">/ {wave.steps_total} steps</span>

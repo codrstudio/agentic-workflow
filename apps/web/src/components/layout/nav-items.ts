@@ -8,6 +8,7 @@ import {
   Terminal,
   ListChecks,
   Activity,
+  OctagonX,
 } from "lucide-react"
 import type { ComponentType } from "react"
 
@@ -30,6 +31,7 @@ function projectNavItems(slug: string): NavItemDef[] {
     { to: `/projects/${slug}/waves`, label: "Waves", icon: Waves },
     { to: `/projects/${slug}/console`, label: "Console", icon: Terminal },
     { to: `/projects/${slug}/sprints`, label: "Sprints", icon: ListChecks },
+    { to: `/projects/${slug}/crashes`, label: "Crashes", icon: OctagonX },
   ]
 }
 

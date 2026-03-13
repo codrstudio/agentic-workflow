@@ -206,6 +206,20 @@ export async function listStepDirs(waveDir: string): Promise<string[]> {
 
 export type StepSummary = NonNullable<Awaited<ReturnType<typeof readStepSummary>>>;
 
+export function deriveWaveStatus(steps: StepSummary[]): StepStatus {
+  const total = steps.length;
+  const running = steps.filter((s) => s.status === 'running').length;
+  const interrupted = steps.filter((s) => s.status === 'interrupted').length;
+  const failed = steps.filter((s) => s.status === 'failed').length;
+  const done = steps.filter((s) => s.status === 'completed').length;
+  if (running > 0) return 'running';
+  if (interrupted > 0) return 'interrupted';
+  if (failed > 0) return 'failed';
+  if (done === total && total > 0) return 'completed';
+  if (done > 0) return 'running';
+  return 'pending';
+}
+
 export async function buildStepList(wavePath: string): Promise<StepSummary[]> {
   const wfState = await readWorkflowState(wavePath);
   const stepDirNames = await listStepDirs(wavePath);
@@ -222,7 +236,15 @@ export async function buildStepList(wavePath: string): Promise<StepSummary[]> {
 
   return wfState.steps.map((ws) => {
     const runtime = runtimeSteps.get(ws.index);
-    if (runtime) return runtime;
+    if (runtime) {
+      // workflow-state.json is the engine's final verdict — if it says failed, trust it
+      // even if spawn.json exit_code was 0 (e.g. Layer 3 verification failure in hybrid merge)
+      const wfStatus = ws.status as StepStatus | undefined;
+      if (wfStatus === 'failed' && runtime.status === 'completed') {
+        return { ...runtime, status: 'failed' as StepStatus };
+      }
+      return runtime;
+    }
 
     const wfStatus = (ws.status as StepStatus | undefined) ?? 'pending';
     return {
@@ -262,6 +284,131 @@ export function classifyLine(obj: Record<string, unknown>): LogLineType {
   }
   if (t === 'system') return 'system';
   return 'system';
+}
+
+export interface TimingResult {
+  started_at: string;
+  elapsed_ms: number;
+  completed_steps_avg_ms: number;
+  completed_steps_total_ms: number;
+  remaining_steps: number;
+  estimated_remaining_ms: number;
+  estimated_completion: string;
+}
+
+export function computeWaveTiming(steps: StepSummary[]): TimingResult | null {
+  const firstStarted = steps.find((s) => s.started_at);
+  if (!firstStarted?.started_at) return null;
+
+  const completedSteps = steps.filter((s) => s.status === 'completed' && s.duration_ms !== undefined);
+  if (completedSteps.length === 0) return null;
+
+  const now = Date.now();
+  const startedAtMs = new Date(firstStarted.started_at).getTime();
+  const elapsed_ms = now - startedAtMs;
+
+  const completed_steps_total_ms = completedSteps.reduce((sum, s) => sum + (s.duration_ms ?? 0), 0);
+  const completed_steps_avg_ms = completed_steps_total_ms / completedSteps.length;
+
+  const completed = steps.filter((s) => s.status === 'completed').length;
+  const remaining_steps = steps.length - completed;
+  const estimated_remaining_ms = remaining_steps * completed_steps_avg_ms;
+  const estimated_completion = new Date(now + estimated_remaining_ms).toISOString();
+
+  return {
+    started_at: firstStarted.started_at,
+    elapsed_ms,
+    completed_steps_avg_ms,
+    completed_steps_total_ms,
+    remaining_steps,
+    estimated_remaining_ms,
+    estimated_completion,
+  };
+}
+
+export async function findLatestSprintDir(wavePath: string): Promise<{ sprintDir: string; sprintName: string } | null> {
+  const sprintsDir = path.join(wavePath, 'worktree', 'sprints');
+  let sprintDirs: string[];
+  try {
+    sprintDirs = await fs.readdir(sprintsDir);
+  } catch {
+    return null;
+  }
+  const latestSprint = sprintDirs
+    .filter((d) => /^sprint-\d+$/.test(d))
+    .sort((a, b) => parseInt(b.replace('sprint-', ''), 10) - parseInt(a.replace('sprint-', ''), 10))[0];
+  if (!latestSprint) return null;
+  return { sprintDir: path.join(sprintsDir, latestSprint), sprintName: latestSprint };
+}
+
+export function countFeaturesByStatus(features: Array<Record<string, unknown>>): {
+  passing: number; failing: number; skipped: number;
+  pending: number; in_progress: number; blocked: number;
+} {
+  return {
+    passing: features.filter((f) => f['status'] === 'passing').length,
+    failing: features.filter((f) => f['status'] === 'failing').length,
+    skipped: features.filter((f) => f['status'] === 'skipped').length,
+    pending: features.filter((f) => f['status'] === 'pending').length,
+    in_progress: features.filter((f) => f['status'] === 'in_progress').length,
+    blocked: features.filter((f) => f['status'] === 'blocked').length,
+  };
+}
+
+export async function findActiveStepJsonl(waveDir: string): Promise<string | null> {
+  const stepDirs = await listStepDirs(waveDir);
+  for (const dirName of [...stepDirs].reverse()) {
+    const summary = await readStepSummary(waveDir, dirName);
+    if (summary?.status === 'running') {
+      const parsed = parseStepDir(dirName);
+      if (parsed?.isLoop) {
+        const loopDir = path.join(waveDir, dirName);
+        try {
+          const loopJson = await readJson(path.join(loopDir, 'loop.json')) as Record<string, unknown>;
+          const featureId = loopJson['feature_id'] as string | null | undefined;
+          if (featureId) {
+            let attempt = 1;
+            try {
+              const entries = await fs.readdir(path.join(loopDir, '..', 'worktree', 'sprints'));
+              const latestSprint = entries
+                .filter((e) => /^sprint-\d+$/.test(e))
+                .sort((a, b) => parseInt(b.replace('sprint-', ''), 10) - parseInt(a.replace('sprint-', ''), 10))[0];
+              if (latestSprint) {
+                const features = await readJson(path.join(loopDir, '..', 'worktree', 'sprints', latestSprint, 'features.json')) as Array<Record<string, unknown>>;
+                const feature = features.find((f) => f['id'] === featureId);
+                const retries = (feature?.['retries'] as number | undefined) ?? 0;
+                attempt = retries + 1;
+              }
+            } catch { /* fallback to attempt 1 */ }
+            const candidatePath = path.join(loopDir, `${featureId}-attempt-${attempt}`, 'spawn.jsonl');
+            try {
+              await fs.access(candidatePath);
+              return candidatePath;
+            } catch { /* file not yet created, fall through */ }
+          }
+        } catch { /* loop.json not readable */ }
+        // Fallback: pick the most recently modified attempt dir
+        try {
+          const entries = await fs.readdir(loopDir);
+          const attemptDirs = entries.filter((e) => /^F-\d+-attempt-\d+$/.test(e));
+          if (attemptDirs.length > 0) {
+            const withMtime = await Promise.all(
+              attemptDirs.map(async (e) => {
+                try {
+                  const s = await fs.stat(path.join(loopDir, e));
+                  return { name: e, mtime: s.mtimeMs };
+                } catch { return { name: e, mtime: 0 }; }
+              })
+            );
+            const latest = withMtime.sort((a, b) => b.mtime - a.mtime)[0];
+            if (latest) return path.join(loopDir, latest.name, 'spawn.jsonl');
+          }
+        } catch { /* ignore */ }
+      }
+      return path.join(waveDir, dirName, 'spawn.jsonl');
+    }
+  }
+  return null;
 }
 
 export async function parseSpawnJsonl(jsonlPath: string): Promise<ParsedLogLine[]> {

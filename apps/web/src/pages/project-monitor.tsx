@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "@tanstack/react-router"
 import { apiFetch } from "@/lib/api"
+import { useSSEContext } from "@/contexts/sse-context"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { Square, Play } from "lucide-react"
 
 type StepStatus = "pending" | "running" | "completed" | "failed" | "interrupted"
 
@@ -56,6 +58,8 @@ interface ActivityInfo {
   engine_alive: boolean
   agent_pid: number | null
   agent_alive: boolean
+  run_mode: "spawn" | "detached"
+  run_id: string | null
 }
 
 interface WaveHistoryEntry {
@@ -80,6 +84,7 @@ interface MonitorData {
   features: Feature[]
   last_output: string[]
   activity: ActivityInfo
+  resumable: boolean
   wave_history: WaveHistoryEntry[]
 }
 
@@ -150,8 +155,10 @@ function fmtAge(ms: number | null): string {
 
 export function ProjectMonitorPage() {
   const { slug } = useParams({ from: "/_auth/projects/$slug/monitor" })
+  const { subscribe } = useSSEContext()
   const [data, setData] = useState<MonitorData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState(false)
 
   const fetchData = useCallback(() => {
     apiFetch(`/api/v1/projects/${slug}/monitor`)
@@ -162,11 +169,31 @@ export function ProjectMonitorPage() {
       .catch((e: Error) => setError(e.message))
   }, [slug])
 
+  const handleStop = useCallback(() => {
+    if (!data?.activity.run_id) return
+    setActionLoading(true)
+    apiFetch(`/api/v1/projects/${slug}/runs/${data.activity.run_id}`, { method: "DELETE" })
+      .finally(() => { setActionLoading(false); fetchData() })
+  }, [data, slug, fetchData])
+
+  const handleResume = useCallback(() => {
+    if (!data?.project.workflow) return
+    setActionLoading(true)
+    apiFetch(`/api/v1/projects/${slug}/runs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ workflow: data.project.workflow }),
+    }).finally(() => { setActionLoading(false); fetchData() })
+  }, [data, slug, fetchData])
+
   useEffect(() => {
     fetchData()
-    const interval = setInterval(fetchData, 3000)
-    return () => clearInterval(interval)
-  }, [fetchData])
+    const unsubscribe = subscribe('monitor:snapshot', (event) => {
+      const payload = event.data as { project_slug: string; data: MonitorData }
+      if (payload.project_slug === slug) setData(payload.data)
+    })
+    return unsubscribe
+  }, [slug, fetchData, subscribe])
 
   if (!data) {
     return (
@@ -207,6 +234,31 @@ export function ProjectMonitorPage() {
                 </span>
               )}
             </>
+          )}
+          {data.activity.run_mode === "spawn" && data.activity.engine_alive && (
+            <button
+              onClick={handleStop}
+              disabled={actionLoading}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+            >
+              <Square className="w-3 h-3" />
+              Parar
+            </button>
+          )}
+          {data.activity.run_mode === "spawn" && data.resumable && (
+            <button
+              onClick={handleResume}
+              disabled={actionLoading}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 disabled:opacity-50 transition-colors"
+            >
+              <Play className="w-3 h-3" />
+              Retomar
+            </button>
+          )}
+          {data.activity.run_mode !== "spawn" && (data.activity.engine_alive || data.resumable) && (
+            <span className="text-xs text-muted-foreground italic">
+              Processo externo — use a CLI para controlar
+            </span>
           )}
         </div>
       </div>
@@ -312,6 +364,13 @@ export function ProjectMonitorPage() {
                 <span className="text-muted-foreground">Engine</span>
                 <span className="font-mono tabular-nums ml-1">
                   {data.activity.engine_pid ?? "—"}
+                </span>
+                <span className={`ml-1 text-[10px] font-mono px-1 py-0.5 rounded ${
+                  data.activity.run_mode === "spawn"
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                }`}>
+                  {data.activity.run_mode ?? "detached"}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">

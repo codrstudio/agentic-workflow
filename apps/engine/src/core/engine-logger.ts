@@ -1,8 +1,13 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { EngineEvent } from '../schemas/event.js';
 
 let logPath: string | null = null;
+let runCtx: { projectSlug?: string; waveNumber?: number } = {};
+
+export function setRunContext(ctx: { projectSlug?: string; waveNumber?: number }): void {
+  runCtx = ctx;
+}
 
 export function setLogPath(path: string): void {
   logPath = path;
@@ -50,15 +55,18 @@ export function logError(message: string, error?: unknown): void {
 }
 
 function writeCrash(type: string, error: unknown): void {
+  const timestamp = new Date().toISOString();
   const entry = {
     type: 'engine:crash',
-    timestamp: new Date().toISOString(),
+    timestamp,
     data: {
       handler: type,
       error: error instanceof Error ? error.stack ?? error.message : String(error),
       pid: process.pid,
     },
   };
+
+  // Write to engine.jsonl
   if (logPath) {
     try {
       appendFileSync(logPath, JSON.stringify(entry) + '\n');
@@ -67,6 +75,63 @@ function writeCrash(type: string, error: unknown): void {
     }
   } else {
     process.stderr.write(JSON.stringify(entry) + '\n');
+  }
+
+  // Write crash-report.log alongside engine.jsonl
+  if (logPath) {
+    try {
+      const waveDir = dirname(logPath);
+      const lines: string[] = [];
+
+      lines.push('=== CRASH REPORT ===');
+      lines.push(`timestamp:     ${timestamp}`);
+      lines.push(`handler:       ${type}`);
+      lines.push(`pid:           ${process.pid}`);
+      lines.push(`node:          ${process.version}`);
+      lines.push(`platform:      ${process.platform}`);
+      lines.push(`uptime:        ${process.uptime().toFixed(1)}s`);
+      if (runCtx.projectSlug) lines.push(`project:       ${runCtx.projectSlug}`);
+      if (runCtx.waveNumber !== undefined) lines.push(`wave:          ${runCtx.waveNumber}`);
+      lines.push(`argv:          ${process.argv.join(' ')}`);
+      lines.push('');
+
+      const mem = process.memoryUsage();
+      lines.push('--- memory ---');
+      lines.push(`rss:           ${(mem.rss / 1024 / 1024).toFixed(1)} MB`);
+      lines.push(`heapUsed:      ${(mem.heapUsed / 1024 / 1024).toFixed(1)} MB`);
+      lines.push(`heapTotal:     ${(mem.heapTotal / 1024 / 1024).toFixed(1)} MB`);
+      lines.push('');
+
+      lines.push('--- error ---');
+      lines.push(error instanceof Error ? (error.stack ?? error.message) : String(error));
+      lines.push('');
+
+      try {
+        const stateRaw = readFileSync(join(waveDir, 'workflow-state.json'), 'utf8');
+        lines.push('--- workflow-state ---');
+        lines.push(stateRaw);
+        lines.push('');
+      } catch {
+        lines.push('--- workflow-state: (unavailable) ---');
+        lines.push('');
+      }
+
+      try {
+        const logRaw = readFileSync(logPath, 'utf8');
+        const logLines = logRaw.split('\n').filter(Boolean);
+        const tail = logLines.slice(-50);
+        lines.push(`--- engine.jsonl (last ${tail.length} lines) ---`);
+        lines.push(tail.join('\n'));
+        lines.push('');
+      } catch {
+        lines.push('--- engine.jsonl: (unavailable) ---');
+        lines.push('');
+      }
+
+      writeFileSync(join(waveDir, 'crash-report.log'), lines.join('\n'), 'utf8');
+    } catch {
+      // never crash the crash handler
+    }
   }
 }
 

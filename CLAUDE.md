@@ -6,17 +6,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **agentic-workflow** is a deterministic orchestrator that drives AI agents (Claude Code CLI) through multi-step product workflows. It reads YAML workflow definitions, spawns Claude Code processes for each step, and manages feature-level iteration with retry/rollback logic.
 
+The monorepo has three apps:
+- **apps/engine** — The CLI orchestrator (spawns agents, manages state)
+- **apps/server** — Hono HTTP server (bridges engine events to the web frontend)
+- **apps/web** — React SPA (monitoring, project management, run control)
+
 ## Commands
 
 ```bash
-npm run build        # Build the engine (tsup -> apps/engine/dist/)
-npm run typecheck    # Type-check without emitting (tsc --noEmit)
-npm run dev          # Build in watch mode
-npm run aw:run -- <project> <workflow>  # Run harness
+# Root
+npm run build          # Build engine
+npm run build:web      # Build web app (vite)
+npm run typecheck      # Type-check engine
+npm run dev:all        # Run server + web concurrently
+npm run aw:run -- <project> <workflow>   # Execute a workflow
+npm run aw:status      # Check current engine/workflow status
+npm run aw:message     # Send operator messages
+npm run aw:watch       # Monitor operator queue
+npm run aw:console     # Interactive console
 
-# Engine-specific (from apps/engine/)
-npm run build        # tsup
-npm run typecheck    # tsc --noEmit
+# apps/engine
+npm run build          # tsup (ESM + CJS + DTS)
+npm run dev            # tsup --watch
+npm run typecheck      # tsc --noEmit
+
+# apps/server
+npm run build          # tsup
+npm run dev            # tsup --watch + auto-run
+npm run typecheck      # tsc --noEmit
+
+# apps/web
+npm run dev            # vite dev server
+npm run build          # tsc -b && vite build
+npm run typecheck      # tsc --noEmit
 ```
 
 There are no test scripts configured. No linter is configured.
@@ -42,6 +64,18 @@ There are no test scripts configured. No linter is configured.
   </div>
   ```
 
+## Guias
+
+Leia o guia relevante antes de agir nas áreas abaixo — eles são a fonte da verdade.
+
+| Guia | Quando ler |
+|------|------------|
+| [`guides/harness/GUIDE.md`](guides/harness/GUIDE.md) | Entender o harness como um todo: entidades, ciclo de vida, decisões de design |
+| [`guides/project-concept/GUIDE.md`](guides/project-concept/GUIDE.md) | Criar ou modificar projetos (`context/projects/`) |
+| [`guides/workspace-layout/GUIDE.md`](guides/workspace-layout/GUIDE.md) | Entender ou modificar a estrutura de workspaces/waves/worktrees |
+| [`guides/engine-events/GUIDE.md`](guides/engine-events/GUIDE.md) | Emitir, consumir ou adicionar tipos de evento da engine |
+| [`guides/server-logging/GUIDE.md`](guides/server-logging/GUIDE.md) | Configurar ou modificar o logging do servidor (pino + LOG_LEVEL) |
+
 ## Eventos da Engine
 
 O canal de eventos é unificado via `Notifier`. Guia completo: [`guides/engine-events/GUIDE.md`](guides/engine-events/GUIDE.md)
@@ -57,11 +91,10 @@ Regras obrigatórias ao mexer em `workflow-engine.ts`, `feature-loop.ts` ou `ope
 ### Monorepo Structure
 
 - **Root**: npm workspaces with `apps/*`
-- **apps/engine** (`@aw/engine`): The only package. ESM + CJS dual output via tsup. All source in `apps/engine/src/`.
 - **context/**: Markdown/YAML definitions consumed at runtime (not compiled):
-  - `agents/` — Agent profiles (coder.md, researcher.md, general.md) with frontmatter config (allowedTools, max_turns, rollback, timeout)
-  - `tasks/` — Task definitions (pain-gain-analysis.md, derive-specs.md, etc.) with frontmatter specifying which agent to use
-  - `workflows/` — YAML workflow definitions (e.g., vibe-app.yaml)
+  - `agents/` — Agent profiles (`coder.md`, `researcher.md`, `general.md`, `x-playtester.md`) with frontmatter config (allowedTools, max_turns, rollback, timeout)
+  - `tasks/` — Task definitions with frontmatter specifying which agent to use
+  - `workflows/` — YAML workflow definitions (`vibe-app.yaml`, `vibe-full-app.yaml`, `x-vibe-game.yaml`)
   - `projects/{slug}/` — Project definitions (project.json + sources + artifacts)
   - `workspaces/{slug}/` — Workspace instances (created automatically by engine)
 
@@ -71,74 +104,98 @@ A workspace is created automatically by the engine from (project, workflow) para
 
 ```
 context/workspaces/{slug}/      # git repo (harness state)
-  workspace.json                # reference to project + workflow
+  workspace.json
   repo/                         # product repo (clone or git init)
     sprints/
-      sprint-{n}/               # deliverable artifact set
-        1-brainstorming/        # pain-gain, ranking
-        2-specs/                # derived specs
-        3-prps/                 # derived PRPs
+      sprint-{n}/
+        1-brainstorming/
+        2-specs/
+        3-prps/
         features.json           # feature list for ralph-wiggum loop
-  wave-{n}/                     # one per workflow execution
+  wave-{n}/
     worktree/                   # git worktree of repo (agent's cwd)
-    step-{nn}-{task}/           # output per step
+    step-{nn}-{task}/
       spawn.json                # metadata (task, agent, pid, timing)
       spawn.jsonl               # claude CLI output log
     step-{nn}-ralph-wiggum-loop/
-      loop.json                 # loop state
-      F-XXX-attempt-1/          # per-feature attempt
+      loop.json
+      F-XXX-attempt-1/
         spawn.json
         spawn.jsonl
-    merge/                      # post-workflow merge (background)
+    merge/
       spawn.json
       spawn.jsonl
 ```
-
-- **workspace** is a git repo tracking harness state (wave dirs, metadata)
-- **repo** is the product repository agents deliver into
-- **worktree** = git worktree of repo, isolated per wave
-- **wave-{n}/** directories are created per workflow execution
-- **sprint-{n}/** inside repo holds deliverable artifacts grouped by phase
 
 ### Engine Core (`apps/engine/src/core/`)
 
 The engine follows a **deterministic orchestrator + autonomous agents** pattern:
 
-- **WorkflowRunner** (`workflow-engine.ts`): Top-level sequential step executor. Reads a `Workflow` (parsed from YAML), iterates steps through 4 step types. Handles merge post-workflow and chain-workflow with new wave creation.
-- **FeatureLoop** (`feature-loop.ts`): The "ralph-wiggum loop" — picks the highest-priority failing feature with passing deps, spawns an agent with task + feature context, handles pass/fail/retry/skip. Writes `loop.json` per step dir, attempt dirs per feature.
-- **AgentSpawner** (`agent-spawner.ts`): Resolves task markdown -> agent profile, composes prompts, spawns `claude` CLI as child process. Writes `spawn.json` (metadata) and `spawn.jsonl` (CLI output) to output directory. Supports `--json-schema` for structured responses.
-- **Bootstrap** (`bootstrap.ts`): Loads project config, workflow YAML, creates workspace/repo/wave/worktree/sprint scaffolding.
-- **FeatureSelector** (`feature-selector.ts`): Dependency-aware feature selection. Computes blocked status, picks next actionable feature.
-- **GutterDetector** (`gutter-detector.ts`): Retry/rollback/skip logic based on failure count.
-- **StateManager** (`state-manager.ts`): JSON/features file I/O.
-- **TemplateRenderer** (`template-renderer.ts`): `{variable}` interpolation in markdown templates + YAML frontmatter parsing.
-- **WorktreeManager** (`worktree-manager.ts`): Git worktree create/cleanup.
-- **Notifier** / **SSEAdapter**: Event emission for engine lifecycle events.
+- **WorkflowRunner** (`workflow-engine.ts`): Top-level sequential step executor. Manages stop signals, background promise tracking. Handles merge post-workflow (3-layer hybrid) and chain-workflow with new wave creation.
+- **FeatureLoop** (`feature-loop.ts`): The "ralph-wiggum loop" — picks the highest-priority failing feature with passing deps, spawns an agent per feature, handles pass/fail/retry/rollback/skip. Escalation: simple retry → rollback + context rotation → permanent skip.
+- **AgentSpawner** (`agent-spawner.ts`): Resolves task markdown → agent profile, composes prompts, spawns `claude` CLI as child process. Writes `spawn.json` (metadata) and `spawn.jsonl` (CLI output). Supports `--json-schema` for structured responses.
+- **Bootstrap** (`bootstrap.ts`): Loads project config, workflow YAML, creates workspace/repo/wave/worktree/sprint scaffolding. Detects resume state via `workflow-state.json`.
+- **OperatorQueue** (`operator-queue.ts`): Drains batched operator messages, spawns agent with composed prompt, writes `operator-log.jsonl`.
+- **Notifier** / **SSEAdapter**: Unified event emission. `EngineEventForwarder` forwards events to server via `POST /api/v1/hub/engine-events`.
 
-### 4 Step Types
+### 5 Step Types
 
-1. **`spawn-agent`** — Execute a task once. Agent runs, exit code determines success.
-2. **`spawn-agent-call`** — Execute a task once with `--json-schema`. Agent returns structured JSON. An arrow function (`stop_on`) evaluates the response to decide halt/continue.
-3. **`ralph-wiggum-loop`** — Iterates over `features.json` in the sprint dir. Each feature gets its own attempt directory. Retries, rollback, and skip via GutterDetector.
-4. **`chain-workflow`** — Spawns merge for current wave in background, bootstraps a new wave, then invokes the workflow recursively.
+1. **`spawn-agent`** — Execute a task once. Optional `stop_on` evaluates the response to decide halt/continue. The `merge-worktree` task name is intercepted here for the 3-layer hybrid merge.
+2. **`ralph-wiggum-loop`** — Iterates over `features.json`. Each feature gets its own attempt directory.
+3. **`chain-workflow`** — Spawns merge for current wave in background, bootstraps a new wave, recurses.
+4. **`spawn-workflow`** — Runs a sub-workflow in the background (parallel).
+5. **`stop-on-wave-limit`** — Halts if the current wave number has reached the project's `wave_limit`.
+
+### Merge Strategy (3-Layer Hybrid)
+
+Applied automatically for `merge-worktree` steps:
+1. **Deterministic**: Engine attempts `git merge` via `execSync`. Captures SHA if successful.
+2. **Agent Fallback**: If deterministic fails, spawns agent with `--json-schema` requiring `{ success, merged_sha, error }`.
+3. **Verification**: Engine validates merged SHA exists in `git log target_branch`. HARD FAIL if not found.
+
+### Server (`apps/server/src/`)
+
+Hono server bridging engine events to the web frontend.
+
+Key routes:
+- `GET /api/v1/events` — SSE stream (streamSSE with 30s keepalive)
+- `POST /api/v1/hub/engine-events` — Receives events from CLI, broadcasts via eventBus
+- `GET/POST /api/v1/projects` — Project CRUD
+- `GET /api/v1/waves`, `/api/v1/runs` — Wave/run history
+- `GET /api/v1/monitor` — Live wave state + feature status
+- `GET /api/v1/crashes` — Crash reports
+- `POST /api/v1/messages` — Enqueue operator messages
+- `GET /api/v1/pid` — Engine process liveness
+
+### Web (`apps/web/src/`)
+
+React 19 + TanStack Router + Tailwind CSS SPA.
+
+Key patterns:
+- **SSE**: `useSSE()` hook wraps EventSource with auto-reconnect + ring buffer. Context: `sse-context.tsx`. Status dot: `sse-indicator.tsx`.
+- **Auth**: JWT stored in localStorage. `auth-context.tsx` + `auth.store.ts`. Route guard in `router/index.tsx`.
+- **API**: `lib/api.ts` wraps fetch with auth header injection.
+
+### SSE Event Flow
+
+```
+Engine (Notifier) → EngineEventForwarder → POST /hub/engine-events
+                                                      ↓
+                                               eventBus.broadcast()
+                                                      ↓
+                                            GET /events (streamSSE)
+                                                      ↓
+                                         useSSE() hook (EventSource)
+```
 
 ### Schemas (`apps/engine/src/schemas/`)
 
-All schemas use Zod. Key types:
-- **Workflow/WorkflowStep**: YAML workflow definition with discriminated union on step `type` (4 types above)
-- **Feature**: `F-XXX` ID format, status enum (failing/passing/skipped/pending/in_progress/blocked), dependency tracking
-- **ProjectConfig**: Project definition (name, slug, repo URL, source/target folders, params)
-
-### Data Flow
-
-1. CLI receives (project-slug, workflow-slug)
-2. Bootstrap: loads project.json, workflow YAML, creates workspace/repo/wave/worktree
-3. `WorkflowRunner.execute()` steps through the workflow sequentially
-4. For `spawn-agent`: resolves task.md -> agent profile.md -> renders prompt -> spawns `claude` CLI
-5. For `spawn-agent-call`: same but with `--json-schema`, evaluates `stop_on` against response
-6. For `ralph-wiggum-loop`: iterates features, one spawn per feature per attempt
-7. For `chain-workflow`: merge current wave (background), bootstrap new wave, recurse
-8. Post-workflow: engine spawns merge agent in background
+All schemas use Zod. Key files:
+- `workflow.ts` — WorkflowStep discriminated union (5 step types)
+- `event.ts` — EngineEvent discriminated union (24 event types)
+- `feature.ts` — Feature (F-XXX id, status enum, deps, priority)
+- `project.ts` — ProjectConfig (slug, name, repo, source/target folders, params, wave_limit)
+- `workflow-state.ts` — Per-step status tracking (pending/running/completed/failed/interrupted)
 
 ### Template Variables
 
@@ -159,25 +216,17 @@ Plus any string values from `project.params`.
 ### Process Tree
 
 ```
-engine (parent)
-  claude (child) — step-01-pain-gain-analysis
-  claude (child) — step-02-go-no-go
-  ...
-  claude (child) — step-06 ralph-wiggum iteration 1
-  claude (child) — step-06 ralph-wiggum iteration 2
+engine CLI
+  claude (child) — step-01-...
+  claude (child) — step-02-...
+  claude (child) — step-N ralph-wiggum iteration 1
+  claude (child) — step-N ralph-wiggum iteration 2
   ...
   claude (child) — merge-worktree (background, post-workflow)
 ```
-
-Each spawned `claude` process is a direct child of the engine process. Steps execute sequentially within a wave.
 
 ## TypeScript Config
 
 - Target: ES2022, module: ESNext, bundler resolution
 - Strict mode with `noUncheckedIndexedAccess`
 - Node >= 20 required
-
-## Mobile Navigation
-
-**BottomNav** (`apps/web/src/components/layout/bottom-nav.tsx`): Displays up to 4 shortcuts from sidebar items + a menu button. Menu opens drawer with all options + "Customize" page to select which 4 shortcuts appear in the bar. Syncs dynamically with sidebar changes.
-

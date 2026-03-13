@@ -98,10 +98,7 @@ Parametros extras do `project.json` (`params`) tambem sao injetados como variave
 ### spawn-agent
 
 Spawna um agente uma vez. Exit code 0 = sucesso, workflow avanca. Exit code != 0 = falha, workflow para.
-
-### spawn-agent-call
-
-Spawna um agente uma vez com `--json-schema` — forcando resposta JSON validada. O engine avalia uma arrow function (`stop_on`) contra a resposta. Se retorna truthy, o workflow para (sem erro). Permite decisoes autonomas: "o go-no-go decidiu parar", "o wave-limit decidiu que ja chega".
+O engine opcionalmente avalia uma arrow function (`stop_on`) contra a resposta. Se retorna truthy, o workflow para (sem erro). Permite decisoes autonomas: "o go-no-go decidiu parar", "o wave-limit decidiu que ja chega".
 
 ### ralph-wiggum-loop
 
@@ -116,7 +113,7 @@ Repete ate todas as features passarem, serem skipped, ou atingir limites configu
 
 ### chain-workflow
 
-Invoca outro workflow YAML (ou o mesmo, recursivamente). O engine le, parseia e executa. Isso permite encadeamento automatico de waves — o `vibe-app` termina com `chain-workflow: vibe-app`, criando waves sucessivas. O step anterior (`wave-limit` como spawn-agent-call) decide se deve continuar ou parar.
+Invoca outro workflow YAML (ou o mesmo, recursivamente). O engine le, parseia e executa. Isso permite encadeamento automatico de waves — o `vibe-app` termina com `chain-workflow: vibe-app`, criando waves sucessivas. O step anterior (`wave-limit` como spawn-agent) decide se deve continuar ou parar.
 
 ## Spawn: processo e registro
 

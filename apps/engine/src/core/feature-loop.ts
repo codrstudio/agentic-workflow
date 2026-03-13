@@ -158,6 +158,14 @@ export class FeatureLoop {
             await this.emitEvent('loop:end', ctx, { reason: 'deps_impossible' });
             return { exitCode: 1, reason: 'deps_impossible' };
           }
+          const nonTerminal = features.filter((f) => f.status !== 'passing' && f.status !== 'skipped');
+          if (nonTerminal.length > 0) {
+            const ids = nonTerminal.map((f) => `${f.id}(${f.status})`).join(', ');
+            const reason = `completed_with_pending: ${ids}`;
+            await writeLoopState({ status: 'exited', exit_reason: reason });
+            await this.emitEvent('loop:end', ctx, { reason: 'completed_with_pending', pending_ids: nonTerminal.map((f) => f.id) });
+            return { exitCode: 1, reason };
+          }
           await writeLoopState({ status: 'exited', exit_reason: 'completed' });
           await this.emitEvent('loop:end', ctx, { reason: 'completed', features_done: this.featuresDone });
           return { exitCode: 0, reason: 'completed' };

@@ -10,7 +10,11 @@ import {
   listStepDirs,
   parseStepDir,
   deriveStatus,
+  deriveWaveStatus,
   parseSpawnJsonl,
+  computeWaveTiming,
+  findLatestSprintDir,
+  countFeaturesByStatus,
   type StepStatus,
   type LoopJson,
   type SpawnJson,
@@ -18,67 +22,6 @@ import {
 
 const app = new Hono();
 
-async function findSprintDir(slug: string, waveNumber: string | number): Promise<{ sprintDir: string; sprintName: string } | null> {
-  const awRoot = getAwRoot();
-  const worktreeDir = path.join(awRoot, 'context', 'workspaces', String(slug), `wave-${waveNumber}`, 'worktree');
-  const sprintsDir = path.join(worktreeDir, 'sprints');
-  let sprintDirs: string[];
-  try {
-    sprintDirs = await fs.readdir(sprintsDir);
-  } catch {
-    return null;
-  }
-  const latestSprint = sprintDirs
-    .filter(d => /^sprint-\d+$/.test(d))
-    .sort((a, b) => parseInt(b.replace('sprint-', ''), 10) - parseInt(a.replace('sprint-', ''), 10))[0];
-  if (!latestSprint) return null;
-  return { sprintDir: path.join(sprintsDir, latestSprint), sprintName: latestSprint };
-}
-
-interface TimingResult {
-  started_at: string;
-  elapsed_ms: number;
-  completed_steps_avg_ms: number;
-  completed_steps_total_ms: number;
-  remaining_steps: number;
-  estimated_remaining_ms: number;
-  estimated_completion: string;
-}
-
-function computeTiming(steps: Array<{
-  status: StepStatus;
-  started_at?: string;
-  finished_at?: string;
-  duration_ms?: number;
-}>): TimingResult | null {
-  const firstStarted = steps.find((s) => s.started_at);
-  if (!firstStarted?.started_at) return null;
-
-  const completedSteps = steps.filter((s) => s.status === 'completed' && s.duration_ms !== undefined);
-  if (completedSteps.length === 0) return null;
-
-  const now = Date.now();
-  const startedAtMs = new Date(firstStarted.started_at).getTime();
-  const elapsed_ms = now - startedAtMs;
-
-  const completed_steps_total_ms = completedSteps.reduce((sum, s) => sum + (s.duration_ms ?? 0), 0);
-  const completed_steps_avg_ms = completed_steps_total_ms / completedSteps.length;
-
-  const completed = steps.filter((s) => s.status === 'completed').length;
-  const remaining_steps = steps.length - completed;
-  const estimated_remaining_ms = remaining_steps * completed_steps_avg_ms;
-  const estimated_completion = new Date(now + estimated_remaining_ms).toISOString();
-
-  return {
-    started_at: firstStarted.started_at,
-    elapsed_ms,
-    completed_steps_avg_ms,
-    completed_steps_total_ms,
-    remaining_steps,
-    estimated_remaining_ms,
-    estimated_completion,
-  };
-}
 
 async function findStepDir(waveDir: string, stepIndex: number): Promise<string | null> {
   const stepDirs = await listStepDirs(waveDir);
@@ -107,15 +50,7 @@ app.get('/', async (c) => {
       const total = steps.length;
       const completed = steps.filter((s) => s.status === 'completed').length;
       const failed = steps.filter((s) => s.status === 'failed').length;
-      const running = steps.filter((s) => s.status === 'running').length;
-      const interrupted = steps.filter((s) => s.status === 'interrupted').length;
-
-      let waveStatus: StepStatus = 'pending';
-      if (running > 0) waveStatus = 'running';
-      else if (interrupted > 0) waveStatus = 'interrupted';
-      else if (failed > 0) waveStatus = 'failed';
-      else if (completed === total && total > 0) waveStatus = 'completed';
-      else if (completed > 0) waveStatus = 'running';
+      const waveStatus = deriveWaveStatus(steps);
 
       return {
         wave_number: waveNumber,
@@ -155,17 +90,8 @@ app.get('/:waveNumber', async (c) => {
   const total = steps.length;
   const completed = steps.filter((s) => s.status === 'completed').length;
   const failed = steps.filter((s) => s.status === 'failed').length;
-  const running = steps.filter((s) => s.status === 'running').length;
-  const interrupted = steps.filter((s) => s.status === 'interrupted').length;
-
-  let waveStatus: StepStatus = 'pending';
-  if (running > 0) waveStatus = 'running';
-  else if (interrupted > 0) waveStatus = 'interrupted';
-  else if (failed > 0) waveStatus = 'failed';
-  else if (completed === total && total > 0) waveStatus = 'completed';
-  else if (completed > 0) waveStatus = 'running';
-
-  const timing = computeTiming(steps);
+  const waveStatus = deriveWaveStatus(steps);
+  const timing = computeWaveTiming(steps);
 
   return c.json({
     wave_number: waveNumber,
@@ -218,26 +144,17 @@ app.get('/:waveNumber/loop', async (c) => {
 
   // Try to find features.json — check wave worktree or repo sprints
   let features: unknown[] = [];
-  const sprint = await findSprintDir(slug, waveNumber);
+  const sprint = await findLatestSprintDir(waveDir);
   try {
     if (sprint) {
-      const featuresFile = path.join(sprint.sprintDir, 'features.json');
-      features = await readJson(featuresFile) as unknown[];
+      features = await readJson(path.join(sprint.sprintDir, 'features.json')) as unknown[];
     }
   } catch {
     // features.json may not be accessible
   }
 
-  // Compute feature counters from features array
   const featureArr = Array.isArray(features) ? features as Array<Record<string, unknown>> : [];
-  const counters = {
-    passing: featureArr.filter((f) => f['status'] === 'passing').length,
-    failing: featureArr.filter((f) => f['status'] === 'failing').length,
-    skipped: featureArr.filter((f) => f['status'] === 'skipped').length,
-    pending: featureArr.filter((f) => f['status'] === 'pending').length,
-    blocked: featureArr.filter((f) => f['status'] === 'blocked').length,
-    in_progress: featureArr.filter((f) => f['status'] === 'in_progress').length,
-  };
+  const counters = countFeaturesByStatus(featureArr);
 
   // Enrich features with prp_filename
   const enrichedFeatures = (Array.isArray(features) ? features as Array<Record<string, unknown>> : []).map((f) => {
@@ -496,7 +413,7 @@ app.get('/:waveNumber/sprint/files', async (c) => {
   const waveNumber = c.req.param('waveNumber') ?? '';
   if (!/^\d+$/.test(waveNumber)) return c.json({ error: 'Invalid wave number' }, 400);
 
-  const sprint = await findSprintDir(slug, waveNumber);
+  const sprint = await findLatestSprintDir(path.join(getAwRoot(), 'context', 'workspaces', slug, `wave-${waveNumber}`));
   if (!sprint) return c.json({ error: 'Sprint not found' }, 404);
 
   const specs: Array<{ filename: string; size: number }> = [];
@@ -547,7 +464,7 @@ app.get('/:waveNumber/sprint/files/:filename', async (c) => {
     return c.json({ error: 'Invalid filename format' }, 400);
   }
 
-  const sprint = await findSprintDir(slug, waveNumber);
+  const sprint = await findLatestSprintDir(path.join(getAwRoot(), 'context', 'workspaces', slug, `wave-${waveNumber}`));
   if (!sprint) return c.json({ error: 'Sprint not found' }, 404);
 
   // Determine subdirectory based on prefix

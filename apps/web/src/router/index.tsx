@@ -23,6 +23,7 @@ import { ProjectNewPage } from "@/pages/project-new"
 import { ProjectTaskEditPage } from "@/pages/project-task-edit"
 import { ProjectRunNewPage } from "@/pages/project-run-new"
 import { ProjectArtifactsPage } from "@/pages/project-artifacts"
+import { ProjectCrashesPage } from "@/pages/project-crashes"
 
 // Root route with context type
 const rootRoute = createRootRouteWithContext<{ auth: AuthContextValue }>()({
@@ -152,6 +153,12 @@ const projectArtifactsRoute = createRoute({
   component: ProjectArtifactsPage,
 })
 
+const projectCrashesRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/projects/$slug/crashes",
+  component: ProjectCrashesPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authRoute.addChildren([
@@ -171,6 +178,7 @@ const routeTree = rootRoute.addChildren([
     projectMonitorRoute,
     projectRunNewRoute,
     projectArtifactsRoute,
+    projectCrashesRoute,
   ]),
 ])
 

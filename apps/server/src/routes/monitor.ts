@@ -9,13 +9,42 @@ import {
   listWaveDirs,
   listStepDirs,
   parseStepDir,
-  readStepSummary,
   parseSpawnJsonl,
+  deriveWaveStatus,
+  findActiveStepJsonl,
+  computeWaveTiming,
+  findLatestSprintDir,
+  countFeaturesByStatus,
+  type TimingResult,
   type StepStatus,
   type LoopJson,
 } from '../lib/wave-state.js';
+import { readServerRunMeta, type RunMode } from '../routes/runs.js';
 
 const app = new Hono();
+
+export interface MonitorData {
+  project: {
+    name: string;
+    slug: string;
+    workflow: string;
+    sprint_number: number;
+    wave_count: number;
+  };
+  current_wave: {
+    number: number;
+    status: StepStatus;
+    steps: Array<{ index: number; task: string; type: string; status: StepStatus; started_at: string | null; elapsed_ms: number | null }>;
+    timing: TimingResult | null;
+  } | null;
+  loop: { status: string; iteration: number; total: number; done: number; remaining: number; features_done: number; feature_id: string | null; current_feature: string | null } | null;
+  feature_counters: { passing: number; failing: number; skipped: number; pending: number; in_progress: number; blocked: number };
+  features: unknown[];
+  last_output: string[];
+  activity: { last_output_age_ms: number | null; step_elapsed_ms: number | null; engine_pid: number | null; engine_alive: boolean; agent_pid: number | null; agent_alive: boolean; run_mode: 'spawn' | 'detached'; run_id: string | null };
+  resumable: boolean;
+  wave_history: Array<{ number: number; status: StepStatus; steps_total: number; steps_done: number; duration_ms: number | null }>;
+}
 
 async function formatLastOutput(jsonlPath: string): Promise<string[]> {
   const lines = await parseSpawnJsonl(jsonlPath);
@@ -42,25 +71,6 @@ async function formatLastOutput(jsonlPath: string): Promise<string[]> {
   return readable.slice(-5);
 }
 
-async function findActiveStepJsonl(waveDir: string): Promise<string | null> {
-  const stepDirs = await listStepDirs(waveDir);
-  for (const dirName of [...stepDirs].reverse()) {
-    const summary = await readStepSummary(waveDir, dirName);
-    if (summary?.status === 'running') {
-      const parsed = parseStepDir(dirName);
-      if (parsed?.isLoop) {
-        const loopDir = path.join(waveDir, dirName);
-        try {
-          const entries = await fs.readdir(loopDir);
-          const attempts = entries.filter((e) => /^F-\d+-attempt-\d+$/.test(e)).sort().reverse();
-          if (attempts[0]) return path.join(loopDir, attempts[0], 'spawn.jsonl');
-        } catch { /* ignore */ }
-      }
-      return path.join(waveDir, dirName, 'spawn.jsonl');
-    }
-  }
-  return null;
-}
 
 async function getLastOutputAge(jsonlPath: string): Promise<number | null> {
   try {
@@ -69,11 +79,7 @@ async function getLastOutputAge(jsonlPath: string): Promise<number | null> {
   } catch { return null; }
 }
 
-// GET /api/v1/projects/:slug/monitor
-app.get('/', async (c) => {
-  const slug = c.req.param('slug');
-  if (!slug) return c.json({ error: 'Project slug required' }, 400);
-
+export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | null> {
   const awRoot = getAwRoot();
   const workspaceDir = path.join(awRoot, 'context', 'workspaces', slug);
   const projectFile = path.join(awRoot, 'context', 'projects', slug, 'project.json');
@@ -82,7 +88,7 @@ app.get('/', async (c) => {
   try {
     projectData = await readJson(projectFile) as Record<string, unknown>;
   } catch {
-    return c.json({ error: 'Project not found' }, 404);
+    return null;
   }
 
   let workspaceData: Record<string, unknown> = {};
@@ -102,16 +108,7 @@ app.get('/', async (c) => {
 
     const total = steps.length;
     const done = steps.filter((s) => s!.status === 'completed').length;
-    const failed = steps.filter((s) => s!.status === 'failed').length;
-    const running = steps.filter((s) => s!.status === 'running').length;
-    const interrupted = steps.filter((s) => s!.status === 'interrupted').length;
-
-    let waveStatus: StepStatus = 'pending';
-    if (running > 0) waveStatus = 'running';
-    else if (interrupted > 0) waveStatus = 'interrupted';
-    else if (failed > 0) waveStatus = 'failed';
-    else if (done === total && total > 0) waveStatus = 'completed';
-    else if (done > 0) waveStatus = 'running';
+    const waveStatus = deriveWaveStatus(steps);
 
     const started = steps.find((s) => s!.started_at)?.started_at;
     const allFinished = steps.length > 0 && steps.every((s) => s!.finished_at);
@@ -126,20 +123,21 @@ app.get('/', async (c) => {
 
   // Current wave = last wave
   const currentWaveDirName = waveDirNames[waveDirNames.length - 1];
-  let currentWave: {
-    number: number; status: StepStatus;
-    steps: Array<{ index: number; task: string; type: string; status: StepStatus; started_at: string | null; elapsed_ms: number | null }>;
-    timing: { elapsed_ms: number; estimated_remaining_ms: number | null } | null;
-  } | null = null;
+  let currentWave: MonitorData['current_wave'] = null;
 
-  let loop: { status: string; iteration: number; total: number; done: number; remaining: number; features_done: number; feature_id: string | null; current_feature: string | null } | null = null;
+  let loop: MonitorData['loop'] = null;
   let featureCounters = { passing: 0, failing: 0, skipped: 0, pending: 0, in_progress: 0, blocked: 0 };
   let features: unknown[] = [];
   let lastOutput: string[] = [];
-  let activity: { last_output_age_ms: number | null; step_elapsed_ms: number | null; engine_pid: number | null; engine_alive: boolean; agent_pid: number | null; agent_alive: boolean } = {
+  const runMeta = await readServerRunMeta(workspaceDir);
+  const runMode: RunMode = runMeta?.run_mode ?? 'detached';
+
+  let activity: MonitorData['activity'] = {
     last_output_age_ms: null, step_elapsed_ms: null,
     engine_pid: null, engine_alive: false,
     agent_pid: null, agent_alive: false,
+    run_mode: runMode,
+    run_id: runMeta?.run_id ?? null,
   };
 
   if (currentWaveDirName) {
@@ -148,31 +146,8 @@ app.get('/', async (c) => {
     const stepDirNames = await listStepDirs(wavePath);
     const steps = await buildStepList(wavePath);
 
-    const total = steps.length;
-    const done = steps.filter((s) => s!.status === 'completed').length;
-    const failed = steps.filter((s) => s!.status === 'failed').length;
-    const running = steps.filter((s) => s!.status === 'running').length;
-    const interrupted = steps.filter((s) => s!.status === 'interrupted').length;
-
-    let waveStatus: StepStatus = 'pending';
-    if (running > 0) waveStatus = 'running';
-    else if (interrupted > 0) waveStatus = 'interrupted';
-    else if (failed > 0) waveStatus = 'failed';
-    else if (done === total && total > 0) waveStatus = 'completed';
-    else if (done > 0) waveStatus = 'running';
-
-    const firstStarted = steps.find((s) => s!.started_at);
-    let timing: { elapsed_ms: number; estimated_remaining_ms: number | null } | null = null;
-    if (firstStarted?.started_at) {
-      const elapsed_ms = Date.now() - new Date(firstStarted.started_at).getTime();
-      const completedWithDuration = steps.filter((s) => s!.status === 'completed' && s!.duration_ms !== undefined);
-      let estimated_remaining_ms: number | null = null;
-      if (completedWithDuration.length > 0) {
-        const avg = completedWithDuration.reduce((sum, s) => sum + (s!.duration_ms ?? 0), 0) / completedWithDuration.length;
-        estimated_remaining_ms = (total - done) * avg;
-      }
-      timing = { elapsed_ms, estimated_remaining_ms };
-    }
+    const waveStatus = deriveWaveStatus(steps);
+    const timing = computeWaveTiming(steps);
 
     currentWave = {
       number: waveNum, status: waveStatus,
@@ -207,26 +182,15 @@ app.get('/', async (c) => {
     }
 
     // Features from worktree sprint
-    const sprintsDir = path.join(wavePath, 'worktree', 'sprints');
-    try {
-      const sprintDirs = await fs.readdir(sprintsDir);
-      const latestSprint = sprintDirs
-        .filter((d) => /^sprint-\d+$/.test(d))
-        .sort((a, b) => parseInt(b.replace('sprint-', ''), 10) - parseInt(a.replace('sprint-', ''), 10))[0];
-      if (latestSprint) {
-        const rawFeatures = await readJson(path.join(sprintsDir, latestSprint, 'features.json')) as unknown[];
+    const sprintResult = await findLatestSprintDir(wavePath);
+    if (sprintResult) {
+      try {
+        const rawFeatures = await readJson(path.join(sprintResult.sprintDir, 'features.json')) as unknown[];
         features = rawFeatures;
         const fa = Array.isArray(rawFeatures) ? rawFeatures as Array<Record<string, unknown>> : [];
-        featureCounters = {
-          passing: fa.filter((f) => f['status'] === 'passing').length,
-          failing: fa.filter((f) => f['status'] === 'failing').length,
-          skipped: fa.filter((f) => f['status'] === 'skipped').length,
-          pending: fa.filter((f) => f['status'] === 'pending').length,
-          in_progress: fa.filter((f) => f['status'] === 'in_progress').length,
-          blocked: fa.filter((f) => f['status'] === 'blocked').length,
-        };
-      }
-    } catch { /* features may not exist */ }
+        featureCounters = countFeaturesByStatus(fa);
+      } catch { /* features may not exist */ }
+    }
 
     // Activity
     const activeJsonlPath = await findActiveStepJsonl(wavePath);
@@ -238,6 +202,11 @@ app.get('/', async (c) => {
     const runningStep = steps.find((s) => s!.status === 'running');
     if (runningStep?.started_at) {
       activity.step_elapsed_ms = Date.now() - new Date(runningStep.started_at).getTime();
+      // last_output_age_ms cannot exceed step_elapsed_ms: if the step started 2m ago,
+      // there was activity at most 2m ago — the step itself is the source of truth.
+      if (activity.last_output_age_ms === null || activity.last_output_age_ms > activity.step_elapsed_ms) {
+        activity.last_output_age_ms = activity.step_elapsed_ms;
+      }
     }
 
     const enginePid = (workspaceData['engine_pid'] as number | undefined) ?? null;
@@ -270,7 +239,15 @@ app.get('/', async (c) => {
     }
   }
 
-  return c.json({
+  const resumable =
+    !activity.engine_alive &&
+    runMode === 'spawn' &&
+    currentWave !== null &&
+    currentWave.status !== 'completed' &&
+    currentWave.steps.some((s) => s.status === 'completed') &&
+    currentWave.steps.some((s) => s.status === 'pending' || s.status === 'interrupted');
+
+  return {
     project: {
       name: (projectData['name'] as string) ?? slug,
       slug: (projectData['slug'] as string) ?? slug,
@@ -284,8 +261,18 @@ app.get('/', async (c) => {
     features,
     last_output: lastOutput,
     activity,
+    resumable,
     wave_history: waveHistory,
-  });
+  };
+}
+
+// GET /api/v1/projects/:slug/monitor
+app.get('/', async (c) => {
+  const slug = c.req.param('slug');
+  if (!slug) return c.json({ error: 'Project slug required' }, 400);
+  const snapshot = await buildMonitorSnapshot(slug);
+  if (!snapshot) return c.json({ error: 'Project not found' }, 404);
+  return c.json(snapshot);
 });
 
 export { app as monitor };
