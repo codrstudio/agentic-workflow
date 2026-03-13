@@ -865,3 +865,24 @@ Diagnóstico:
 - Worktree do harness (agentic-workflow) tinha alterações pendentes commitadas (28c8896)
 
 merged_sha: 21ac8cd (último commit do companion/repo após merge wave-1)
+[2026-03-13 13:38:06] merge-worktree HARD FAIL: agent reported failure: unknown
+[2026-03-13 13:38:06] Step 7 (merge-worktree): Failed (exit 1). merge_failed: agent reported failure
+[2026-03-13 10:42:01] Step 07 — merge-worktree — VERIFICADO E CONFIRMADO
+
+Merge já havia sido concluído em sessão anterior.
+- Merge commit: 57dc30c (feat(wave-1): merge wave-1 into master)
+- HEAD do companion/repo: 21ac8cdd989d3c686529f5224181bf5dcd129583
+- Branch destino: master, estado limpo
+- Worktree wave-1: removida (não consta em git worktree list)
+- Branch wave-1: deletado
+- Nenhuma ação necessária nesta sessão.
+[2026-03-13 13:42:17] merge-worktree HARD FAIL: agent reported failure: unknown
+[2026-03-13 13:42:17] Step 7 (merge-worktree): Failed (exit 1). merge_failed: agent reported failure
+
+[2026-03-13 11:07:20] Step 09 — merge-worktree — CONFIRMADO (sessão de recuperação)
+
+Diagnóstico: todas as etapas já concluídas em sessão anterior.
+- companion/repo HEAD: 21ac8cdd989d3c686529f5224181bf5dcd129583
+- Merge commit wave-1: 57dc30c (feat(wave-1): merge wave-1 into master)
+- Worktree: removida. Branch wave-1: deletado.
+- merged_sha: 21ac8cdd989d3c686529f5224181bf5dcd129583
