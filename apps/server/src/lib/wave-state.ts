@@ -7,6 +7,17 @@ export async function readJson(filePath: string): Promise<unknown> {
   return JSON.parse(content) as unknown;
 }
 
+/** Returns the latest attempt-N/ subdir inside stepDir, or stepDir itself if none exist. */
+export async function resolveLatestAttemptDir(stepDir: string): Promise<string> {
+  const entries = await fs.readdir(stepDir).catch(() => [] as string[]);
+  const attempts = entries.filter((e) => /^attempt-\d+$/.test(e));
+  if (attempts.length === 0) return stepDir;
+  const sorted = attempts.sort((a, b) =>
+    parseInt(a.replace('attempt-', ''), 10) - parseInt(b.replace('attempt-', ''), 10),
+  );
+  return path.join(stepDir, sorted[sorted.length - 1]!);
+}
+
 export interface WorkflowStateStep {
   index: number;
   task: string;
@@ -105,7 +116,8 @@ export async function readStepSummary(
   const stepDir = path.join(waveDir, dirName);
 
   if (parsed.isLoop) {
-    const loopFile = path.join(stepDir, 'loop.json');
+    const loopDir = await resolveLatestAttemptDir(stepDir);
+    const loopFile = path.join(loopDir, 'loop.json');
     let loop: LoopJson | null = null;
     try {
       loop = await readJson(loopFile) as LoopJson;
@@ -145,12 +157,12 @@ export async function readStepSummary(
   }
 
   // Regular step
-  const spawnFile = path.join(stepDir, 'spawn.json');
   let spawn: SpawnJson | null = null;
   try {
-    spawn = await readJson(spawnFile) as SpawnJson;
+    const attemptDir = await resolveLatestAttemptDir(stepDir);
+    spawn = await readJson(path.join(attemptDir, 'spawn.json')) as SpawnJson;
   } catch {
-    // spawn.json may not exist yet
+    // attempt dir or spawn.json may not exist yet
   }
 
   const status = deriveStatus(spawn, true);
@@ -228,19 +240,33 @@ export async function buildStepList(wavePath: string): Promise<StepSummary[]> {
     return (await Promise.all(stepDirNames.map((d) => readStepSummary(wavePath, d)))).filter(Boolean) as StepSummary[];
   }
 
+  const wfTaskByIndex = new Map(wfState.steps.map((ws) => [ws.index, ws.task]));
   const runtimeSteps = new Map<number, StepSummary>();
   for (const dirName of stepDirNames) {
     const summary = await readStepSummary(wavePath, dirName);
-    if (summary) runtimeSteps.set(summary.index, summary);
+    if (!summary) continue;
+    const existing = runtimeSteps.get(summary.index);
+    if (!existing) {
+      runtimeSteps.set(summary.index, summary);
+    } else {
+      // Prefer the dir whose task matches workflow-state.json
+      const expectedTask = wfTaskByIndex.get(summary.index);
+      if (expectedTask && summary.task === expectedTask) {
+        runtimeSteps.set(summary.index, summary);
+      }
+    }
   }
 
   return wfState.steps.map((ws) => {
     const runtime = runtimeSteps.get(ws.index);
     if (runtime) {
-      // workflow-state.json is the engine's final verdict — if it says failed OR has a
-      // non-zero exit_code, trust it even if spawn.json exit_code was 0 (e.g. Layer 3
-      // verification failure in hybrid merge, or manually-set non-standard status strings)
       const wfStatus = ws.status as StepStatus | undefined;
+      // workflow-state.json is authoritative for 'running': filesystem may lag behind
+      // (race between engine creating next attempt dir and server reading previous attempt)
+      if (wfStatus === 'running' && runtime.status === 'interrupted') {
+        return { ...runtime, status: 'running' as StepStatus };
+      }
+      // workflow-state.json is the engine's final verdict for failures too
       const wfFailed = wfStatus === 'failed' || (ws.exit_code !== null && ws.exit_code !== undefined && ws.exit_code !== 0);
       if (wfFailed && runtime.status === 'completed') {
         return { ...runtime, status: 'failed' as StepStatus };
@@ -359,14 +385,21 @@ export function countFeaturesByStatus(features: Array<Record<string, unknown>>):
 
 export async function findActiveStepJsonl(waveDir: string): Promise<string | null> {
   const stepDirs = await listStepDirs(waveDir);
+  const wfState = await readWorkflowState(waveDir);
+  const wfRunningIndexes = new Set(
+    wfState?.steps.filter((s) => s.status === 'running').map((s) => s.index) ?? [],
+  );
   for (const dirName of [...stepDirs].reverse()) {
     const summary = await readStepSummary(waveDir, dirName);
-    if (summary?.status === 'running') {
+    const isActive = summary?.status === 'running' ||
+      (summary?.status === 'interrupted' && wfRunningIndexes.has(summary.index));
+    if (isActive) {
       const parsed = parseStepDir(dirName);
       if (parsed?.isLoop) {
         const loopDir = path.join(waveDir, dirName);
+        const latestAttemptDir = await resolveLatestAttemptDir(loopDir);
         try {
-          const loopJson = await readJson(path.join(loopDir, 'loop.json')) as Record<string, unknown>;
+          const loopJson = await readJson(path.join(latestAttemptDir, 'loop.json')) as Record<string, unknown>;
           const featureId = loopJson['feature_id'] as string | null | undefined;
           if (featureId) {
             let attempt = 1;
@@ -382,32 +415,35 @@ export async function findActiveStepJsonl(waveDir: string): Promise<string | nul
                 attempt = retries + 1;
               }
             } catch { /* fallback to attempt 1 */ }
-            const candidatePath = path.join(loopDir, `${featureId}-attempt-${attempt}`, 'spawn.jsonl');
+            const candidatePath = path.join(latestAttemptDir, `${featureId}-attempt-${attempt}`, 'spawn.jsonl');
             try {
               await fs.access(candidatePath);
               return candidatePath;
             } catch { /* file not yet created, fall through */ }
           }
         } catch { /* loop.json not readable */ }
-        // Fallback: pick the most recently modified attempt dir
+        // Fallback: pick the most recently modified F-XXX-attempt-N dir inside latestAttemptDir
         try {
-          const entries = await fs.readdir(loopDir);
+          const entries = await fs.readdir(latestAttemptDir);
           const attemptDirs = entries.filter((e) => /^F-\d+-attempt-\d+$/.test(e));
           if (attemptDirs.length > 0) {
             const withMtime = await Promise.all(
               attemptDirs.map(async (e) => {
                 try {
-                  const s = await fs.stat(path.join(loopDir, e));
+                  const s = await fs.stat(path.join(latestAttemptDir, e));
                   return { name: e, mtime: s.mtimeMs };
                 } catch { return { name: e, mtime: 0 }; }
               })
             );
             const latest = withMtime.sort((a, b) => b.mtime - a.mtime)[0];
-            if (latest) return path.join(loopDir, latest.name, 'spawn.jsonl');
+            if (latest) return path.join(latestAttemptDir, latest.name, 'spawn.jsonl');
           }
         } catch { /* ignore */ }
       }
-      return path.join(waveDir, dirName, 'spawn.jsonl');
+      try {
+        const attemptDir = await resolveLatestAttemptDir(path.join(waveDir, dirName));
+        return path.join(attemptDir, 'spawn.jsonl');
+      } catch { /* attempt dir not yet created */ }
     }
   }
   return null;

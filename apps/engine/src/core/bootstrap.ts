@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readFile, mkdir, access, readdir } from 'node:fs/promises';
+import { readFile, mkdir, access, readdir, rm } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 import { WorkflowSchema, type Workflow } from '../schemas/workflow.js';
@@ -151,6 +151,13 @@ export async function detectNextWave(workspaceDir: string): Promise<number> {
       const match = entry.match(/^wave-(\d+)$/);
       if (match) {
         const n = parseInt(match[1]!, 10);
+        const wavePath = join(workspaceDir, entry);
+        const hasState = await state.fileExists(join(wavePath, 'workflow-state.json'));
+        if (!hasState) {
+          // Empty/uninitialized wave dir — delete and skip
+          try { await rm(wavePath, { recursive: true, force: true }); } catch { /* best effort */ }
+          continue;
+        }
         if (n > maxWave) maxWave = n;
       }
     }
@@ -240,15 +247,19 @@ export async function detectResumableWave(
 
   if (maxWave === 0) return null;
 
-  const statePath = join(workspaceDir, `wave-${maxWave}`, 'workflow-state.json');
-  const ws = await state.readJson<WorkflowState>(statePath);
-  if (!ws || !ws.steps) return null;
+  // Walk from highest to lowest, skipping empty waves (no workflow-state.json)
+  for (let n = maxWave; n >= 1; n--) {
+    const statePath = join(workspaceDir, `wave-${n}`, 'workflow-state.json');
+    const ws = await state.readJson<WorkflowState>(statePath);
+    if (!ws || !ws.steps) continue;
 
-  // Resumable if any step is not completed (pending/running/failed)
-  const hasIncomplete = ws.steps.some((s: WorkflowStepState) => s.status !== 'completed');
-  if (!hasIncomplete) return null;
+    const hasIncomplete = ws.steps.some((s: WorkflowStepState) => s.status !== 'completed');
+    if (!hasIncomplete) return null; // wave is complete → nothing to resume
 
-  return { waveNumber: maxWave, workflowState: ws };
+    return { waveNumber: n, workflowState: ws };
+  }
+
+  return null;
 }
 
 export async function setupWave(

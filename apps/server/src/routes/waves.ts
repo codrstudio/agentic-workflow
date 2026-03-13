@@ -5,6 +5,7 @@ import { getAwRoot } from '../lib/paths.js';
 import { isPidAlive } from '../lib/pid-check.js';
 import {
   readJson,
+  resolveLatestAttemptDir,
   buildStepList,
   listWaveDirs,
   listStepDirs,
@@ -134,10 +135,11 @@ app.get('/:waveNumber/loop', async (c) => {
 
   const loopStepPath = path.join(waveDir, loopStepDir);
 
-  // Read loop.json
+  // Read loop.json from latest attempt-N subdir
   let loop: LoopJson | null = null;
   try {
-    loop = await readJson(path.join(loopStepPath, 'loop.json')) as LoopJson;
+    const latestAttemptDir = await resolveLatestAttemptDir(loopStepPath);
+    loop = await readJson(path.join(latestAttemptDir, 'loop.json')) as LoopJson;
   } catch {
     return c.json({ error: 'Loop state not available yet' }, 404);
   }
@@ -198,12 +200,12 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
   const stepDir = path.join(waveDir, stepDirName);
   const parsed = parseStepDir(stepDirName);
 
-  // ralph-wiggum-loop steps use loop.json instead of spawn.json
+  // ralph-wiggum-loop steps use loop.json inside latest attempt-N subdir
   if (parsed?.isLoop) {
-    const loopFile = path.join(stepDir, 'loop.json');
     let loop: LoopJson | null = null;
     try {
-      loop = await readJson(loopFile) as LoopJson;
+      const latestAttemptDir = await resolveLatestAttemptDir(stepDir);
+      loop = await readJson(path.join(latestAttemptDir, 'loop.json')) as LoopJson;
     } catch {
       return c.json({ error: 'Step metadata not available yet' }, 404);
     }
@@ -223,10 +225,11 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
       duration_ms = new Date(loop.updated_at).getTime() - new Date(loop.started_at).getTime();
     }
 
-    // List feature attempt directories
+    // List feature attempt directories (inside latest attempt-N subdir)
+    const loopAttemptDir = await resolveLatestAttemptDir(stepDir);
     const attemptDirs: string[] = [];
     try {
-      const entries = await fs.readdir(stepDir, { withFileTypes: true });
+      const entries = await fs.readdir(loopAttemptDir, { withFileTypes: true });
       for (const e of entries) {
         if (e.isDirectory() && /^F-\d+-attempt-\d+$/.test(e.name)) {
           attemptDirs.push(e.name);
@@ -254,7 +257,7 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
       duration_ms?: number;
     }> = [];
     for (const aDir of attemptDirs) {
-      const aSpawnFile = path.join(stepDir, aDir, 'spawn.json');
+      const aSpawnFile = path.join(loopAttemptDir, aDir, 'spawn.json');
       try {
         const aSpawn = await readJson(aSpawnFile) as SpawnJson & { feature?: string; attempt?: number };
         const aStatus = deriveStatus(aSpawn, true);
@@ -310,12 +313,29 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
     });
   }
 
-  // Regular step — read spawn.json
-  const spawnFile = path.join(stepDir, 'spawn.json');
+  // Regular step — list attempt-N/ subdirs and read latest spawn.json
+  const regularAttemptDirs: string[] = [];
+  try {
+    const entries = await fs.readdir(stepDir, { withFileTypes: true });
+    for (const e of entries) {
+      if (e.isDirectory() && /^attempt-\d+$/.test(e.name)) {
+        regularAttemptDirs.push(e.name);
+      }
+    }
+    regularAttemptDirs.sort((a, b) => {
+      const na = parseInt(a.replace('attempt-', ''), 10);
+      const nb = parseInt(b.replace('attempt-', ''), 10);
+      return na - nb;
+    });
+  } catch {
+    // ignore
+  }
 
   let spawn: SpawnJson | null = null;
   try {
-    spawn = await readJson(spawnFile) as SpawnJson;
+    // Read from latest attempt dir; resolveLatestAttemptDir falls back to stepDir for legacy steps
+    const latestDir = await resolveLatestAttemptDir(stepDir);
+    spawn = await readJson(path.join(latestDir, 'spawn.json')) as SpawnJson;
   } catch {
     return c.json({ error: 'Step metadata not available yet' }, 404);
   }
@@ -324,6 +344,53 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
   let duration_ms: number | undefined;
   if (spawn.started_at && spawn.finished_at) {
     duration_ms = new Date(spawn.finished_at).getTime() - new Date(spawn.started_at).getTime();
+  }
+
+  // Build attempts array from attempt-N/ subdirs
+  const regularAttempts: Array<{
+    dir: string;
+    attempt: number;
+    task?: string;
+    agent?: string;
+    pid?: number;
+    started_at?: string;
+    finished_at?: string;
+    exit_code?: number;
+    timed_out?: boolean;
+    model_used?: string;
+    status: StepStatus;
+    duration_ms?: number;
+  }> = [];
+  for (const aDir of regularAttemptDirs) {
+    const aSpawnFile = path.join(stepDir, aDir, 'spawn.json');
+    try {
+      const aSpawn = await readJson(aSpawnFile) as SpawnJson & { attempt?: number };
+      const aStatus = deriveStatus(aSpawn, true);
+      let aDuration: number | undefined;
+      if (aSpawn.started_at && aSpawn.finished_at) {
+        aDuration = new Date(aSpawn.finished_at).getTime() - new Date(aSpawn.started_at).getTime();
+      }
+      regularAttempts.push({
+        dir: aDir,
+        attempt: aSpawn.attempt ?? parseInt(aDir.replace('attempt-', ''), 10),
+        task: aSpawn.task,
+        agent: aSpawn.agent,
+        pid: aSpawn.pid,
+        started_at: aSpawn.started_at,
+        finished_at: aSpawn.finished_at,
+        exit_code: aSpawn.exit_code,
+        timed_out: aSpawn.timed_out,
+        model_used: aSpawn.model_used,
+        status: aStatus,
+        duration_ms: aDuration,
+      });
+    } catch {
+      regularAttempts.push({
+        dir: aDir,
+        attempt: parseInt(aDir.replace('attempt-', ''), 10),
+        status: 'running',
+      });
+    }
   }
 
   return c.json({
@@ -342,6 +409,7 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
     model_used: spawn.model_used,
     status,
     duration_ms,
+    attempts: regularAttempts,
   });
 });
 
@@ -374,25 +442,40 @@ app.get('/:waveNumber/steps/:stepIndex/log', async (c) => {
   const stepDir = path.join(waveDir, stepDirName);
   const parsed = parseStepDir(stepDirName);
 
-  // For loop steps, check if a specific attempt is requested via query param
+  const attemptQuery = c.req.query('attempt');
+
+  // For loop steps, a specific attempt dir (F-XXX-attempt-N) must be provided
   if (parsed?.isLoop) {
-    const attemptDir = c.req.query('attempt');
-    if (!attemptDir) {
+    if (!attemptQuery) {
       // No attempt specified — return empty (frontend shows attempts list instead)
       return c.json({ total: 0, offset: 0, limit, lines: [] });
     }
-    // Validate attempt dir name to prevent path traversal
-    if (!/^F-\d+-attempt-\d+$/.test(attemptDir)) {
+    // Validate attempt dir name to prevent path traversal (loop feature attempts)
+    if (!/^F-\d+-attempt-\d+$/.test(attemptQuery)) {
       return c.json({ error: 'Invalid attempt directory' }, 400);
     }
-    const jsonlFile = path.join(stepDir, attemptDir, 'spawn.jsonl');
+    const loopLogAttemptDir = await resolveLatestAttemptDir(stepDir);
+    const jsonlFile = path.join(loopLogAttemptDir, attemptQuery, 'spawn.jsonl');
     const allLines = await parseSpawnJsonl(jsonlFile);
     const total = allLines.length;
     const page = allLines.slice(offset, offset + limit);
     return c.json({ total, offset, limit, lines: page });
   }
 
-  const jsonlFile = path.join(stepDir, 'spawn.jsonl');
+  // Regular step — resolve log path from attempt dir
+  let logDir: string;
+  if (attemptQuery) {
+    // Validate attempt dir name to prevent path traversal (regular attempts)
+    if (!/^attempt-\d+$/.test(attemptQuery)) {
+      return c.json({ error: 'Invalid attempt directory' }, 400);
+    }
+    logDir = path.join(stepDir, attemptQuery);
+  } else {
+    // Default to latest attempt (or stepDir itself for legacy steps)
+    logDir = await resolveLatestAttemptDir(stepDir);
+  }
+
+  const jsonlFile = path.join(logDir, 'spawn.jsonl');
 
   const allLines = await parseSpawnJsonl(jsonlFile);
   const total = allLines.length;

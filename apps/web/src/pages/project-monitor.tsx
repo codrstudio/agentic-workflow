@@ -60,6 +60,7 @@ interface ActivityInfo {
   agent_alive: boolean
   run_mode: "spawn" | "detached"
   run_id: string | null
+  run_active: boolean
 }
 
 interface WaveHistoryEntry {
@@ -235,7 +236,7 @@ export function ProjectMonitorPage() {
               )}
             </>
           )}
-          {data.activity.run_mode === "spawn" && data.activity.engine_alive && (
+          {data.activity.run_mode === "spawn" && data.activity.run_active && (
             <button
               onClick={handleStop}
               disabled={actionLoading}

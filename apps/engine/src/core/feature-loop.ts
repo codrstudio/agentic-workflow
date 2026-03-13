@@ -87,6 +87,13 @@ export class FeatureLoop {
     this.startedAt = now();
     this.stopRequested = false;
 
+    // Track this execution session in session.json (stepDir is already the attempt-N dir)
+    await this.state.writeJson(join(stepDir, 'session.json'), {
+      started_at: this.startedAt,
+      status: 'running',
+      pid: process.pid,
+    });
+
     // Resolve task and agent profile once
     const task = await this.spawner.resolveTask(taskSlug, ctx.tasksDir);
     const agentName = task.frontmatter.agent;
@@ -124,6 +131,7 @@ export class FeatureLoop {
       return this.state.fileExists(join(stepDir, '.stop'));
     };
 
+    const loopResult = await (async (): Promise<{ exitCode: number; reason: string }> => {
     try {
       while (true) {
         this.iteration++;
@@ -410,6 +418,16 @@ export class FeatureLoop {
       await this.emitEvent('loop:end', ctx, { reason: 'error', error: msg });
       return { exitCode: 1, reason: `error: ${msg}` };
     }
+    })();
+
+    await this.state.writeJson(join(stepDir, 'session.json'), {
+      started_at: this.startedAt,
+      status: 'exited',
+      pid: process.pid,
+      finished_at: now(),
+      exit_reason: loopResult.reason,
+    });
+    return loopResult;
   }
 
   stop(): void {

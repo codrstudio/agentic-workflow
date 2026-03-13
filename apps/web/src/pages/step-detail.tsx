@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react"
+import { useEffect, useState } from "react"
 import { useParams } from "@tanstack/react-router"
 import {
   CheckCircle2,
@@ -28,7 +28,7 @@ interface LogLine {
 
 interface AttemptMeta {
   dir: string
-  feature: string
+  feature?: string  // only for loop step attempts (F-XXX)
   attempt: number
   task?: string
   agent?: string
@@ -289,7 +289,7 @@ function AttemptLogPanel({
       const collected: LogLine[] = []
       while (true) {
         const logRes = await apiFetch(
-          `/api/v1/projects/${slug}/waves/${waveNumber}/steps/${stepIndex}/log?attempt=${attempt.dir}&offset=${offset}&limit=${BATCH}`
+          `/api/v1/projects/${slug}/waves/${waveNumber}/steps/${stepIndex}/log?attempt=${encodeURIComponent(attempt.dir)}&offset=${offset}&limit=${BATCH}`
         )
         if (!logRes.ok) break
         const data = await logRes.json() as { total: number; offset: number; limit: number; lines: LogLine[] }
@@ -363,20 +363,17 @@ export function StepDetailPage() {
   })
 
   const [meta, setMeta] = useState<StepMeta | null>(null)
-  const [allLines, setAllLines] = useState<LogLine[]>([])
-  const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedAttempt, setExpandedAttempt] = useState<string | null>(null)
 
-  // Fetch step metadata + log lines (only for non-loop steps)
+  // Fetch step metadata
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
 
     async function load() {
-      // Load metadata
       const metaRes = await apiFetch(
         `/api/v1/projects/${slug}/waves/${waveNumber}/steps/${stepIndex}`
       )
@@ -385,26 +382,9 @@ export function StepDetailPage() {
       if (cancelled) return
       setMeta(metaData)
 
-      // Skip log loading for loop steps — logs are per-attempt
-      if (metaData.type === "ralph-wiggum-loop") return
-
-      // Load all log lines in batches
-      const BATCH = 500
-      let offset = 0
-      const collected: LogLine[] = []
-      while (true) {
-        const logRes = await apiFetch(
-          `/api/v1/projects/${slug}/waves/${waveNumber}/steps/${stepIndex}/log?offset=${offset}&limit=${BATCH}`
-        )
-        if (!logRes.ok) break
-        const data = await logRes.json() as { total: number; offset: number; limit: number; lines: LogLine[] }
-        if (cancelled) return
-        collected.push(...data.lines)
-        if (offset + BATCH >= data.total) break
-        offset += BATCH
-      }
-      if (!cancelled) {
-        setAllLines(collected)
+      // Auto-expand: if there's exactly one attempt, expand it immediately
+      if (metaData.attempts?.length === 1 && metaData.attempts[0]) {
+        setExpandedAttempt(metaData.attempts[0].dir)
       }
     }
 
@@ -414,14 +394,6 @@ export function StepDetailPage() {
 
     return () => { cancelled = true }
   }, [slug, waveNumber, stepIndex])
-
-  // Client-side search filter
-  const filteredLines = search.trim()
-    ? allLines.filter((line) => {
-        const text = extractText(line).toLowerCase()
-        return text.includes(search.toLowerCase())
-      })
-    : allLines
 
   if (loading) {
     return (
@@ -446,6 +418,7 @@ export function StepDetailPage() {
   const isSuccess = meta.exit_code === 0
   const isRunning = meta.status === "running"
   const isLoop = meta.type === "ralph-wiggum-loop"
+  const hasAttempts = (meta.attempts?.length ?? 0) > 0
 
   return (
     <div className="flex flex-col p-6 gap-5 max-w-5xl">
@@ -530,10 +503,12 @@ export function StepDetailPage() {
         </div>
       </div>
 
-      {/* ── Loop attempts section ─────────────────────────────────────── */}
-      {isLoop && meta.attempts && (
+      {/* ── Attempts section (all step types) ────────────────────────── */}
+      {hasAttempts && meta.attempts && (
         <div className="flex flex-col gap-3">
-          <h2 className="text-sm font-semibold">Feature Attempts ({meta.attempts.length})</h2>
+          <h2 className="text-sm font-semibold">
+            {isLoop ? `Feature Attempts (${meta.attempts.length})` : `Attempts (${meta.attempts.length})`}
+          </h2>
           <div className="rounded-lg border border-border overflow-hidden divide-y divide-border">
             {meta.attempts.map((a) => {
               const aSuccess = a.exit_code === 0
@@ -552,8 +527,14 @@ export function StepDetailPage() {
                     ) : (
                       <XCircle className="w-4 h-4 text-red-500 shrink-0" />
                     )}
-                    <span className="font-mono text-sm font-medium min-w-[4rem]">{a.feature}</span>
-                    <span className="text-xs text-muted-foreground">attempt {a.attempt}</span>
+                    {isLoop && a.feature ? (
+                      <>
+                        <span className="font-mono text-sm font-medium min-w-[4rem]">{a.feature}</span>
+                        <span className="text-xs text-muted-foreground">attempt {a.attempt}</span>
+                      </>
+                    ) : (
+                      <span className="font-mono text-sm font-medium">Attempt {a.attempt}</span>
+                    )}
                     {a.agent && <span className="text-xs text-muted-foreground ml-auto hidden sm:inline">{a.agent}</span>}
                     {a.duration_ms != null && (
                       <span className="text-xs text-muted-foreground ml-2">{formatDuration(a.duration_ms)}</span>
@@ -575,52 +556,12 @@ export function StepDetailPage() {
         </div>
       )}
 
-      {/* ── Log section (regular steps only) ──────────────────────────── */}
-      {!isLoop && (
+      {/* ── Empty state when no attempts yet ─────────────────────────── */}
+      {!hasAttempts && (
         <div className="flex flex-col gap-3">
-          {/* Toolbar */}
-          <div className="flex items-center gap-3 justify-between flex-wrap">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold">Log</h2>
-              <span className="text-xs text-muted-foreground">
-                {search.trim()
-                  ? `${filteredLines.length} / ${allLines.length} linhas`
-                  : `${allLines.length} linhas`}
-              </span>
-            </div>
-
-            {/* Search */}
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                type="search"
-                placeholder="Filtrar linhas..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-          </div>
-
-          {/* Type legend */}
-          <div className="flex flex-wrap gap-2">
-            {(Object.entries(TYPE_CONFIG) as [LogLineType, (typeof TYPE_CONFIG)[LogLineType]][]).map(([type, cfg]) => (
-              <span key={type} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${cfg.bgClass} border ${cfg.borderClass} ${cfg.textClass}`}>
-                {cfg.label}
-              </span>
-            ))}
-          </div>
-
-          {/* Log viewer */}
-          {filteredLines.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              {allLines.length === 0 ? "Log ainda não disponível." : "Nenhuma linha encontrada para o filtro."}
-            </p>
-          ) : (
-            <div className="rounded-lg border border-border overflow-hidden">
-              <LogViewer lines={filteredLines} />
-            </div>
-          )}
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            {isRunning ? "Aguardando início do agente..." : "Nenhum attempt disponível."}
+          </p>
         </div>
       )}
     </div>

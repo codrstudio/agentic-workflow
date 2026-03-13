@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { join, basename } from 'node:path';
 import { readFile, mkdir } from 'node:fs/promises';
 import { appendFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -591,6 +591,7 @@ export class WorkflowRunner {
     responseSchema: z.ZodType<T> = SpawnAgentResponseSchema as z.ZodType<T>,
   ): Promise<{ exitCode: number; reason: string; response?: T }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: taskSlug }));
+    const attemptDir = await this.state.resolveNextAttemptDir(stepDir);
     const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt(taskSlug, ctx);
     const resolved = this.resolveSpawnModelEffort(taskSlug, taskFrontmatter, frontmatter, ctx.plan);
 
@@ -612,6 +613,7 @@ export class WorkflowRunner {
       agent: agentName,
       wave: ctx.waveNumber,
       step: stepIndex,
+      attempt: parseInt(basename(attemptDir).split('-')[1]!, 10),
       parent_pid: process.pid,
       pid: 0,
       started_at: now(),
@@ -619,12 +621,12 @@ export class WorkflowRunner {
       model_used: resolvedModel,
     };
 
-    await this.spawner.writeSpawnMeta(stepDir, meta);
+    await this.spawner.writeSpawnMeta(attemptDir, meta);
 
     const result = await this.spawner.spawnAgent({
       prompt: prompt + STATUS_PROMPT_FRAGMENT,
       cwd: ctx.worktreeDir,
-      outputDir: stepDir,
+      outputDir: attemptDir,
       agentConfig: {
         allowedTools: frontmatter.allowedTools as string | undefined,
         max_turns: frontmatter.max_turns as number | undefined,
@@ -635,7 +637,7 @@ export class WorkflowRunner {
       jsonSchema: mergeStatusSchema(customSchema),
       onSpawn: (pid) => {
         meta.pid = pid;
-        this.spawner.writeSpawnMeta(stepDir, meta);
+        this.spawner.writeSpawnMeta(attemptDir, meta);
       },
       onChunkWritten,
     });
@@ -644,7 +646,7 @@ export class WorkflowRunner {
     meta.finished_at = now();
     meta.exit_code = result.code;
     meta.timed_out = result.timedOut;
-    await this.spawner.writeSpawnMeta(stepDir, meta);
+    await this.spawner.writeSpawnMeta(attemptDir, meta);
 
     this.emitEvent('agent:exit', {
       task: taskSlug,
@@ -656,7 +658,7 @@ export class WorkflowRunner {
     // Report token usage
     await this.tokenReporter.report({
       projectSlug: ctx.projectSlug,
-      outputDir: stepDir,
+      outputDir: attemptDir,
       context: 'pipeline_phase',
       phase: taskSlug,
       resolvedModel: resolved.model,
@@ -702,12 +704,28 @@ export class WorkflowRunner {
     const progressPath = join(ctx.waveDir, 'workflow-progress.txt');
 
     await mkdir(stepDir, { recursive: true });
+    const attemptDir = await this.state.resolveNextAttemptDir(stepDir);
 
     const sessionId = `wave-${ctx.waveNumber}-deterministic`;
     const model = 'engine/deterministic-merge';
-    const jsonlPath = join(stepDir, 'spawn.jsonl');
-    const writeLine = (obj: unknown) => appendFileSync(jsonlPath, JSON.stringify(obj) + '\n', 'utf-8');
     const startedAt = now();
+
+    // Write initial spawn.json immediately so reuse-rule won't treat this attempt as unstarted
+    // if the deterministic layer fails and agent fallback resolves its own next attempt dir.
+    await this.spawner.writeSpawnMeta(attemptDir, {
+      task: 'merge-worktree',
+      agent: 'deterministic',
+      wave: ctx.waveNumber,
+      step: stepIndex,
+      attempt: parseInt(basename(attemptDir).split('-')[1]!, 10),
+      parent_pid: process.pid,
+      pid: process.pid,
+      started_at: startedAt,
+      timed_out: false,
+    });
+
+    const jsonlPath = join(attemptDir, 'spawn.jsonl');
+    const writeLine = (obj: unknown) => appendFileSync(jsonlPath, JSON.stringify(obj) + '\n', 'utf-8');
 
     const onChunkWritten = this.makeChunkDebounce('merge-worktree', 'deterministic');
 
@@ -734,6 +752,7 @@ export class WorkflowRunner {
         agent: 'deterministic',
         wave: ctx.waveNumber,
         step: stepIndex,
+        attempt: parseInt(basename(attemptDir).split('-')[1]!, 10),
         parent_pid: process.pid,
         pid: process.pid,
         started_at: startedAt,
@@ -741,7 +760,7 @@ export class WorkflowRunner {
         exit_code: 0,
         timed_out: false,
       };
-      await this.spawner.writeSpawnMeta(stepDir, meta);
+      await this.spawner.writeSpawnMeta(attemptDir, meta);
 
       // Cleanup worktree and branch
       try {
@@ -796,6 +815,13 @@ export class WorkflowRunner {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'ralph-wiggum-loop', task: taskSlug }));
     await mkdir(stepDir, { recursive: true });
 
+    // Determine attempt number by counting existing attempt-N/ dirs
+    const { readdir } = await import('node:fs/promises');
+    const existing = await readdir(stepDir).catch(() => [] as string[]);
+    const attemptNumber = existing.filter((d) => /^attempt-\d+$/.test(d)).length + 1;
+    const loopDir = join(stepDir, `attempt-${attemptNumber}`);
+    await mkdir(loopDir, { recursive: true });
+
     // Reset stale in_progress features (from crash/restart)
     const featuresPath = join(ctx.sprintDir, 'features.json');
     const features = await this.state.readJson<Feature[]>(featuresPath);
@@ -816,7 +842,7 @@ export class WorkflowRunner {
     return loop.execute(taskSlug, {
       worktreeDir: ctx.worktreeDir,
       sprintDir: ctx.sprintDir,
-      stepDir,
+      stepDir: loopDir,
       agentsDir: ctx.agentsDir,
       tasksDir: ctx.tasksDir,
       plan: ctx.plan,

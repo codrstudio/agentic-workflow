@@ -69,7 +69,7 @@ class MonitorService {
     if (serialized === this.lastSnapshots.get(slug)) return;
     this.lastSnapshots.set(slug, serialized);
 
-    if (!snapshot.activity.engine_alive) this.activeProjects.delete(slug);
+    if (!snapshot.activity.engine_alive && !snapshot.activity.run_active) this.activeProjects.delete(slug);
 
     eventBus.broadcast({
       type: 'monitor:snapshot',

@@ -175,13 +175,12 @@ export class AgentSpawner {
 
         let response: unknown;
         if (useJsonSchema && stdoutChunks.length > 0) {
+          const raw = Buffer.concat(stdoutChunks).toString('utf-8');
+          const lastLine = raw.trimEnd().split('\n').at(-1)?.trim() ?? '';
           try {
-            const raw = Buffer.concat(stdoutChunks).toString('utf-8').trim();
-            const parsed = JSON.parse(raw);
-            response = parsed.structured_output ?? (parsed.result || null);
-          } catch {
-            // JSON parse failed
-          }
+            const obj = JSON.parse(lastLine);
+            response = obj?.structured_output ?? obj?.result ?? null;
+          } catch { /* última linha não é JSON válido */ }
         }
 
         resolve({

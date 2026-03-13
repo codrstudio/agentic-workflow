@@ -18,10 +18,28 @@ export class WorktreeManager {
   create(worktreePath: string, branchName: string, baseBranch?: string): WorktreeInfo {
     const baseRef = baseBranch ?? 'HEAD';
 
-    execSync(
-      `git worktree add -b "${branchName}" "${worktreePath}" ${baseRef}`,
-      { cwd: this.repoRoot, stdio: 'pipe' },
-    );
+    // Check if the branch already exists (e.g. from a prior attempt that crashed).
+    // If so, reuse it; otherwise create a new branch.
+    const branchExists = (() => {
+      try {
+        const out = execSync(`git branch --list "${branchName}"`, { cwd: this.repoRoot, encoding: 'utf-8' });
+        return out.trim().length > 0;
+      } catch { return false; }
+    })();
+
+    if (branchExists) {
+      // Prune stale worktree registrations (path may be missing from a prior crashed attempt)
+      try { execSync('git worktree prune', { cwd: this.repoRoot, stdio: 'pipe' }); } catch { /* best effort */ }
+      execSync(
+        `git worktree add "${worktreePath}" "${branchName}"`,
+        { cwd: this.repoRoot, stdio: 'pipe' },
+      );
+    } else {
+      execSync(
+        `git worktree add -b "${branchName}" "${worktreePath}" ${baseRef}`,
+        { cwd: this.repoRoot, stdio: 'pipe' },
+      );
+    }
 
     const head = execSync('git rev-parse HEAD', {
       cwd: worktreePath,

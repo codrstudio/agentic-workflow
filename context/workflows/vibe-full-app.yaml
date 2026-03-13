@@ -35,4 +35,4 @@ steps:
   - type: stop-on-wave-limit
 
   - type: spawn-workflow
-    workflow: vibe-app
+    workflow: vibe-full-app

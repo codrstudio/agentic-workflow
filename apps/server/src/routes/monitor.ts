@@ -15,11 +15,12 @@ import {
   computeWaveTiming,
   findLatestSprintDir,
   countFeaturesByStatus,
+  resolveLatestAttemptDir,
   type TimingResult,
   type StepStatus,
   type LoopJson,
 } from '../lib/wave-state.js';
-import { readServerRunMeta, type RunMode } from '../routes/runs.js';
+import { readServerRunMeta, isRunActive, type RunMode } from '../routes/runs.js';
 
 const app = new Hono();
 
@@ -41,7 +42,7 @@ export interface MonitorData {
   feature_counters: { passing: number; failing: number; skipped: number; pending: number; in_progress: number; blocked: number };
   features: unknown[];
   last_output: string[];
-  activity: { last_output_age_ms: number | null; step_elapsed_ms: number | null; engine_pid: number | null; engine_alive: boolean; agent_pid: number | null; agent_alive: boolean; run_mode: 'spawn' | 'detached'; run_id: string | null };
+  activity: { last_output_age_ms: number | null; step_elapsed_ms: number | null; engine_pid: number | null; engine_alive: boolean; agent_pid: number | null; agent_alive: boolean; run_mode: 'spawn' | 'detached'; run_id: string | null; run_active: boolean };
   resumable: boolean;
   wave_history: Array<{ number: number; status: StepStatus; steps_total: number; steps_done: number; duration_ms: number | null }>;
 }
@@ -138,6 +139,7 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
     agent_pid: null, agent_alive: false,
     run_mode: runMode,
     run_id: runMeta?.run_id ?? null,
+    run_active: runMeta?.run_id ? isRunActive(runMeta.run_id) : false,
   };
 
   if (currentWaveDirName) {
@@ -167,7 +169,8 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
     const loopDirName = stepDirNames.find((d) => d.includes('ralph-wiggum-loop'));
     if (loopDirName) {
       try {
-        const loopJson = await readJson(path.join(wavePath, loopDirName, 'loop.json')) as Record<string, unknown>;
+        const latestAttemptDir = await resolveLatestAttemptDir(path.join(wavePath, loopDirName));
+        const loopJson = await readJson(path.join(latestAttemptDir, 'loop.json')) as Record<string, unknown>;
         loop = {
           status: (loopJson['status'] as string) ?? 'unknown',
           iteration: (loopJson['iteration'] as number) ?? 0,
@@ -222,14 +225,16 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
         const parsed = parseStepDir(runningDirName);
         if (!parsed?.isLoop) {
           try {
-            const spawnJson = await readJson(path.join(wavePath, runningDirName, 'spawn.json')) as Record<string, unknown>;
+            const attemptDir = await resolveLatestAttemptDir(path.join(wavePath, runningDirName));
+            const spawnJson = await readJson(path.join(attemptDir, 'spawn.json')) as Record<string, unknown>;
             const agentPid = (spawnJson['pid'] as number | undefined) ?? null;
             activity.agent_pid = agentPid;
             activity.agent_alive = agentPid !== null && isPidAlive(agentPid);
           } catch { /* ignore */ }
         } else if (loopDirName) {
           try {
-            const loopJson = await readJson(path.join(wavePath, loopDirName, 'loop.json')) as Record<string, unknown>;
+            const latestAttemptDir = await resolveLatestAttemptDir(path.join(wavePath, loopDirName));
+            const loopJson = await readJson(path.join(latestAttemptDir, 'loop.json')) as Record<string, unknown>;
             const agentPid = (loopJson['pid'] as number | undefined) ?? null;
             activity.agent_pid = agentPid;
             activity.agent_alive = agentPid !== null && isPidAlive(agentPid);
@@ -244,8 +249,9 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
     runMode === 'spawn' &&
     currentWave !== null &&
     currentWave.status !== 'completed' &&
-    currentWave.steps.some((s) => s.status === 'completed') &&
-    currentWave.steps.some((s) => s.status === 'pending' || s.status === 'interrupted');
+    currentWave.status !== 'failed' &&
+    (currentWave.steps.length === 0 ||
+      currentWave.steps.some((s) => s.status === 'pending' || s.status === 'running' || s.status === 'interrupted'));
 
   return {
     project: {

@@ -224,4 +224,8 @@ app.delete('/:runId', (c) => {
   return c.json({ ok: true });
 });
 
+export function isRunActive(runId: string): boolean {
+  return runsStore.get(runId)?.status === 'running';
+}
+
 export { app as runs };
