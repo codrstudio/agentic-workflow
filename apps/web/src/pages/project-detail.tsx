@@ -9,7 +9,6 @@ import {
   Terminal,
   ListChecks,
   FileText,
-  ArrowRight,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
@@ -132,19 +131,16 @@ export function ProjectDetailPage() {
 
       {/* Active runs summary */}
       {activeRuns.length > 0 && (
-        <section className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+        <Link
+          to="/projects/$slug/monitor"
+          params={{ slug }}
+          className="block bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 hover:bg-blue-500/20 transition-colors"
+        >
+          <div className="flex items-center mb-2">
             <h2 className="text-sm font-semibold text-blue-700 dark:text-blue-400 flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               {activeRuns.length} execução(ões) ativa(s)
             </h2>
-            <Link
-              to="/projects/$slug/waves"
-              params={{ slug }}
-              className="text-xs text-blue-700 dark:text-blue-400 hover:underline flex items-center gap-1"
-            >
-              Ver detalhes <ArrowRight className="w-3 h-3" />
-            </Link>
           </div>
           <div className="flex flex-col gap-1">
             {activeRuns.map((run) => (
@@ -154,7 +150,7 @@ export function ProjectDetailPage() {
               </div>
             ))}
           </div>
-        </section>
+        </Link>
       )}
 
       {/* Quick links */}
