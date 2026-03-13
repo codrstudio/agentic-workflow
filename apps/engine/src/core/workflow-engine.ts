@@ -1,5 +1,6 @@
 import { join } from 'node:path';
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
+import { appendFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
@@ -697,10 +698,27 @@ export class WorkflowRunner {
     const targetBranch = ctx.targetBranch ?? 'main';
     const progressPath = join(ctx.waveDir, 'workflow-progress.txt');
 
+    await mkdir(stepDir, { recursive: true });
+
+    const sessionId = `wave-${ctx.waveNumber}-deterministic`;
+    const model = 'engine/deterministic-merge';
+    const jsonlPath = join(stepDir, 'spawn.jsonl');
+    const writeLine = (obj: unknown) => appendFileSync(jsonlPath, JSON.stringify(obj) + '\n', 'utf-8');
+    const startedAt = now();
+
+    writeLine({ type: 'system', subtype: 'init', model, session_id: sessionId, cwd: ctx.repoDir });
+
     try {
+      writeLine({ type: 'assistant', message: { model, content: [{ type: 'tool_use', id: 'det_1', name: 'Bash', input: { command: `git checkout ${targetBranch}` } }] } });
       execSync(`git -C "${ctx.repoDir}" checkout "${targetBranch}"`, { stdio: 'pipe' });
+
+      writeLine({ type: 'assistant', message: { model, content: [{ type: 'tool_use', id: 'det_2', name: 'Bash', input: { command: `git merge ${branchName} --no-ff --no-edit` } }] } });
       execSync(`git -C "${ctx.repoDir}" merge "${branchName}" --no-ff --no-edit`, { stdio: 'pipe' });
+
       const mergedSha = execSync(`git -C "${ctx.repoDir}" rev-parse HEAD`, { stdio: 'pipe' }).toString().trim();
+
+      writeLine({ type: 'assistant', message: { model, content: [{ type: 'text', text: `[deterministic] merge concluído — SHA: ${mergedSha}` }], stop_reason: 'end_turn' } });
+
 
       const meta: SpawnMeta = {
         task: 'merge-worktree',
@@ -709,13 +727,12 @@ export class WorkflowRunner {
         step: stepIndex,
         parent_pid: process.pid,
         pid: process.pid,
-        started_at: now(),
+        started_at: startedAt,
         finished_at: now(),
         exit_code: 0,
         timed_out: false,
       };
       await this.spawner.writeSpawnMeta(stepDir, meta);
-      await this.writeDeterministicJsonl(stepDir, ctx.repoDir, targetBranch, branchName, ctx.waveNumber, mergedSha);
 
       // Cleanup worktree and branch
       try {
@@ -729,7 +746,10 @@ export class WorkflowRunner {
 
       const response = MergeWorktreeResponseSchema.parse({ success: true, merged_sha: mergedSha });
       return { exitCode: 0, reason: 'ok', response };
-    } catch {
+    } catch (err) {
+      writeLine({ type: 'assistant', message: { model, content: [{ type: 'text', text: `[deterministic] merge falhou — ${err instanceof Error ? err.message : String(err)}` }], stop_reason: 'end_turn' } });
+
+
       // Abort any in-progress merge before falling back to agent
       try {
         execSync(`git -C "${ctx.repoDir}" merge --abort`, { stdio: 'pipe' });
@@ -753,30 +773,6 @@ export class WorkflowRunner {
         MergeWorktreeResponseSchema,
       );
     }
-  }
-
-
-  private async writeDeterministicJsonl(
-    stepDir: string,
-    repoDir: string,
-    targetBranch: string,
-    branchName: string,
-    waveNumber: number,
-    mergedSha: string,
-  ): Promise<void> {
-    const sessionId = `wave-${waveNumber}-deterministic`;
-    const model = 'engine/deterministic-merge';
-    const mkLine = (obj: unknown) => JSON.stringify(obj);
-
-    const lines = [
-      mkLine({ type: 'system', subtype: 'init', model, session_id: sessionId, cwd: repoDir }),
-      mkLine({ type: 'assistant', message: { model, content: [{ type: 'tool_use', id: 'det_1', name: 'Bash', input: { command: `git checkout ${targetBranch}` } }] } }),
-      mkLine({ type: 'assistant', message: { model, content: [{ type: 'tool_use', id: 'det_2', name: 'Bash', input: { command: `git merge ${branchName} --no-ff --no-edit` } }] } }),
-      mkLine({ type: 'assistant', message: { model, content: [{ type: 'tool_use', id: 'det_3', name: 'Bash', input: { command: `git worktree remove --force && git branch -D ${branchName}` } }] } }),
-      mkLine({ type: 'assistant', message: { model, content: [{ type: 'text', text: `[deterministic] merge concluído — SHA: ${mergedSha}` }], stop_reason: 'end_turn' } }),
-    ];
-
-    await writeFile(join(stepDir, 'spawn.jsonl'), lines.join('\n') + '\n', 'utf-8');
   }
 
   private async executeFeatureLoop(

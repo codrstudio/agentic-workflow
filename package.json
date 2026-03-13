@@ -10,7 +10,7 @@
     "build:web": "npm -w @aw/web run build",
     "typecheck": "npm -w @aw/engine run typecheck",
     "dev:web": "dotenv -e .env -- npm -w @aw/web run dev",
-    "dev:all": "dotenv -e .env -- concurrently \"npm -w @aw/server run dev\" \"npm -w @aw/web run dev\"",
+    "dev:all": "dotenv -e .env -- concurrently \"npm -w @aw/engine run dev\" \"npm -w @aw/server run dev\" \"npm -w @aw/web run dev\"",
     "aw:run": "dotenv -e .env -- node apps/engine/dist/cli.js",
     "aw:status": "dotenv -e .env -- node apps/engine/dist/status.js",
     "aw:message": "dotenv -e .env -- node apps/engine/dist/message.js",
