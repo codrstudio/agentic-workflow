@@ -225,11 +225,10 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
       duration_ms = new Date(loop.updated_at).getTime() - new Date(loop.started_at).getTime();
     }
 
-    // List feature attempt directories (inside latest attempt-N subdir)
-    const loopAttemptDir = await resolveLatestAttemptDir(stepDir);
+    // List feature attempt directories (at the step root level)
     const attemptDirs: string[] = [];
     try {
-      const entries = await fs.readdir(loopAttemptDir, { withFileTypes: true });
+      const entries = await fs.readdir(stepDir, { withFileTypes: true });
       for (const e of entries) {
         if (e.isDirectory() && /^F-\d+-attempt-\d+$/.test(e.name)) {
           attemptDirs.push(e.name);
@@ -257,7 +256,7 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
       duration_ms?: number;
     }> = [];
     for (const aDir of attemptDirs) {
-      const aSpawnFile = path.join(loopAttemptDir, aDir, 'spawn.json');
+      const aSpawnFile = path.join(stepDir, aDir, 'spawn.json');
       try {
         const aSpawn = await readJson(aSpawnFile) as SpawnJson & { feature?: string; attempt?: number };
         const aStatus = deriveStatus(aSpawn, true);
@@ -454,8 +453,7 @@ app.get('/:waveNumber/steps/:stepIndex/log', async (c) => {
     if (!/^F-\d+-attempt-\d+$/.test(attemptQuery)) {
       return c.json({ error: 'Invalid attempt directory' }, 400);
     }
-    const loopLogAttemptDir = await resolveLatestAttemptDir(stepDir);
-    const jsonlFile = path.join(loopLogAttemptDir, attemptQuery, 'spawn.jsonl');
+    const jsonlFile = path.join(stepDir, attemptQuery, 'spawn.jsonl');
     const allLines = await parseSpawnJsonl(jsonlFile);
     const total = allLines.length;
     const page = allLines.slice(offset, offset + limit);
