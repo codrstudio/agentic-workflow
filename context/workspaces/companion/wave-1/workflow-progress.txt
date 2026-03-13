@@ -898,3 +898,4 @@ Diagnóstico: todas as etapas já concluídas em sessão anterior.
 Diagnóstico: todas as etapas já concluídas em sessão anterior.
 - merged_sha: 21ac8cdd989d3c686529f5224181bf5dcd129583
 - Retornando JSON com success:true para desbloquer o harness.
+[2026-03-13 14:47:30] Step 7 (merge-worktree): Failed (exit 1). agent_failed: agent reported failure without message
