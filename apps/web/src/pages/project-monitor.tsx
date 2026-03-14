@@ -246,7 +246,7 @@ export function ProjectMonitorPage() {
               Parar
             </button>
           )}
-          {data.activity.run_mode === "spawn" && data.resumable && (
+          {data.activity.run_mode === "spawn" && !data.activity.engine_alive && (
             <button
               onClick={handleResume}
               disabled={actionLoading}
