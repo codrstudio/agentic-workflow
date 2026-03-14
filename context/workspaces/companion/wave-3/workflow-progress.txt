@@ -470,3 +470,19 @@
   - Typecheck: limpo, sem erros
   - Todos os 6 critérios de teste atendidos
 [2026-03-14 14:23:54] Step 6 (ralph-wiggum-loop): Completed. completed
+[2026-03-14] Step 7 (merge-worktree): Completed. merged_sha=8ba4d201475aaa48613810f13e8d0fd448cc34a6
+  - Merge de harness/wave-3 em master concluído com sucesso
+  - Conflitos resolvidos:
+    - apps/backend/src/index.ts: mantidos imports/rotas de ambos lados (auth+settings+onboarding + consent+action-items+participants+glossaries+briefings)
+    - apps/backend/src/llm.ts: usado approach wave-3 (hierárquico sem segments)
+    - apps/backend/src/migrate.ts: migrations wave-3 renumeradas 006-009 → 014-017 para evitar conflito com wave-4/5
+    - apps/backend/src/routes/recordings.ts: mantidos campos de ambos lados
+    - apps/app/src/routeTree.gen.ts: mantida versão HEAD
+    - Arquivos em src/ movidos para apps/app/src/ (novo layout)
+    - DU files resolvidos mantendo versão master
+  - Worktree removida (unregistrada do git, diretório físico com permissão negada)
+  - Branch harness/wave-3 deletado
+  - SHA do merge: 8ba4d201475aaa48613810f13e8d0fd448cc34a6
+[2026-03-14 14:36:39] Step 7 (merge-worktree): Completed. ok
+[2026-03-14 14:36:39] Step 8 (stop-on-wave-limit): Completed. continue
+[2026-03-14 14:36:39] Step 9 (spawn-vibe-full-app): Completed. spawned
