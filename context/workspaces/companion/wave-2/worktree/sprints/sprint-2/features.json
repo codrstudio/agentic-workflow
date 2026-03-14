@@ -1,0 +1,619 @@
+[
+  {
+    "id": "F-026",
+    "name": "Root Workspace + MigraÃ§Ã£o Frontend",
+    "description": "Criar root package.json com workspaces: [\"apps/*\", \"packages/*\"]. Mover src/, index.html, vite.config.ts, tailwind.config.*, postcss.config.*, public/ para apps/app/ usando git mv. Criar apps/app/package.json. Atualizar imports relativos quebrados. Configurar proxy do Vite para backend em dev. Validar que npm install na raiz reconhece o workspace apps/app e que npm run dev -w apps/app inicia o frontend sem erros.",
+    "status": "passing",
+    "priority": 1,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [],
+    "tests": [
+      "Root package.json contÃ©m workspaces: [\"apps/*\", \"packages/*\"]",
+      "apps/app/package.json existe com name e dependencies corretos",
+      "npm install na raiz funciona sem erros e reconhece workspace apps/app",
+      "npm run dev -w apps/app inicia o Vite dev server sem erros",
+      "Todos os imports relativos no frontend resolvem corretamente apÃ³s migraÃ§Ã£o",
+      "Proxy do Vite em dev redireciona /api/* para o backend"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-006-monorepo-and-docker-compose.md",
+    "completed_at": "2026-03-13T22:00:00.000Z"
+  },
+  {
+    "id": "F-027",
+    "name": "MigraÃ§Ã£o Backend",
+    "description": "Mover server/ para apps/backend/. Criar apps/backend/package.json com dependÃªncias do backend. Atualizar imports relativos. Garantir que backend lÃª variÃ¡veis de ambiente da raiz do monorepo (dotenv path). Validar que npm run dev -w apps/backend sobe o servidor e responde em /api/v1/.",
+    "status": "passing",
+    "priority": 2,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-026"
+    ],
+    "tests": [
+      "apps/backend/package.json existe com name e dependencies corretos",
+      "npm run dev -w apps/backend inicia o servidor sem erros",
+      "Backend responde em /api/v1/ com status 200",
+      "VariÃ¡veis de ambiente sÃ£o lidas do .env na raiz do monorepo",
+      "Todos os imports relativos no backend resolvem corretamente"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-006-monorepo-and-docker-compose.md",
+    "completed_at": "2026-03-13T22:30:00.000Z"
+  },
+  {
+    "id": "F-028",
+    "name": "Docker Compose (PostgreSQL + Whisper)",
+    "description": "Criar docker-compose.yml na raiz com serviÃ§o postgres (16-alpine, healthcheck pg_isready, volume persistente, POSTGRES_DB/USER/PASSWORD via .env) e serviÃ§o whisper (faster-whisper-server, GPU runtime condicional). Criar .env.example documentando todas as variÃ¡veis. Validar que docker compose up -d sobe os serviÃ§os e backend conecta ao PostgreSQL.",
+    "status": "passing",
+    "priority": 3,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-026"
+    ],
+    "tests": [
+      "docker-compose.yml existe na raiz com serviÃ§os postgres e whisper",
+      ".env.example documenta DATABASE_URL, POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD, WHISPER_URL",
+      "docker compose config valida sem erros",
+      "ServiÃ§o postgres tem healthcheck com pg_isready",
+      "Volume persistente configurado para dados do PostgreSQL"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-006-monorepo-and-docker-compose.md",
+    "completed_at": "2026-03-13T23:00:00.000Z"
+  },
+  {
+    "id": "F-029",
+    "name": "Scripts da Raiz + Concurrently",
+    "description": "Instalar concurrently como devDependency da raiz. Configurar scripts no root package.json: dev:all (frontend + backend concorrentes), build:all (backend + frontend sequencial), dev:app, dev:backend, dev:landing. Validar que npm run dev:all sobe frontend e backend simultaneamente com output colorido.",
+    "status": "passing",
+    "priority": 4,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-026",
+      "F-027"
+    ],
+    "tests": [
+      "concurrently estÃ¡ listado em devDependencies do root package.json",
+      "npm run dev:all inicia frontend e backend simultaneamente",
+      "npm run build:all compila backend e frontend sem erros",
+      "npm run dev:app inicia apenas o frontend",
+      "npm run dev:backend inicia apenas o backend",
+      "Output de dev:all Ã© colorido e diferencia frontend/backend"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-006-monorepo-and-docker-compose.md",
+    "completed_at": "2026-03-13T23:30:00.000Z"
+  },
+  {
+    "id": "F-030",
+    "name": "Landing Scaffold + packages/ui Scaffold",
+    "description": "Criar apps/landing/ com Next.js scaffold mÃ­nimo (package.json, page.tsx placeholder com h1 'Voice Companion', tsconfig.json). Criar packages/ui/ com package.json e src/index.ts exportando placeholder. Ambos devem ser reconhecidos pelo workspace. Validar com npm ls que todos os workspaces aparecem.",
+    "status": "passing",
+    "priority": 5,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-026"
+    ],
+    "tests": [
+      "apps/landing/package.json existe e Ã© reconhecido pelo workspace",
+      "apps/landing/ tem page.tsx com placeholder renderizÃ¡vel",
+      "packages/ui/package.json existe e Ã© reconhecido pelo workspace",
+      "packages/ui/src/index.ts existe e exporta ao menos um placeholder",
+      "npm ls --all --depth=0 lista todos os workspaces sem erros"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-006-monorepo-and-docker-compose.md",
+    "completed_at": "2026-03-13T00:00:00Z"
+  },
+  {
+    "id": "F-031",
+    "name": "Backend: Users Table + Seed",
+    "description": "Criar tabela users no PostgreSQL com campos: id (UUID PK), email (unique), name, password_hash (bcrypt), department (enum: gestao, educacao, vendas_cs, produto_design, engenharia, rh), avatar_url nullable, is_active (default true), created_at, updated_at. Adicionar FK user_id em recordings e tags. Criar seed com usuÃ¡rio admin (admin@keepcoding.com, department gestao, senha admin123 com bcrypt hash).",
+    "status": "passing",
+    "priority": 6,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-027"
+    ],
+    "tests": [
+      "Tabela users existe com todos os campos especificados (id UUID, email unique, password_hash, department)",
+      "Department aceita apenas os 6 valores vÃ¡lidos (gestao, educacao, vendas_cs, produto_design, engenharia, rh)",
+      "FK user_id adicionada na tabela recordings",
+      "FK user_id adicionada na tabela tags",
+      "UsuÃ¡rio admin seed existe com email admin@keepcoding.com e department gestao",
+      "Password do admin Ã© bcrypt hash de admin123"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
+    "completed_at": "2026-03-13T23:15:00.000Z"
+  },
+  {
+    "id": "F-032",
+    "name": "Backend: Register + Login Endpoints",
+    "description": "Implementar POST /api/v1/auth/register com validaÃ§Ã£o (email Ãºnico, senha min 8 chars, departamento em lista vÃ¡lida). Hash de senha com bcrypt. Retorna JWT com sub: user_id e expiraÃ§Ã£o 7 dias + user data. Implementar POST /api/v1/auth/login com verificaÃ§Ã£o bcrypt. Retorna JWT + user data. Implementar GET /api/v1/auth/me que retorna dados do usuÃ¡rio autenticado a partir do JWT.",
+    "status": "passing",
+    "priority": 7,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-031"
+    ],
+    "tests": [
+      "POST /api/v1/auth/register cria usuÃ¡rio e retorna 201 com JWT + user data",
+      "Register com email duplicado retorna 409",
+      "Register com senha < 8 chars retorna 400",
+      "POST /api/v1/auth/login com credenciais corretas retorna 200 com JWT + user data",
+      "Login com senha errada retorna 401",
+      "GET /api/v1/auth/me com JWT vÃ¡lido retorna dados do usuÃ¡rio",
+      "JWT expira em 7 dias (verificar campo exp no payload)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
+    "completed_at": "2026-03-13T23:25:53Z"
+  },
+  {
+    "id": "F-033",
+    "name": "Backend: JWT Middleware + Isolamento",
+    "description": "Criar middleware Hono que valida JWT em todas as rotas /api/v1/hub/*. Extrair user_id do token e adicionar ao contexto (c.set('userId', ...)). Retornar 401 se token ausente, invÃ¡lido ou expirado. Atualizar todas as queries de recordings, tags, summaries e shares para filtrar por user_id do contexto. Rotas /api/v1/auth/* e /api/v1/hub/shared/:token permanecem pÃºblicas.",
+    "status": "passing",
+    "priority": 8,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-032"
+    ],
+    "tests": [
+      "RequisiÃ§Ã£o a /api/v1/hub/* sem JWT retorna 401",
+      "RequisiÃ§Ã£o com JWT expirado retorna 401",
+      "RequisiÃ§Ã£o com JWT vÃ¡lido passa e c.get('userId') retorna user_id correto",
+      "GET /api/v1/hub/recordings retorna apenas recordings do user_id autenticado",
+      "GET /api/v1/hub/tags retorna apenas tags do user_id autenticado",
+      "Rotas /api/v1/auth/* continuam acessÃ­veis sem JWT",
+      "Rota /api/v1/hub/shared/:token continua acessÃ­vel sem JWT"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
+    "completed_at": "2026-03-13T23:34:40Z"
+  },
+  {
+    "id": "F-034",
+    "name": "Frontend: Login + Register Pages",
+    "description": "Implementar tela Login (/login) com LoginForm (email, password, validaÃ§Ã£o client-side, submit via POST /auth/login). Implementar tela Register (/register) com RegisterForm (name, email, password, department select com 6 opÃ§Ãµes). Toast de erro/sucesso via Sonner. NavegaÃ§Ã£o entre login e registro com links. ApÃ³s login bem-sucedido, redirecionar para / ou para returnTo da URL.",
+    "status": "passing",
+    "priority": 9,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-026",
+      "F-032"
+    ],
+    "tests": [
+      "Rota /login renderiza formulÃ¡rio com campos email e password",
+      "Rota /register renderiza formulÃ¡rio com campos name, email, password, department select",
+      "Submit de login com credenciais vÃ¡lidas redireciona para / ou returnTo",
+      "Submit de login com credenciais invÃ¡lidas exibe toast de erro",
+      "Submit de registro cria conta e redireciona para /",
+      "Links de navegaÃ§Ã£o entre /login e /register funcionam",
+      "Department select oferece 6 opÃ§Ãµes (gestao, educacao, vendas_cs, produto_design, engenharia, rh)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
+    "completed_at": "2026-03-13T23:48:21Z"
+  },
+  {
+    "id": "F-035",
+    "name": "Frontend: AuthProvider + AuthGuard",
+    "description": "Criar AuthProvider com estado (user, token, isAuthenticated) e mÃ©todos (login, register, logout). Token persiste em localStorage. AuthGuard wrapper redireciona para /login?returnTo=<currentPath> se nÃ£o autenticado. Logout limpa token e redireciona para /login. Rotas pÃºblicas (/login, /register, /hub/shared/:token) acessÃ­veis sem autenticaÃ§Ã£o. API client injeta token em header Authorization: Bearer.",
+    "status": "passing",
+    "priority": 10,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-034"
+    ],
+    "tests": [
+      "AuthProvider disponibiliza user, token, isAuthenticated no context",
+      "Token Ã© salvo em localStorage apÃ³s login bem-sucedido",
+      "Acesso a rota protegida sem token redireciona para /login?returnTo=<path>",
+      "ApÃ³s login, redireciona para returnTo da URL",
+      "Logout limpa token do localStorage e redireciona para /login",
+      "Rotas /login, /register e /hub/shared/:token sÃ£o acessÃ­veis sem autenticaÃ§Ã£o",
+      "RequisiÃ§Ãµes API incluem header Authorization: Bearer <token>"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
+    "completed_at": "2026-03-13T23:50:00.000Z"
+  },
+  {
+    "id": "F-036",
+    "name": "Backend: Settings Schema + API",
+    "description": "Adicionar colunas Ã  tabela users: preferred_template (varchar default 'general'), preferred_language (varchar default 'pt-BR'), notification_enabled (boolean default true). Implementar GET /api/v1/hub/settings que retorna configuraÃ§Ãµes do user autenticado. Implementar PATCH /api/v1/hub/settings com validaÃ§Ã£o e auto-mapeamento departamentoâ†’template (gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, produto_designâ†’planning, engenhariaâ†’planning, rhâ†’interview). Implementar PATCH /api/v1/hub/settings/password com validaÃ§Ã£o de senha atual via bcrypt.",
+    "status": "passing",
+    "priority": 11,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-033"
+    ],
+    "tests": [
+      "Colunas preferred_template, preferred_language, notification_enabled existem na tabela users",
+      "GET /api/v1/hub/settings retorna name, email, department, preferred_template, preferred_language, notification_enabled",
+      "PATCH /api/v1/hub/settings atualiza campos e retorna 200",
+      "Ao mudar department sem enviar template, auto-mapeia (gestaoâ†’meeting, educacaoâ†’mentoring, etc.)",
+      "PATCH /api/v1/hub/settings/password com senha atual correta altera senha e retorna 200",
+      "PATCH /api/v1/hub/settings/password com senha atual errada retorna 401",
+      "Nova senha com < 8 chars retorna 400"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md",
+    "completed_at": "2026-03-13T00:00:00.000Z"
+  },
+  {
+    "id": "F-040",
+    "name": "Backend: Endpoint de Listagem de Summaries",
+    "description": "Implementar GET /api/v1/hub/recordings/:id/summaries que retorna lista de summaries da gravaÃ§Ã£o (id, template_type, status, created_at). Filtrar por user_id autenticado via recording ownership (verificar que recording pertence ao user antes de retornar summaries). Retorna array vazio se nÃ£o hÃ¡ summaries. 404 se recording nÃ£o existe ou nÃ£o pertence ao user.",
+    "status": "passing",
+    "priority": 12,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-033"
+    ],
+    "tests": [
+      "GET /api/v1/hub/recordings/:id/summaries retorna array de summaries com id, template_type, status, created_at",
+      "Retorna apenas summaries de recordings que pertencem ao user autenticado",
+      "Retorna array vazio se recording existe mas nÃ£o tem summaries",
+      "Retorna 404 se recording nÃ£o existe",
+      "Retorna 404 se recording pertence a outro user"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
+    "completed_at": "2026-03-14T00:12:36Z"
+  },
+  {
+    "id": "F-049",
+    "name": "Backend: Status Fields + SSE Events",
+    "description": "Alterar query de GET /api/v1/hub/recordings para incluir transcription_status e summary_status via JOIN nas tabelas transcriptions e summaries. Enriquecer evento SSE recording:status com esses campos adicionais. Criar novo evento SSE summary:status disparado quando status do summary muda para completed. Evento contÃ©m recording_id, summary_id, template_type, status.",
+    "status": "pending",
+    "priority": 13,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-033"
+    ],
+    "tests": [
+      "GET /api/v1/hub/recordings retorna transcription_status e summary_status para cada recording",
+      "transcription_status reflete o status mais recente da transcriÃ§Ã£o (pending/processing/completed/failed/null)",
+      "summary_status reflete o status mais recente do summary (pending/processing/completed/failed/null)",
+      "Evento SSE recording:status inclui transcription_status e summary_status",
+      "Novo evento SSE summary:status Ã© emitido quando summary muda para completed",
+      "Evento summary:status contÃ©m recording_id, summary_id, template_type, status"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+  },
+  {
+    "id": "F-052",
+    "name": "Backend: Chapters Generation",
+    "description": "Adicionar coluna chapters JSONB Ã  tabela summaries (default []). Alterar prompt LLM de geraÃ§Ã£o de summary (F-013) para incluir instruÃ§Ã£o de gerar capÃ­tulos temÃ¡ticos com campos: title (string), start_segment_index (int), end_segment_index (int), start_ms (int), end_ms (int). Implementar GET /api/v1/hub/recordings/:id/chapters que retorna chapters do summary mais recente. 404 se nÃ£o existem chapters.",
+    "status": "pending",
+    "priority": 14,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-033"
+    ],
+    "tests": [
+      "Coluna chapters JSONB existe na tabela summaries com default []",
+      "Prompt LLM inclui instruÃ§Ã£o para gerar capÃ­tulos temÃ¡ticos",
+      "Chapters gerados tÃªm campos title, start_segment_index, end_segment_index, start_ms, end_ms",
+      "GET /api/v1/hub/recordings/:id/chapters retorna array de chapters do summary mais recente",
+      "Retorna 404 se recording nÃ£o tem chapters",
+      "Chapters sÃ£o ordenados por start_ms"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+  },
+  {
+    "id": "F-039",
+    "name": "IntegraÃ§Ã£o: Auto-geraÃ§Ã£o Personalizada",
+    "description": "Alterar o fluxo de auto-geraÃ§Ã£o de resumo pÃ³s-transcriÃ§Ã£o (F-014): ao invÃ©s de gerar com template general hardcoded, buscar preferred_template do user_id da recording e usar esse template. Fallback para general se preferred_template nÃ£o estÃ¡ configurado (null ou vazio). Validar que mudanÃ§a de template em settings afeta prÃ³ximas geraÃ§Ãµes automÃ¡ticas.",
+    "status": "pending",
+    "priority": 15,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-036"
+    ],
+    "tests": [
+      "Auto-geraÃ§Ã£o pÃ³s-transcriÃ§Ã£o usa preferred_template do user owner da recording",
+      "Se preferred_template Ã© null ou vazio, fallback para template general",
+      "MudanÃ§a de preferred_template em settings afeta prÃ³ximas auto-geraÃ§Ãµes",
+      "User com department educacao e auto-mapeamento recebe summary tipo mentoring automaticamente",
+      "Fluxo completo: upload â†’ transcriÃ§Ã£o â†’ summary com template personalizado funciona end-to-end"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md"
+  },
+  {
+    "id": "F-037",
+    "name": "Frontend: Settings Page â€” Perfil + Resumos",
+    "description": "Implementar tela /hub/settings com ProfileSection (avatar placeholder, nome editÃ¡vel, email readonly, select departamento com 6 opÃ§Ãµes, botÃ£o salvar) e SummaryPreferencesSection (select template padrÃ£o com 6 opÃ§Ãµes: meeting, mentoring, interview, planning, sales_call, general + info text explicando efeito do template). Dados carregados via GET /hub/settings. Salvar via PATCH /hub/settings. Toast de feedback via Sonner.",
+    "status": "pending",
+    "priority": 16,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-035",
+      "F-036"
+    ],
+    "tests": [
+      "Rota /hub/settings renderiza pÃ¡gina com seÃ§Ãµes Perfil e Resumos",
+      "ProfileSection exibe nome editÃ¡vel, email readonly, select departamento",
+      "SummaryPreferencesSection exibe select com 6 template types",
+      "Dados sÃ£o carregados do backend via GET /api/v1/hub/settings",
+      "BotÃ£o salvar envia PATCH /api/v1/hub/settings e exibe toast de sucesso",
+      "MudanÃ§a de departamento sem alterar template auto-mapeia no backend",
+      "Info text explica o efeito do template selecionado"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md"
+  },
+  {
+    "id": "F-038",
+    "name": "Frontend: Settings Page â€” NotificaÃ§Ãµes + SeguranÃ§a",
+    "description": "Implementar NotificationSection com toggle on/off para notificaÃ§Ãµes de conclusÃ£o de transcriÃ§Ã£o/resumo. Implementar SecuritySection com botÃ£o 'Alterar senha' que abre ChangePasswordDialog (dialog responsivo, campos current_password e new_password com min 8 chars, validaÃ§Ã£o client-side). Salvar toggle via PATCH /hub/settings, senha via PATCH /hub/settings/password. Toast de feedback.",
+    "status": "blocked",
+    "priority": 17,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-037"
+    ],
+    "tests": [
+      "NotificationSection exibe toggle de notificaÃ§Ãµes refletindo estado atual",
+      "Toggle salva via PATCH /api/v1/hub/settings",
+      "SecuritySection exibe botÃ£o 'Alterar senha'",
+      "Clicar no botÃ£o abre ChangePasswordDialog",
+      "Dialog requer current_password e new_password (min 8 chars)",
+      "Submit com senha atual correta altera senha e exibe toast de sucesso",
+      "Submit com senha atual errada exibe toast de erro"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md"
+  },
+  {
+    "id": "F-041",
+    "name": "Frontend: SummaryTab Container + Estados",
+    "description": "Implementar SummaryTab como segunda tab na tela de detalhe da gravaÃ§Ã£o (/hub/recordings/:id). Buscar summaries via TanStack Query (GET /recordings/:id/summaries). Renderizar estado correto: SummaryWaitingState (transcriÃ§Ã£o pendente, Ã­cone + texto informativo), skeleton loader (summary gerando), SummaryErrorState (erro com botÃ£o retry), conteÃºdo quando completo. Incluir TemplateTypeSelect no topo com 6 opÃ§Ãµes.",
+    "status": "blocked",
+    "priority": 18,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-035",
+      "F-040"
+    ],
+    "tests": [
+      "Tab 'Resumo' aparece como segunda tab na tela de detalhe",
+      "TemplateTypeSelect no topo oferece 6 template types",
+      "Estado waiting exibido quando transcriÃ§Ã£o ainda nÃ£o completou",
+      "Skeleton loader exibido enquanto summary estÃ¡ gerando",
+      "Erro exibido com botÃ£o retry quando summary falhou",
+      "ConteÃºdo do summary renderizado quando status Ã© completed",
+      "TanStack Query busca summaries corretamente via GET endpoint"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+  },
+  {
+    "id": "F-042",
+    "name": "Frontend: Meeting + General Summary Views",
+    "description": "Implementar MeetingSummaryView com cards para: executive_summary (texto), DecisionsList (Ã­cone check + description + owner badge), ActionItemsList (checkbox visual readonly + task + owner badge + due date formatado). Implementar GeneralSummaryView com: summary text, key_points list (bullet points), action_items checklist (checkbox visual + texto). Ambos parseiam o campo content JSONB do summary.",
+    "status": "blocked",
+    "priority": 19,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-041"
+    ],
+    "tests": [
+      "MeetingSummaryView renderiza executive_summary como texto",
+      "DecisionsList exibe decisÃµes com Ã­cone check, description e owner badge",
+      "ActionItemsList exibe tasks com checkbox visual, owner badge e due date",
+      "GeneralSummaryView renderiza summary como texto",
+      "GeneralSummaryView exibe key_points como bullet list",
+      "GeneralSummaryView exibe action_items como checklist visual",
+      "Views parseiam corretamente o content JSONB do summary"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+  },
+  {
+    "id": "F-043",
+    "name": "Frontend: Mentoring + Interview + Planning + Sales Views",
+    "description": "Implementar MentoringSummaryView (topics_covered, key_learnings cards, follow_up checklist, mentor_notes). InterviewSummaryView (participant_profile, InsightsList com sentiment badges green/red/gray, pain_points, key_quotes em blockquote). PlanningSummaryView (decisions com rationale collapsible, tasks_defined com assignee, risks_identified em Alert component, adr_summary). SalesCallSummaryView (client_name, summary, pain_points, next_steps checklist, deal_signals badges).",
+    "status": "blocked",
+    "priority": 20,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-041"
+    ],
+    "tests": [
+      "MentoringSummaryView renderiza topics, learnings, follow_up e mentor_notes",
+      "InterviewSummaryView renderiza profile, insights com sentiment badges (green/red/gray), pain_points, quotes",
+      "PlanningSummaryView renderiza decisions com rationale, tasks com assignee, risks em Alert",
+      "SalesCallSummaryView renderiza client_name, summary, pain_points, next_steps, deal_signals",
+      "Cada view parseia corretamente sua estrutura JSONB especÃ­fica",
+      "Views sÃ£o renderizadas condicionalmente com base no template_type do summary"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+  },
+  {
+    "id": "F-044",
+    "name": "Frontend: RegeneraÃ§Ã£o + Realtime SSE",
+    "description": "Implementar lÃ³gica de troca de template: ao selecionar tipo diferente no TemplateTypeSelect, verificar se jÃ¡ existe summary com esse template (cache local via TanStack Query). Se nÃ£o existe, disparar POST /summaries/generate com template selecionado. BotÃ£o 'Regenerar' explÃ­cito que chama POST /summaries/:id/regenerate. Escutar SSE summary:status com status: completed para invalidar query e atualizar UI automaticamente sem polling.",
+    "status": "blocked",
+    "priority": 21,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-041"
+    ],
+    "tests": [
+      "Trocar template no select verifica cache local antes de gerar novo summary",
+      "Se summary com template selecionado nÃ£o existe, POST /summaries/generate Ã© chamado",
+      "Se summary com template jÃ¡ existe, exibe do cache sem nova requisiÃ§Ã£o",
+      "BotÃ£o 'Regenerar' chama POST /summaries/:id/regenerate",
+      "SSE summary:status com completed invalida TanStack Query automaticamente",
+      "UI atualiza para mostrar novo summary sem refresh manual",
+      "Loading state exibido durante geraÃ§Ã£o/regeneraÃ§Ã£o"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+  },
+  {
+    "id": "F-045",
+    "name": "Backend: Onboarding Schema + Endpoint",
+    "description": "Adicionar colunas Ã  tabela users: onboarding_completed (boolean default false), onboarding_completed_at (timestamptz nullable). Implementar POST /api/v1/hub/onboarding/complete que atualiza name, department, preferred_template (com auto-mapeamento deptâ†’template se nÃ£o enviado explicitamente) e marca onboarding_completed = true com timestamp. Alterar GET /api/v1/auth/me para incluir onboarding_completed no response.",
+    "status": "pending",
+    "priority": 22,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-036"
+    ],
+    "tests": [
+      "Colunas onboarding_completed e onboarding_completed_at existem na tabela users",
+      "POST /api/v1/hub/onboarding/complete atualiza name, department, preferred_template",
+      "onboarding_completed Ã© marcado como true com timestamp apÃ³s chamada",
+      "Se preferred_template nÃ£o Ã© enviado, auto-mapeia a partir do department",
+      "GET /api/v1/auth/me retorna campo onboarding_completed",
+      "Chamada repetida ao endpoint Ã© idempotente (nÃ£o gera erro)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
+  },
+  {
+    "id": "F-046",
+    "name": "Frontend: OnboardingWizard Container + WelcomeStep",
+    "description": "Implementar OnboardingWizard como overlay fullscreen condicionado a user.onboarding_completed === false (lido do AuthProvider). Overlay nÃ£o pode ser fechado (sem botÃ£o X, sem Escape, sem click fora). Gerencia state do step atual (1-3). Implementar WelcomeStep (step 1) com texto introdutÃ³rio sobre o Voice Companion e botÃ£o 'ComeÃ§ar'. StepIndicator com 3 dots indicadores de progresso. TransiÃ§Ã£o suave entre steps.",
+    "status": "blocked",
+    "priority": 23,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-035",
+      "F-045"
+    ],
+    "tests": [
+      "Overlay fullscreen aparece quando user.onboarding_completed === false",
+      "Overlay nÃ£o fecha com Escape, click fora, ou botÃ£o X (nÃ£o existe)",
+      "WelcomeStep exibe texto introdutÃ³rio e botÃ£o 'ComeÃ§ar'",
+      "StepIndicator mostra 3 dots com o primeiro ativo",
+      "BotÃ£o 'ComeÃ§ar' avanÃ§a para step 2",
+      "TransiÃ§Ã£o entre steps Ã© suave (slide ou fade)",
+      "Overlay nÃ£o aparece se user.onboarding_completed === true"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
+  },
+  {
+    "id": "F-047",
+    "name": "Frontend: ProfileStep + Template Preview",
+    "description": "Implementar ProfileStep (step 2) com Input para nome (obrigatÃ³rio, prÃ©-preenchido se jÃ¡ existir) e Select para departamento (6 opÃ§Ãµes, obrigatÃ³rio). Preview dinÃ¢mico que mostra qual template de resumo serÃ¡ usado com base no departamento selecionado (mapeamento deptâ†’template: gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, produto_designâ†’planning, engenhariaâ†’planning, rhâ†’interview). BotÃµes 'Voltar' e 'PrÃ³ximo'. PrÃ³ximo desabilitado se campos vazios.",
+    "status": "blocked",
+    "priority": 24,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-046"
+    ],
+    "tests": [
+      "ProfileStep exibe input nome e select departamento",
+      "Nome Ã© obrigatÃ³rio â€” PrÃ³ximo desabilitado se vazio",
+      "Departamento Ã© obrigatÃ³rio â€” PrÃ³ximo desabilitado se nÃ£o selecionado",
+      "Preview mostra template correspondente ao departamento selecionado",
+      "Mapeamento correto: gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, etc.",
+      "BotÃ£o 'Voltar' retorna ao WelcomeStep",
+      "BotÃ£o 'PrÃ³ximo' avanÃ§a para ConsentStep quando campos preenchidos"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
+  },
+  {
+    "id": "F-048",
+    "name": "Frontend: ConsentStep + ConclusÃ£o",
+    "description": "Implementar ConsentStep (step 3) com Alert card de aviso LGPD ('Certifique-se de que todos os participantes consentiram com a gravaÃ§Ã£o antes de iniciar'). Checkbox obrigatÃ³rio 'Li e entendi o aviso de consentimento'. Resumo do perfil configurado (nome, departamento, template). BotÃ£o 'Ir para o app' desabilitado atÃ© checkbox marcado. Ao clicar, chama POST /api/v1/hub/onboarding/complete com dados do perfil, remove overlay e atualiza AuthProvider.",
+    "status": "blocked",
+    "priority": 25,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-047"
+    ],
+    "tests": [
+      "ConsentStep exibe Alert card com aviso LGPD",
+      "Checkbox 'Li e entendi o aviso de consentimento' estÃ¡ presente e desmarcado por default",
+      "BotÃ£o 'Ir para o app' estÃ¡ desabilitado quando checkbox desmarcado",
+      "Resumo exibe nome, departamento e template configurados nos steps anteriores",
+      "Ao marcar checkbox, botÃ£o Ã© habilitado",
+      "Ao clicar botÃ£o, POST /onboarding/complete Ã© chamado e overlay Ã© removido",
+      "AuthProvider Ã© atualizado com onboarding_completed = true"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
+  },
+  {
+    "id": "F-050",
+    "name": "Frontend: ProcessingStatusBadge",
+    "description": "Implementar ProcessingStatusBadge que recebe transcription_status e summary_status, calcula estado combinado mais relevante e renderiza badge com Ã­cone + texto + cor. Estados: uploading (muted, Ã­cone upload), transcribing (warning com pulsing, Ã­cone waveform), summary_processing (info com pulsing, Ã­cone sparkles), completed (success, Ã­cone check), failed (error, Ã­cone alert). Integrar no RecordingCard existente substituindo status badge simples. AtualizaÃ§Ã£o em tempo real via SSE recording:status.",
+    "status": "blocked",
+    "priority": 26,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-035",
+      "F-049"
+    ],
+    "tests": [
+      "ProcessingStatusBadge renderiza badge com Ã­cone e texto corretos para cada estado",
+      "Estados uploading e transcribing mostram cores e Ã­cones distintos",
+      "Estados transcribing e summary_processing pulsam com animaÃ§Ã£o",
+      "Estado completed mostra badge success com Ã­cone check",
+      "Estado failed mostra badge error com Ã­cone alert",
+      "Badge integrado no RecordingCard da lista de gravaÃ§Ãµes",
+      "Badge atualiza em tempo real quando SSE recording:status Ã© recebido"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+  },
+  {
+    "id": "F-051",
+    "name": "Frontend: CompletionToast",
+    "description": "Implementar CompletionToast registrado uma vez no App root (component montado no layout principal). Escuta SSE summary:status com status: completed. Dispara toast.success() via Sonner com tÃ­tulo da gravaÃ§Ã£o, tipo do template usado, e link clicÃ¡vel para /hub/recordings/:id. Antes de disparar, verificar notification_enabled do usuÃ¡rio (via auth context ou settings). Se desabilitado, nÃ£o exibe toast.",
+    "status": "blocked",
+    "priority": 27,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-038",
+      "F-049"
+    ],
+    "tests": [
+      "CompletionToast Ã© montado uma vez no App root",
+      "Toast Ã© disparado quando SSE summary:status com completed Ã© recebido",
+      "Toast exibe tÃ­tulo da gravaÃ§Ã£o e tipo do template",
+      "Toast contÃ©m link clicÃ¡vel que navega para /hub/recordings/:id",
+      "Toast NÃƒO Ã© exibido se notification_enabled === false",
+      "Toast Ã‰ exibido se notification_enabled === true",
+      "MÃºltiplos toasts podem aparecer se mÃºltiplos summaries completam"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+  },
+  {
+    "id": "F-053",
+    "name": "Frontend: ChapterNav + ChapterHighlight",
+    "description": "Implementar ChapterNav como lista colapsÃ¡vel acima da TranscriptionView na tela de detalhe. Buscar chapters via TanStack Query (GET /recordings/:id/chapters). Cada item mostra tÃ­tulo + timestamp formatado (MM:SS). Click em capÃ­tulo faz smooth scroll atÃ© o SegmentBlock correspondente (via start_segment_index). ChapterHighlight usa Intersection Observer para detectar qual capÃ­tulo estÃ¡ visÃ­vel e destacÃ¡-lo na nav. Graceful degradation: se chapters nÃ£o existem ou array vazio, transcriÃ§Ã£o exibe normalmente sem ChapterNav.",
+    "status": "blocked",
+    "priority": 28,
+    "agent": "coder",
+    "task": "vibe-code",
+    "dependencies": [
+      "F-041",
+      "F-052"
+    ],
+    "tests": [
+      "ChapterNav renderiza lista de capÃ­tulos acima da TranscriptionView",
+      "Cada capÃ­tulo exibe tÃ­tulo e timestamp formatado MM:SS",
+      "Click em capÃ­tulo faz smooth scroll atÃ© o SegmentBlock correspondente",
+      "ChapterHighlight destaca capÃ­tulo ativo durante scroll",
+      "Intersection Observer detecta corretamente qual capÃ­tulo estÃ¡ visÃ­vel",
+      "Se chapters nÃ£o existem, transcriÃ§Ã£o renderiza normalmente sem ChapterNav",
+      "Lista Ã© colapsÃ¡vel (toggle show/hide)"
+    ],
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+  }
+]
