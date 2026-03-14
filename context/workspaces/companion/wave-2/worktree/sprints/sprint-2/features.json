@@ -154,7 +154,7 @@
     "id": "F-033",
     "name": "Backend: JWT Middleware + Isolamento",
     "description": "Criar middleware Hono que valida JWT em todas as rotas /api/v1/hub/*. Extrair user_id do token e adicionar ao contexto (c.set('userId', ...)). Retornar 401 se token ausente, invÃ¡lido ou expirado. Atualizar todas as queries de recordings, tags, summaries e shares para filtrar por user_id do contexto. Rotas /api/v1/auth/* e /api/v1/hub/shared/:token permanecem pÃºblicas.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 8,
     "agent": "coder",
     "task": "vibe-code",
@@ -170,13 +170,14 @@
       "Rotas /api/v1/auth/* continuam acessÃ­veis sem JWT",
       "Rota /api/v1/hub/shared/:token continua acessÃ­vel sem JWT"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
+    "completed_at": "2026-03-13T23:30:00.000Z"
   },
   {
     "id": "F-034",
     "name": "Frontend: Login + Register Pages",
     "description": "Implementar tela Login (/login) com LoginForm (email, password, validaÃ§Ã£o client-side, submit via POST /auth/login). Implementar tela Register (/register) com RegisterForm (name, email, password, department select com 6 opÃ§Ãµes). Toast de erro/sucesso via Sonner. NavegaÃ§Ã£o entre login e registro com links. ApÃ³s login bem-sucedido, redirecionar para / ou para returnTo da URL.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 9,
     "agent": "coder",
     "task": "vibe-code",
@@ -193,13 +194,14 @@
       "Links de navegaÃ§Ã£o entre /login e /register funcionam",
       "Department select oferece 6 opÃ§Ãµes (gestao, educacao, vendas_cs, produto_design, engenharia, rh)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
+    "completed_at": "2026-03-13T23:45:00.000Z"
   },
   {
     "id": "F-035",
     "name": "Frontend: AuthProvider + AuthGuard",
     "description": "Criar AuthProvider com estado (user, token, isAuthenticated) e mÃ©todos (login, register, logout). Token persiste em localStorage. AuthGuard wrapper redireciona para /login?returnTo=<currentPath> se nÃ£o autenticado. Logout limpa token e redireciona para /login. Rotas pÃºblicas (/login, /register, /hub/shared/:token) acessÃ­veis sem autenticaÃ§Ã£o. API client injeta token em header Authorization: Bearer.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 10,
     "agent": "coder",
     "task": "vibe-code",
@@ -215,13 +217,14 @@
       "Rotas /login, /register e /hub/shared/:token sÃ£o acessÃ­veis sem autenticaÃ§Ã£o",
       "RequisiÃ§Ãµes API incluem header Authorization: Bearer <token>"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
+    "completed_at": "2026-03-14T00:00:00.000Z"
   },
   {
     "id": "F-036",
     "name": "Backend: Settings Schema + API",
     "description": "Adicionar colunas Ã  tabela users: preferred_template (varchar default 'general'), preferred_language (varchar default 'pt-BR'), notification_enabled (boolean default true). Implementar GET /api/v1/hub/settings que retorna configuraÃ§Ãµes do user autenticado. Implementar PATCH /api/v1/hub/settings com validaÃ§Ã£o e auto-mapeamento departamentoâ†’template (gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, produto_designâ†’planning, engenhariaâ†’planning, rhâ†’interview). Implementar PATCH /api/v1/hub/settings/password com validaÃ§Ã£o de senha atual via bcrypt.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 11,
     "agent": "coder",
     "task": "vibe-code",
@@ -237,13 +240,14 @@
       "PATCH /api/v1/hub/settings/password com senha atual errada retorna 401",
       "Nova senha com < 8 chars retorna 400"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md",
+    "completed_at": "2026-03-14T00:15:00.000Z"
   },
   {
     "id": "F-040",
     "name": "Backend: Endpoint de Listagem de Summaries",
     "description": "Implementar GET /api/v1/hub/recordings/:id/summaries que retorna lista de summaries da gravaÃ§Ã£o (id, template_type, status, created_at). Filtrar por user_id autenticado via recording ownership (verificar que recording pertence ao user antes de retornar summaries). Retorna array vazio se nÃ£o hÃ¡ summaries. 404 se recording nÃ£o existe ou nÃ£o pertence ao user.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 12,
     "agent": "coder",
     "task": "vibe-code",
@@ -257,13 +261,14 @@
       "Retorna 404 se recording nÃ£o existe",
       "Retorna 404 se recording pertence a outro user"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
+    "completed_at": "2026-03-14T00:30:00.000Z"
   },
   {
     "id": "F-049",
     "name": "Backend: Status Fields + SSE Events",
     "description": "Alterar query de GET /api/v1/hub/recordings para incluir transcription_status e summary_status via JOIN nas tabelas transcriptions e summaries. Enriquecer evento SSE recording:status com esses campos adicionais. Criar novo evento SSE summary:status disparado quando status do summary muda para completed. Evento contÃ©m recording_id, summary_id, template_type, status.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 13,
     "agent": "coder",
     "task": "vibe-code",
@@ -278,7 +283,8 @@
       "Novo evento SSE summary:status Ã© emitido quando summary muda para completed",
       "Evento summary:status contÃ©m recording_id, summary_id, template_type, status"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md",
+    "completed_at": "2026-03-14T00:45:00.000Z"
   },
   {
     "id": "F-052",
