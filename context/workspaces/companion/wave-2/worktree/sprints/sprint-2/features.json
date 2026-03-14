@@ -154,7 +154,7 @@
     "id": "F-033",
     "name": "Backend: JWT Middleware + Isolamento",
     "description": "Criar middleware Hono que valida JWT em todas as rotas /api/v1/hub/*. Extrair user_id do token e adicionar ao contexto (c.set('userId', ...)). Retornar 401 se token ausente, invÃ¡lido ou expirado. Atualizar todas as queries de recordings, tags, summaries e shares para filtrar por user_id do contexto. Rotas /api/v1/auth/* e /api/v1/hub/shared/:token permanecem pÃºblicas.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 8,
     "agent": "coder",
     "task": "vibe-code",
@@ -170,14 +170,13 @@
       "Rotas /api/v1/auth/* continuam acessÃ­veis sem JWT",
       "Rota /api/v1/hub/shared/:token continua acessÃ­vel sem JWT"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
-    "completed_at": "2026-03-13T23:34:40Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md"
   },
   {
     "id": "F-034",
     "name": "Frontend: Login + Register Pages",
     "description": "Implementar tela Login (/login) com LoginForm (email, password, validaÃ§Ã£o client-side, submit via POST /auth/login). Implementar tela Register (/register) com RegisterForm (name, email, password, department select com 6 opÃ§Ãµes). Toast de erro/sucesso via Sonner. NavegaÃ§Ã£o entre login e registro com links. ApÃ³s login bem-sucedido, redirecionar para / ou para returnTo da URL.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 9,
     "agent": "coder",
     "task": "vibe-code",
@@ -194,14 +193,13 @@
       "Links de navegaÃ§Ã£o entre /login e /register funcionam",
       "Department select oferece 6 opÃ§Ãµes (gestao, educacao, vendas_cs, produto_design, engenharia, rh)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
-    "completed_at": "2026-03-13T23:48:21Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md"
   },
   {
     "id": "F-035",
     "name": "Frontend: AuthProvider + AuthGuard",
     "description": "Criar AuthProvider com estado (user, token, isAuthenticated) e mÃ©todos (login, register, logout). Token persiste em localStorage. AuthGuard wrapper redireciona para /login?returnTo=<currentPath> se nÃ£o autenticado. Logout limpa token e redireciona para /login. Rotas pÃºblicas (/login, /register, /hub/shared/:token) acessÃ­veis sem autenticaÃ§Ã£o. API client injeta token em header Authorization: Bearer.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 10,
     "agent": "coder",
     "task": "vibe-code",
@@ -217,14 +215,13 @@
       "Rotas /login, /register e /hub/shared/:token sÃ£o acessÃ­veis sem autenticaÃ§Ã£o",
       "RequisiÃ§Ãµes API incluem header Authorization: Bearer <token>"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md",
-    "completed_at": "2026-03-13T23:50:00.000Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-007-auth-and-user-isolation.md"
   },
   {
     "id": "F-036",
     "name": "Backend: Settings Schema + API",
     "description": "Adicionar colunas Ã  tabela users: preferred_template (varchar default 'general'), preferred_language (varchar default 'pt-BR'), notification_enabled (boolean default true). Implementar GET /api/v1/hub/settings que retorna configuraÃ§Ãµes do user autenticado. Implementar PATCH /api/v1/hub/settings com validaÃ§Ã£o e auto-mapeamento departamentoâ†’template (gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, produto_designâ†’planning, engenhariaâ†’planning, rhâ†’interview). Implementar PATCH /api/v1/hub/settings/password com validaÃ§Ã£o de senha atual via bcrypt.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 11,
     "agent": "coder",
     "task": "vibe-code",
@@ -240,14 +237,13 @@
       "PATCH /api/v1/hub/settings/password com senha atual errada retorna 401",
       "Nova senha com < 8 chars retorna 400"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md",
-    "completed_at": "2026-03-13T00:00:00.000Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md"
   },
   {
     "id": "F-040",
     "name": "Backend: Endpoint de Listagem de Summaries",
     "description": "Implementar GET /api/v1/hub/recordings/:id/summaries que retorna lista de summaries da gravaÃ§Ã£o (id, template_type, status, created_at). Filtrar por user_id autenticado via recording ownership (verificar que recording pertence ao user antes de retornar summaries). Retorna array vazio se nÃ£o hÃ¡ summaries. 404 se recording nÃ£o existe ou nÃ£o pertence ao user.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 12,
     "agent": "coder",
     "task": "vibe-code",
@@ -261,14 +257,13 @@
       "Retorna 404 se recording nÃ£o existe",
       "Retorna 404 se recording pertence a outro user"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
-    "completed_at": "2026-03-14T00:12:36Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
   },
   {
     "id": "F-049",
     "name": "Backend: Status Fields + SSE Events",
     "description": "Alterar query de GET /api/v1/hub/recordings para incluir transcription_status e summary_status via JOIN nas tabelas transcriptions e summaries. Enriquecer evento SSE recording:status com esses campos adicionais. Criar novo evento SSE summary:status disparado quando status do summary muda para completed. Evento contÃ©m recording_id, summary_id, template_type, status.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 13,
     "agent": "coder",
     "task": "vibe-code",
@@ -283,14 +278,13 @@
       "Novo evento SSE summary:status Ã© emitido quando summary muda para completed",
       "Evento summary:status contÃ©m recording_id, summary_id, template_type, status"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md",
-    "completed_at": "2026-03-14T00:18:53Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
   },
   {
     "id": "F-052",
     "name": "Backend: Chapters Generation",
     "description": "Adicionar coluna chapters JSONB Ã  tabela summaries (default []). Alterar prompt LLM de geraÃ§Ã£o de summary (F-013) para incluir instruÃ§Ã£o de gerar capÃ­tulos temÃ¡ticos com campos: title (string), start_segment_index (int), end_segment_index (int), start_ms (int), end_ms (int). Implementar GET /api/v1/hub/recordings/:id/chapters que retorna chapters do summary mais recente. 404 se nÃ£o existem chapters.",
-    "status": "pending",
+    "status": "passing",
     "priority": 14,
     "agent": "coder",
     "task": "vibe-code",
@@ -305,13 +299,14 @@
       "Retorna 404 se recording nÃ£o tem chapters",
       "Chapters sÃ£o ordenados por start_ms"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md",
+    "completed_at": "2026-03-13T18:00:00Z"
   },
   {
     "id": "F-039",
     "name": "IntegraÃ§Ã£o: Auto-geraÃ§Ã£o Personalizada",
     "description": "Alterar o fluxo de auto-geraÃ§Ã£o de resumo pÃ³s-transcriÃ§Ã£o (F-014): ao invÃ©s de gerar com template general hardcoded, buscar preferred_template do user_id da recording e usar esse template. Fallback para general se preferred_template nÃ£o estÃ¡ configurado (null ou vazio). Validar que mudanÃ§a de template em settings afeta prÃ³ximas geraÃ§Ãµes automÃ¡ticas.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 15,
     "agent": "coder",
     "task": "vibe-code",
@@ -331,7 +326,7 @@
     "id": "F-037",
     "name": "Frontend: Settings Page â€” Perfil + Resumos",
     "description": "Implementar tela /hub/settings com ProfileSection (avatar placeholder, nome editÃ¡vel, email readonly, select departamento com 6 opÃ§Ãµes, botÃ£o salvar) e SummaryPreferencesSection (select template padrÃ£o com 6 opÃ§Ãµes: meeting, mentoring, interview, planning, sales_call, general + info text explicando efeito do template). Dados carregados via GET /hub/settings. Salvar via PATCH /hub/settings. Toast de feedback via Sonner.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 16,
     "agent": "coder",
     "task": "vibe-code",
@@ -376,7 +371,7 @@
     "id": "F-041",
     "name": "Frontend: SummaryTab Container + Estados",
     "description": "Implementar SummaryTab como segunda tab na tela de detalhe da gravaÃ§Ã£o (/hub/recordings/:id). Buscar summaries via TanStack Query (GET /recordings/:id/summaries). Renderizar estado correto: SummaryWaitingState (transcriÃ§Ã£o pendente, Ã­cone + texto informativo), skeleton loader (summary gerando), SummaryErrorState (erro com botÃ£o retry), conteÃºdo quando completo. Incluir TemplateTypeSelect no topo com 6 opÃ§Ãµes.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 18,
     "agent": "coder",
     "task": "vibe-code",
@@ -464,7 +459,7 @@
     "id": "F-045",
     "name": "Backend: Onboarding Schema + Endpoint",
     "description": "Adicionar colunas Ã  tabela users: onboarding_completed (boolean default false), onboarding_completed_at (timestamptz nullable). Implementar POST /api/v1/hub/onboarding/complete que atualiza name, department, preferred_template (com auto-mapeamento deptâ†’template se nÃ£o enviado explicitamente) e marca onboarding_completed = true com timestamp. Alterar GET /api/v1/auth/me para incluir onboarding_completed no response.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 22,
     "agent": "coder",
     "task": "vibe-code",
