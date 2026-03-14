@@ -472,7 +472,7 @@
     "id": "F-045",
     "name": "Backend: Onboarding Schema + Endpoint",
     "description": "Adicionar colunas Ã  tabela users: onboarding_completed (boolean default false), onboarding_completed_at (timestamptz nullable). Implementar POST /api/v1/hub/onboarding/complete que atualiza name, department, preferred_template (com auto-mapeamento deptâ†’template se nÃ£o enviado explicitamente) e marca onboarding_completed = true com timestamp. Alterar GET /api/v1/auth/me para incluir onboarding_completed no response.",
-    "status": "pending",
+    "status": "passing",
     "priority": 22,
     "agent": "coder",
     "task": "vibe-code",
@@ -487,7 +487,8 @@
       "GET /api/v1/auth/me retorna campo onboarding_completed",
       "Chamada repetida ao endpoint Ã© idempotente (nÃ£o gera erro)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md",
+    "completed_at": "2026-03-14T02:50:00.000Z"
   },
   {
     "id": "F-046",
