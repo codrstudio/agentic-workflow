@@ -55,3 +55,26 @@
     - Todos dependem de PRP-007 (auth, sprint 2)
   - Próximos passos: planejamento de features (passo 5)
 [2026-03-14] Step 4 (derive-prps): Completed. ok
+[2026-03-14 03:35:42] Step 4 (derive-prps): Completed. ok
+[2026-03-14] plan-features (Sprint 3): 22 features planejadas a partir de 6 PRPs, features.json gerado.
+  - Artefato produzido:
+    - sprints/sprint-3/features.json — 22 features (F-049 a F-070), prioridades 1-22, DAG validado
+  - Estrutura de priorização (3 tiers):
+    - Tier 1 (P1-P6): Backend schemas — 6 features sem dependências internas, desbloqueiam tudo
+      - P1: F-049 LGPD consent schema (score 10)
+      - P2: F-053 Action items schema (score 9)
+      - P3: F-057 Share scope backend (score 9)
+      - P4: F-067 Participants schema (score 9)
+      - P5: F-060 Summary hierárquico schema (score 8)
+      - P6: F-063 Glossaries schema (score 8)
+    - Tier 2 (P7-P10): Backend integrations — 4 features com dependências em schemas
+      - P7: F-050 Consent logging + DSAR
+      - P8: F-054 Action items LLM extraction
+      - P9: F-064 Whisper initial_prompt
+      - P10: F-068 Timeline + briefing LLM (deps: F-067, F-053, F-060)
+    - Tier 3 (P11-P22): Frontend — 12 features dependentes de backends
+  - Dependências cross-PRP dentro do sprint:
+    - F-068 (PRP-017) depende de F-053 (PRP-013) e F-060 (PRP-015)
+  - Validações: IDs únicos, prioridades únicas 1-22, DAG sem ciclos, todas deps com prioridade menor
+  - Próximos passos: ralph-wiggum-loop (passo 6) para implementação
+[2026-03-14] Step 5 (plan-features): Completed. ok
