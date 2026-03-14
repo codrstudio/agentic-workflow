@@ -518,23 +518,24 @@
     "id": "F-047",
     "name": "Frontend: ProfileStep + Template Preview",
     "description": "Implementar ProfileStep (step 2) com Input para nome (obrigatÃ³rio, prÃ©-preenchido se jÃ¡ existir) e Select para departamento (6 opÃ§Ãµes, obrigatÃ³rio). Preview dinÃ¢mico que mostra qual template de resumo serÃ¡ usado com base no departamento selecionado (mapeamento deptâ†’template: gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, produto_designâ†’planning, engenhariaâ†’planning, rhâ†’interview). BotÃµes 'Voltar' e 'PrÃ³ximo'. PrÃ³ximo desabilitado se campos vazios.",
-    "status": "blocked",
-    "priority": 24,
-    "agent": "coder",
-    "task": "vibe-code",
-    "dependencies": [
-      "F-046"
+    “status”: “passing”,
+    “priority”: 24,
+    “agent”: “coder”,
+    “task”: “vibe-code”,
+    “dependencies”: [
+      “F-046”
     ],
-    "tests": [
-      "ProfileStep exibe input nome e select departamento",
-      "Nome Ã© obrigatÃ³rio â€” PrÃ³ximo desabilitado se vazio",
-      "Departamento Ã© obrigatÃ³rio â€” PrÃ³ximo desabilitado se nÃ£o selecionado",
-      "Preview mostra template correspondente ao departamento selecionado",
-      "Mapeamento correto: gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, etc.",
-      "BotÃ£o 'Voltar' retorna ao WelcomeStep",
-      "BotÃ£o 'PrÃ³ximo' avanÃ§a para ConsentStep quando campos preenchidos"
+    “tests”: [
+      “ProfileStep exibe input nome e select departamento”,
+      “Nome Ã© obrigatÃ³rio â€” PrÃ³ximo desabilitado se vazio”,
+      “Departamento Ã© obrigatÃ³rio â€” PrÃ³ximo desabilitado se nÃ£o selecionado”,
+      “Preview mostra template correspondente ao departamento selecionado”,
+      “Mapeamento correto: gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, etc.”,
+      “BotÃ£o ‘Voltar’ retorna ao WelcomeStep”,
+      “BotÃ£o ‘PrÃ³ximo’ avanÃ§a para ConsentStep quando campos preenchidos”
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
+    “prp_path”: “D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md”,
+    “completed_at”: “2026-03-14T03:00:00.000Z”
   },
   {
     "id": "F-048",
