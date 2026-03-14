@@ -380,7 +380,7 @@
     "id": "F-041",
     "name": "Frontend: SummaryTab Container + Estados",
     "description": "Implementar SummaryTab como segunda tab na tela de detalhe da gravaÃ§Ã£o (/hub/recordings/:id). Buscar summaries via TanStack Query (GET /recordings/:id/summaries). Renderizar estado correto: SummaryWaitingState (transcriÃ§Ã£o pendente, Ã­cone + texto informativo), skeleton loader (summary gerando), SummaryErrorState (erro com botÃ£o retry), conteÃºdo quando completo. Incluir TemplateTypeSelect no topo com 6 opÃ§Ãµes.",
-    "status": "pending",
+    "status": "passing",
     "priority": 18,
     "agent": "coder",
     "task": "vibe-code",
@@ -397,7 +397,8 @@
       "ConteÃºdo do summary renderizado quando status Ã© completed",
       "TanStack Query busca summaries corretamente via GET endpoint"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
+    "completed_at": "2026-03-14T02:09:42Z"
   },
   {
     "id": "F-042",
