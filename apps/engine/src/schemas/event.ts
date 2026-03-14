@@ -18,6 +18,7 @@ export const EngineEventTypeSchema = z.enum([
   'gutter:retry',
   'gutter:rollback',
   'gutter:skip',
+  'workflow:step:retry',
   'workflow:chain',
   'workflow:spawn',
   'workflow:resume',
@@ -210,6 +211,19 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
       .object({
         feature_id: z.string(),
         retries: z.number().optional(),
+      })
+      .passthrough(),
+  }),
+  base.extend({
+    type: z.literal('workflow:step:retry'),
+    data: z
+      .object({
+        step: z.string(),
+        type: z.string(),
+        index: z.number(),
+        attempt: z.number(),
+        max_retries: z.number(),
+        reason: z.string().optional(),
       })
       .passthrough(),
   }),

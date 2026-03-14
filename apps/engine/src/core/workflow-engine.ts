@@ -20,6 +20,7 @@ import type { WorkflowState } from '../schemas/workflow-state.js';
 import type { Feature } from '../schemas/feature.js';
 import type { EngineEvent, EngineEventType } from '../schemas/event.js';
 import { ModelResolver } from './model-resolver.js';
+import { AgentConfigSchema } from '../schemas/config.js';
 
 export interface WorkflowRunnerContext {
   workflow: Workflow;
@@ -182,7 +183,23 @@ export class WorkflowRunner {
         // Operator queue checkpoint — drain pending messages before each step
         await this.drainOperatorQueue(ctx);
 
-        const result = await this.executeStep(step, stepIndex, ctx);
+        const maxRetries = AgentConfigSchema.shape.max_retries.parse(undefined);
+        let result!: { exitCode: number; reason: string; response?: unknown };
+        let stepAttempt = 0;
+        do {
+          stepAttempt++;
+          result = await this.executeStep(step, stepIndex, ctx);
+          if (result.exitCode !== 0 && result.reason !== 'stopped' && stepAttempt < maxRetries) {
+            this.emitEvent('workflow:step:retry', {
+              step: stepName,
+              type: step.type,
+              index: stepIndex,
+              attempt: stepAttempt,
+              max_retries: maxRetries,
+              reason: result.reason,
+            });
+          }
+        } while (result.exitCode !== 0 && result.reason !== 'stopped' && stepAttempt < maxRetries);
 
         // Update state — only mark completed if the step actually finished its work
         const finalStatus =

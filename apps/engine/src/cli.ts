@@ -85,6 +85,9 @@ function logEvent(event: EngineEvent): void {
     case 'gutter:skip':
       console.log(`${ts} ${chalk.red('gutter:skip')}          ${d.feature_id}`);
       break;
+    case 'workflow:step:retry':
+      console.log(`${ts} ${chalk.yellow('step:retry')}           [${d.index}] ${d.step} attempt ${d.attempt}/${d.max_retries} — ${d.reason}`);
+      break;
     case 'workflow:chain':
       console.log(`${ts} ${chalk.cyan('workflow:chain')}       ${d.from} -> ${d.to}`);
       break;
