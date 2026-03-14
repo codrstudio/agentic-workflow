@@ -333,7 +333,7 @@
     "id": "F-037",
     "name": "Frontend: Settings Page â€” Perfil + Resumos",
     "description": "Implementar tela /hub/settings com ProfileSection (avatar placeholder, nome editÃ¡vel, email readonly, select departamento com 6 opÃ§Ãµes, botÃ£o salvar) e SummaryPreferencesSection (select template padrÃ£o com 6 opÃ§Ãµes: meeting, mentoring, interview, planning, sales_call, general + info text explicando efeito do template). Dados carregados via GET /hub/settings. Salvar via PATCH /hub/settings. Toast de feedback via Sonner.",
-    "status": "pending",
+    "status": "passing",
     "priority": 16,
     "agent": "coder",
     "task": "vibe-code",
@@ -350,13 +350,14 @@
       "MudanÃ§a de departamento sem alterar template auto-mapeia no backend",
       "Info text explica o efeito do template selecionado"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md",
+    "completed_at": "2026-03-13T23:30:00.000Z"
   },
   {
     "id": "F-038",
     "name": "Frontend: Settings Page â€” NotificaÃ§Ãµes + SeguranÃ§a",
     "description": "Implementar NotificationSection com toggle on/off para notificaÃ§Ãµes de conclusÃ£o de transcriÃ§Ã£o/resumo. Implementar SecuritySection com botÃ£o 'Alterar senha' que abre ChangePasswordDialog (dialog responsivo, campos current_password e new_password com min 8 chars, validaÃ§Ã£o client-side). Salvar toggle via PATCH /hub/settings, senha via PATCH /hub/settings/password. Toast de feedback.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 17,
     "agent": "coder",
     "task": "vibe-code",
@@ -372,7 +373,8 @@
       "Submit com senha atual correta altera senha e exibe toast de sucesso",
       "Submit com senha atual errada exibe toast de erro"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-008-settings-and-user-profile.md",
+    "completed_at": "2026-03-14T00:50:46Z"
   },
   {
     "id": "F-041",
