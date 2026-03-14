@@ -449,7 +449,7 @@
     "id": "F-044",
     "name": "Frontend: RegeneraÃ§Ã£o + Realtime SSE",
     "description": "Implementar lÃ³gica de troca de template: ao selecionar tipo diferente no TemplateTypeSelect, verificar se jÃ¡ existe summary com esse template (cache local via TanStack Query). Se nÃ£o existe, disparar POST /summaries/generate com template selecionado. BotÃ£o 'Regenerar' explÃ­cito que chama POST /summaries/:id/regenerate. Escutar SSE summary:status com status: completed para invalidar query e atualizar UI automaticamente sem polling.",
-    "status": "pending",
+    "status": "passing",
     "priority": 21,
     "agent": "coder",
     "task": "vibe-code",
@@ -465,7 +465,8 @@
       "UI atualiza para mostrar novo summary sem refresh manual",
       "Loading state exibido durante geraÃ§Ã£o/regeneraÃ§Ã£o"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
+    "completed_at": "2026-03-13T00:00:00.000Z"
   },
   {
     "id": "F-045",
