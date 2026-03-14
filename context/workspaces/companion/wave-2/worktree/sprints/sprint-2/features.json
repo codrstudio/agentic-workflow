@@ -268,7 +268,7 @@
     "id": "F-049",
     "name": "Backend: Status Fields + SSE Events",
     "description": "Alterar query de GET /api/v1/hub/recordings para incluir transcription_status e summary_status via JOIN nas tabelas transcriptions e summaries. Enriquecer evento SSE recording:status com esses campos adicionais. Criar novo evento SSE summary:status disparado quando status do summary muda para completed. Evento contÃ©m recording_id, summary_id, template_type, status.",
-    "status": "pending",
+    "status": "passing",
     "priority": 13,
     "agent": "coder",
     "task": "vibe-code",
@@ -283,7 +283,8 @@
       "Novo evento SSE summary:status Ã© emitido quando summary muda para completed",
       "Evento summary:status contÃ©m recording_id, summary_id, template_type, status"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md",
+    "completed_at": "2026-03-14T00:18:53Z"
   },
   {
     "id": "F-052",
@@ -375,7 +376,7 @@
     "id": "F-041",
     "name": "Frontend: SummaryTab Container + Estados",
     "description": "Implementar SummaryTab como segunda tab na tela de detalhe da gravaÃ§Ã£o (/hub/recordings/:id). Buscar summaries via TanStack Query (GET /recordings/:id/summaries). Renderizar estado correto: SummaryWaitingState (transcriÃ§Ã£o pendente, Ã­cone + texto informativo), skeleton loader (summary gerando), SummaryErrorState (erro com botÃ£o retry), conteÃºdo quando completo. Incluir TemplateTypeSelect no topo com 6 opÃ§Ãµes.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 18,
     "agent": "coder",
     "task": "vibe-code",
