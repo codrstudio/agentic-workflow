@@ -541,10 +541,11 @@
     "id": "F-048",
     "name": "Frontend: ConsentStep + ConclusÃ£o",
     "description": "Implementar ConsentStep (step 3) com Alert card de aviso LGPD ('Certifique-se de que todos os participantes consentiram com a gravaÃ§Ã£o antes de iniciar'). Checkbox obrigatÃ³rio 'Li e entendi o aviso de consentimento'. Resumo do perfil configurado (nome, departamento, template). BotÃ£o 'Ir para o app' desabilitado atÃ© checkbox marcado. Ao clicar, chama POST /api/v1/hub/onboarding/complete com dados do perfil, remove overlay e atualiza AuthProvider.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 25,
     "agent": "coder",
     "task": "vibe-code",
+    "completed_at": "2026-03-13T20:00:00.000Z",
     "dependencies": [
       "F-047"
     ],
