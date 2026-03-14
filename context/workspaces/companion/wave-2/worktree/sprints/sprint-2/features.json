@@ -427,7 +427,7 @@
     "id": "F-043",
     "name": "Frontend: Mentoring + Interview + Planning + Sales Views",
     "description": "Implementar MentoringSummaryView (topics_covered, key_learnings cards, follow_up checklist, mentor_notes). InterviewSummaryView (participant_profile, InsightsList com sentiment badges green/red/gray, pain_points, key_quotes em blockquote). PlanningSummaryView (decisions com rationale collapsible, tasks_defined com assignee, risks_identified em Alert component, adr_summary). SalesCallSummaryView (client_name, summary, pain_points, next_steps checklist, deal_signals badges).",
-    "status": "pending",
+    "status": "passing",
     "priority": 20,
     "agent": "coder",
     "task": "vibe-code",
@@ -442,7 +442,8 @@
       "Cada view parseia corretamente sua estrutura JSONB especÃ­fica",
       "Views sÃ£o renderizadas condicionalmente com base no template_type do summary"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
+    "completed_at": "2026-03-13T00:00:00.000Z"
   },
   {
     "id": "F-044",
