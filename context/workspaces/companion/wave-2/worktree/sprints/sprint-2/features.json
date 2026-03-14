@@ -494,7 +494,7 @@
     "id": "F-046",
     "name": "Frontend: OnboardingWizard Container + WelcomeStep",
     "description": "Implementar OnboardingWizard como overlay fullscreen condicionado a user.onboarding_completed === false (lido do AuthProvider). Overlay nÃ£o pode ser fechado (sem botÃ£o X, sem Escape, sem click fora). Gerencia state do step atual (1-3). Implementar WelcomeStep (step 1) com texto introdutÃ³rio sobre o Voice Companion e botÃ£o 'ComeÃ§ar'. StepIndicator com 3 dots indicadores de progresso. TransiÃ§Ã£o suave entre steps.",
-    "status": "pending",
+    "status": "passing",
     "priority": 23,
     "agent": "coder",
     "task": "vibe-code",
@@ -511,13 +511,14 @@
       "TransiÃ§Ã£o entre steps Ã© suave (slide ou fade)",
       "Overlay nÃ£o aparece se user.onboarding_completed === true"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md",
+    "completed_at": "2026-03-14T01:46:15Z"
   },
   {
     "id": "F-047",
     "name": "Frontend: ProfileStep + Template Preview",
     "description": "Implementar ProfileStep (step 2) com Input para nome (obrigatÃ³rio, prÃ©-preenchido se jÃ¡ existir) e Select para departamento (6 opÃ§Ãµes, obrigatÃ³rio). Preview dinÃ¢mico que mostra qual template de resumo serÃ¡ usado com base no departamento selecionado (mapeamento deptâ†’template: gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, produto_designâ†’planning, engenhariaâ†’planning, rhâ†’interview). BotÃµes 'Voltar' e 'PrÃ³ximo'. PrÃ³ximo desabilitado se campos vazios.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 24,
     "agent": "coder",
     "task": "vibe-code",
@@ -539,7 +540,7 @@
     "id": "F-048",
     "name": "Frontend: ConsentStep + ConclusÃ£o",
     "description": "Implementar ConsentStep (step 3) com Alert card de aviso LGPD ('Certifique-se de que todos os participantes consentiram com a gravaÃ§Ã£o antes de iniciar'). Checkbox obrigatÃ³rio 'Li e entendi o aviso de consentimento'. Resumo do perfil configurado (nome, departamento, template). BotÃ£o 'Ir para o app' desabilitado atÃ© checkbox marcado. Ao clicar, chama POST /api/v1/hub/onboarding/complete com dados do perfil, remove overlay e atualiza AuthProvider.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 25,
     "agent": "coder",
     "task": "vibe-code",
