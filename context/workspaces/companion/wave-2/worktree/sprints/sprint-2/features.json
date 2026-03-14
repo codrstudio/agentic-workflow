@@ -380,7 +380,7 @@
     "id": "F-041",
     "name": "Frontend: SummaryTab Container + Estados",
     "description": "Implementar SummaryTab como segunda tab na tela de detalhe da gravaÃ§Ã£o (/hub/recordings/:id). Buscar summaries via TanStack Query (GET /recordings/:id/summaries). Renderizar estado correto: SummaryWaitingState (transcriÃ§Ã£o pendente, Ã­cone + texto informativo), skeleton loader (summary gerando), SummaryErrorState (erro com botÃ£o retry), conteÃºdo quando completo. Incluir TemplateTypeSelect no topo com 6 opÃ§Ãµes.",
-    "status": "passing",
+    "status": "pending",
     "priority": 18,
     "agent": "coder",
     "task": "vibe-code",
@@ -397,14 +397,13 @@
       "ConteÃºdo do summary renderizado quando status Ã© completed",
       "TanStack Query busca summaries corretamente via GET endpoint"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
-    "completed_at": "2026-03-14T02:00:00.000Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
   },
   {
     "id": "F-042",
     "name": "Frontend: Meeting + General Summary Views",
     "description": "Implementar MeetingSummaryView com cards para: executive_summary (texto), DecisionsList (Ã­cone check + description + owner badge), ActionItemsList (checkbox visual readonly + task + owner badge + due date formatado). Implementar GeneralSummaryView com: summary text, key_points list (bullet points), action_items checklist (checkbox visual + texto). Ambos parseiam o campo content JSONB do summary.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 19,
     "agent": "coder",
     "task": "vibe-code",
@@ -420,14 +419,13 @@
       "GeneralSummaryView exibe action_items como checklist visual",
       "Views parseiam corretamente o content JSONB do summary"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
-    "completed_at": "2026-03-14T01:05:48Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
   },
   {
     "id": "F-043",
     "name": "Frontend: Mentoring + Interview + Planning + Sales Views",
     "description": "Implementar MentoringSummaryView (topics_covered, key_learnings cards, follow_up checklist, mentor_notes). InterviewSummaryView (participant_profile, InsightsList com sentiment badges green/red/gray, pain_points, key_quotes em blockquote). PlanningSummaryView (decisions com rationale collapsible, tasks_defined com assignee, risks_identified em Alert component, adr_summary). SalesCallSummaryView (client_name, summary, pain_points, next_steps checklist, deal_signals badges).",
-    "status": "passing",
+    "status": "blocked",
     "priority": 20,
     "agent": "coder",
     "task": "vibe-code",
@@ -442,14 +440,13 @@
       "Cada view parseia corretamente sua estrutura JSONB especÃ­fica",
       "Views sÃ£o renderizadas condicionalmente com base no template_type do summary"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
-    "completed_at": "2026-03-13T00:00:00.000Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
   },
   {
     "id": "F-044",
     "name": "Frontend: RegeneraÃ§Ã£o + Realtime SSE",
     "description": "Implementar lÃ³gica de troca de template: ao selecionar tipo diferente no TemplateTypeSelect, verificar se jÃ¡ existe summary com esse template (cache local via TanStack Query). Se nÃ£o existe, disparar POST /summaries/generate com template selecionado. BotÃ£o 'Regenerar' explÃ­cito que chama POST /summaries/:id/regenerate. Escutar SSE summary:status com status: completed para invalidar query e atualizar UI automaticamente sem polling.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 21,
     "agent": "coder",
     "task": "vibe-code",
@@ -465,14 +462,13 @@
       "UI atualiza para mostrar novo summary sem refresh manual",
       "Loading state exibido durante geraÃ§Ã£o/regeneraÃ§Ã£o"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
-    "completed_at": "2026-03-13T21:30:00.000Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
   },
   {
     "id": "F-045",
     "name": "Backend: Onboarding Schema + Endpoint",
     "description": "Adicionar colunas Ã  tabela users: onboarding_completed (boolean default false), onboarding_completed_at (timestamptz nullable). Implementar POST /api/v1/hub/onboarding/complete que atualiza name, department, preferred_template (com auto-mapeamento deptâ†’template se nÃ£o enviado explicitamente) e marca onboarding_completed = true com timestamp. Alterar GET /api/v1/auth/me para incluir onboarding_completed no response.",
-    "status": "passing",
+    "status": "pending",
     "priority": 22,
     "agent": "coder",
     "task": "vibe-code",
@@ -487,14 +483,13 @@
       "GET /api/v1/auth/me retorna campo onboarding_completed",
       "Chamada repetida ao endpoint Ã© idempotente (nÃ£o gera erro)"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md",
-    "completed_at": "2026-03-14T01:38:49.000Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
   },
   {
     "id": "F-046",
     "name": "Frontend: OnboardingWizard Container + WelcomeStep",
     "description": "Implementar OnboardingWizard como overlay fullscreen condicionado a user.onboarding_completed === false (lido do AuthProvider). Overlay nÃ£o pode ser fechado (sem botÃ£o X, sem Escape, sem click fora). Gerencia state do step atual (1-3). Implementar WelcomeStep (step 1) com texto introdutÃ³rio sobre o Voice Companion e botÃ£o 'ComeÃ§ar'. StepIndicator com 3 dots indicadores de progresso. TransiÃ§Ã£o suave entre steps.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 23,
     "agent": "coder",
     "task": "vibe-code",
@@ -511,21 +506,19 @@
       "TransiÃ§Ã£o entre steps Ã© suave (slide ou fade)",
       "Overlay nÃ£o aparece se user.onboarding_completed === true"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md",
-    "completed_at": "2026-03-14T01:46:15Z"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-010-onboarding-wizard.md"
   },
   {
     "id": "F-047",
     "name": "Frontend: ProfileStep + Template Preview",
     "description": "Implementar ProfileStep (step 2) com Input para nome (obrigatÃ³rio, prÃ©-preenchido se jÃ¡ existir) e Select para departamento (6 opÃ§Ãµes, obrigatÃ³rio). Preview dinÃ¢mico que mostra qual template de resumo serÃ¡ usado com base no departamento selecionado (mapeamento deptâ†’template: gestaoâ†’meeting, educacaoâ†’mentoring, vendas_csâ†’sales_call, produto_designâ†’planning, engenhariaâ†’planning, rhâ†’interview). BotÃµes 'Voltar' e 'PrÃ³ximo'. PrÃ³ximo desabilitado se campos vazios.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 24,
     "agent": "coder",
     "task": "vibe-code",
     "dependencies": [
       "F-046"
     ],
-    "completed_at": "2026-03-13T16:00:00.000Z",
     "tests": [
       "ProfileStep exibe input nome e select departamento",
       "Nome Ã© obrigatÃ³rio â€” PrÃ³ximo desabilitado se vazio",
@@ -541,11 +534,10 @@
     "id": "F-048",
     "name": "Frontend: ConsentStep + ConclusÃ£o",
     "description": "Implementar ConsentStep (step 3) com Alert card de aviso LGPD ('Certifique-se de que todos os participantes consentiram com a gravaÃ§Ã£o antes de iniciar'). Checkbox obrigatÃ³rio 'Li e entendi o aviso de consentimento'. Resumo do perfil configurado (nome, departamento, template). BotÃ£o 'Ir para o app' desabilitado atÃ© checkbox marcado. Ao clicar, chama POST /api/v1/hub/onboarding/complete com dados do perfil, remove overlay e atualiza AuthProvider.",
-    "status": "passing",
+    "status": "blocked",
     "priority": 25,
     "agent": "coder",
     "task": "vibe-code",
-    "completed_at": "2026-03-13T20:00:00.000Z",
     "dependencies": [
       "F-047"
     ],
@@ -587,7 +579,7 @@
     "id": "F-051",
     "name": "Frontend: CompletionToast",
     "description": "Implementar CompletionToast registrado uma vez no App root (component montado no layout principal). Escuta SSE summary:status com status: completed. Dispara toast.success() via Sonner com tÃ­tulo da gravaÃ§Ã£o, tipo do template usado, e link clicÃ¡vel para /hub/recordings/:id. Antes de disparar, verificar notification_enabled do usuÃ¡rio (via auth context ou settings). Se desabilitado, nÃ£o exibe toast.",
-    "status": "pending",
+    "status": "passing",
     "priority": 27,
     "agent": "coder",
     "task": "vibe-code",
@@ -604,13 +596,14 @@
       "Toast Ã‰ exibido se notification_enabled === true",
       "MÃºltiplos toasts podem aparecer se mÃºltiplos summaries completam"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-011-realtime-status-and-notifications.md",
+    "completed_at": "2026-03-13T23:40:00.000Z"
   },
   {
     "id": "F-053",
     "name": "Frontend: ChapterNav + ChapterHighlight",
     "description": "Implementar ChapterNav como lista colapsÃ¡vel acima da TranscriptionView na tela de detalhe. Buscar chapters via TanStack Query (GET /recordings/:id/chapters). Cada item mostra tÃ­tulo + timestamp formatado (MM:SS). Click em capÃ­tulo faz smooth scroll atÃ© o SegmentBlock correspondente (via start_segment_index). ChapterHighlight usa Intersection Observer para detectar qual capÃ­tulo estÃ¡ visÃ­vel e destacÃ¡-lo na nav. Graceful degradation: se chapters nÃ£o existem ou array vazio, transcriÃ§Ã£o exibe normalmente sem ChapterNav.",
-    "status": "pending",
+    "status": "blocked",
     "priority": 28,
     "agent": "coder",
     "task": "vibe-code",
