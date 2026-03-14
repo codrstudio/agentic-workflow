@@ -404,7 +404,7 @@
     "id": "F-042",
     "name": "Frontend: Meeting + General Summary Views",
     "description": "Implementar MeetingSummaryView com cards para: executive_summary (texto), DecisionsList (Ã­cone check + description + owner badge), ActionItemsList (checkbox visual readonly + task + owner badge + due date formatado). Implementar GeneralSummaryView com: summary text, key_points list (bullet points), action_items checklist (checkbox visual + texto). Ambos parseiam o campo content JSONB do summary.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 19,
     "agent": "coder",
     "task": "vibe-code",
@@ -420,13 +420,14 @@
       "GeneralSummaryView exibe action_items como checklist visual",
       "Views parseiam corretamente o content JSONB do summary"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/companion/wave-2/worktree/sprints/sprint-2/3-prps/PRP-009-summary-tab-ui.md",
+    "completed_at": "2026-03-13T00:00:00.000Z"
   },
   {
     "id": "F-043",
     "name": "Frontend: Mentoring + Interview + Planning + Sales Views",
     "description": "Implementar MentoringSummaryView (topics_covered, key_learnings cards, follow_up checklist, mentor_notes). InterviewSummaryView (participant_profile, InsightsList com sentiment badges green/red/gray, pain_points, key_quotes em blockquote). PlanningSummaryView (decisions com rationale collapsible, tasks_defined com assignee, risks_identified em Alert component, adr_summary). SalesCallSummaryView (client_name, summary, pain_points, next_steps checklist, deal_signals badges).",
-    "status": "blocked",
+    "status": "pending",
     "priority": 20,
     "agent": "coder",
     "task": "vibe-code",
@@ -447,7 +448,7 @@
     "id": "F-044",
     "name": "Frontend: RegeneraÃ§Ã£o + Realtime SSE",
     "description": "Implementar lÃ³gica de troca de template: ao selecionar tipo diferente no TemplateTypeSelect, verificar se jÃ¡ existe summary com esse template (cache local via TanStack Query). Se nÃ£o existe, disparar POST /summaries/generate com template selecionado. BotÃ£o 'Regenerar' explÃ­cito que chama POST /summaries/:id/regenerate. Escutar SSE summary:status com status: completed para invalidar query e atualizar UI automaticamente sem polling.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 21,
     "agent": "coder",
     "task": "vibe-code",
@@ -604,7 +605,7 @@
     "id": "F-053",
     "name": "Frontend: ChapterNav + ChapterHighlight",
     "description": "Implementar ChapterNav como lista colapsÃ¡vel acima da TranscriptionView na tela de detalhe. Buscar chapters via TanStack Query (GET /recordings/:id/chapters). Cada item mostra tÃ­tulo + timestamp formatado (MM:SS). Click em capÃ­tulo faz smooth scroll atÃ© o SegmentBlock correspondente (via start_segment_index). ChapterHighlight usa Intersection Observer para detectar qual capÃ­tulo estÃ¡ visÃ­vel e destacÃ¡-lo na nav. Graceful degradation: se chapters nÃ£o existem ou array vazio, transcriÃ§Ã£o exibe normalmente sem ChapterNav.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 28,
     "agent": "coder",
     "task": "vibe-code",
