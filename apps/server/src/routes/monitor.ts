@@ -244,10 +244,21 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
     }
   }
 
+  // Read workflow-level status from workflow-state.json
+  let workflowStatus: string | undefined;
+  if (currentWaveDirName) {
+    try {
+      const wsState = await readJson(path.join(workspaceDir, currentWaveDirName, 'workflow-state.json')) as Record<string, unknown>;
+      workflowStatus = wsState['status'] as string | undefined;
+    } catch { /* ignore */ }
+  }
+
   const resumable =
     !activity.engine_alive &&
     runMode === 'spawn' &&
     currentWave !== null &&
+    workflowStatus !== 'completed' &&
+    workflowStatus !== 'failed' &&
     currentWave.status !== 'completed' &&
     currentWave.status !== 'failed' &&
     (currentWave.steps.length === 0 ||

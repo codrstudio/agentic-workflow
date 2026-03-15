@@ -1,6 +1,6 @@
 import { join, basename } from 'node:path';
 import { readFile, mkdir } from 'node:fs/promises';
-import { appendFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
@@ -96,6 +96,8 @@ export class WorkflowRunner {
   private stopRequested = false;
   private backgroundPromises: Promise<unknown>[] = [];
   private _runCtx?: WorkflowRunnerContext;
+  private _activeStepIdx: number | null = null;
+  private _activeStatePath: string | null = null;
 
   async waitForBackground(): Promise<void> {
     await Promise.allSettled(this.backgroundPromises);
@@ -114,8 +116,16 @@ export class WorkflowRunner {
     const workflowState = await this.state.readJson<WorkflowState>(statePath);
 
     // Sanitize stale fields from steps that didn't finish cleanly
-    if (workflowState?.steps) {
+    if (workflowState) {
       let dirty = false;
+
+      // Clear workflow-level stopped/failed status on resume
+      if (workflowState.status === 'stopped' || workflowState.status === 'failed') {
+        workflowState.status = 'running' as WorkflowState['status'];
+        (workflowState as Record<string, unknown>)['stopped_reason'] = undefined;
+        dirty = true;
+      }
+
       for (const step of workflowState.steps) {
         if (step.status !== 'completed' && step.status !== 'pending') {
           // Step was running/failed/interrupted when engine died — clear stale completion data
@@ -124,8 +134,8 @@ export class WorkflowRunner {
             step.exit_code = null;
             dirty = true;
           }
-          // Also reset status to pending so it's cleanly re-executed
-          if (step.status === 'running') {
+          // Reset running/interrupted steps to pending so they're cleanly re-executed
+          if (step.status === 'running' || step.status === 'interrupted') {
             step.status = 'pending';
             step.started_at = null;
             dirty = true;
@@ -147,8 +157,10 @@ export class WorkflowRunner {
     try {
       for (let i = 0; i < workflow.steps.length; i++) {
         if (this.stopRequested) {
+          // Do NOT write terminal status here — signal stops are resumable.
+          // The step-level states (completed/pending) are sufficient for resume detection.
           this.emitEvent('workflow:end', { reason: 'stopped' });
-          return { exitCode: 0, reason: 'stopped' };
+          return { exitCode: 130, reason: 'stopped' };
         }
 
         const step = workflow.steps[i]!;
@@ -165,6 +177,10 @@ export class WorkflowRunner {
           });
           continue;
         }
+
+        // Track active step so signal handler can mark it interrupted
+        this._activeStepIdx = i;
+        this._activeStatePath = statePath;
 
         // Update state → running (reset stale fields from previous execution)
         await this.updateStepState(statePath, i, {
@@ -213,6 +229,9 @@ export class WorkflowRunner {
           ...(result.response !== undefined ? { result: result.response as Record<string, unknown> } : {}),
         });
 
+        // Step finished — no longer active
+        this._activeStepIdx = null;
+
         // Append to progress file
         const ts = now().replace('T', ' ').replace('Z', '');
         const statusLabel = finalStatus === 'completed' ? 'Completed' : `Failed (exit ${result.exitCode})`;
@@ -229,20 +248,24 @@ export class WorkflowRunner {
         });
 
         if (result.reason === 'decide:stop') {
+          await this.updateWorkflowStatus(statePath, 'stopped', `decide:stop at ${stepName}`);
           this.emitEvent('workflow:end', { reason: 'decide:stop', stopped_at_step: stepName });
           return { exitCode: 0, reason: 'decide:stop' };
         }
 
         if (result.exitCode !== 0) {
+          await this.updateWorkflowStatus(statePath, 'failed', `step_failed: ${stepName}`);
           this.emitEvent('workflow:end', { reason: `step_failed: ${stepName}` });
           return { exitCode: result.exitCode, reason: `step_failed: ${stepName}` };
         }
       }
 
+      await this.updateWorkflowStatus(statePath, 'completed');
       this.emitEvent('workflow:end', { reason: 'completed' });
       return { exitCode: 0, reason: 'completed' };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      await this.updateWorkflowStatus(statePath, 'failed', `error: ${msg}`);
       this.emitEvent('workflow:end', { reason: `error: ${msg}` });
       return { exitCode: 1, reason: `error: ${msg}` };
     }
@@ -262,8 +285,44 @@ export class WorkflowRunner {
     await this.state.writeJson(statePath, ws);
   }
 
+  private async updateWorkflowStatus(
+    statePath: string,
+    status: 'running' | 'completed' | 'stopped' | 'failed',
+    reason?: string,
+  ): Promise<void> {
+    const ws = await this.state.readJson<WorkflowState>(statePath);
+    if (!ws) return;
+    ws.status = status;
+    if (reason) ws.stopped_reason = reason;
+    await this.state.writeJson(statePath, ws);
+  }
+
   stop(): void {
     this.stopRequested = true;
+    // Immediately persist interrupted state for the running step so it
+    // doesn't remain "running" in workflow-state.json if the process dies.
+    this.markActiveStepInterrupted();
+  }
+
+  /**
+   * Synchronously mark the currently running step as "interrupted" in
+   * workflow-state.json.  Uses sync I/O because this runs inside a signal
+   * handler where the process may exit at any moment.
+   */
+  private markActiveStepInterrupted(): void {
+    if (this._activeStepIdx === null || !this._activeStatePath) return;
+    try {
+      const raw = readFileSync(this._activeStatePath, 'utf-8');
+      const ws = JSON.parse(raw) as WorkflowState;
+      const step = ws.steps?.[this._activeStepIdx];
+      if (step && step.status === 'running') {
+        step.status = 'interrupted';
+        step.completed_at = now();
+        writeFileSync(this._activeStatePath, JSON.stringify(ws, null, 2));
+      }
+    } catch {
+      // Best-effort — don't crash the signal handler
+    }
   }
 
   /**

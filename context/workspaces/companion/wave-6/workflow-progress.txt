@@ -65,3 +65,572 @@
     - PRP-030 é o maior (5 features: schema+CRUD, members+invites, recordings, frontend list, frontend detail)
     - PRP-035 (chapter player) não requer schema — reutiliza dados existentes do resumo progressivo
     - PRP-033 (audit trail) é transversal e pode ser implementado em paralelo com os demais
+[2026-03-14 21:32:14] Step 4 (derive-prps): Completed. ok
+[2026-03-14] Step: plan-features — CONCLUÍDO
+  Agente: GENERAL AGENT (wave 6, sprint 6)
+  Artefatos produzidos:
+    - sprints/sprint-6/features.json (25 features: F-112 a F-136)
+  Fontes: 6 PRPs (PRP-030 a PRP-035) + ranking.json
+  Distribuição por PRP:
+    - PRP-030 (workspace, score 9): F-112 a F-116 (5 features)
+    - PRP-031 (transcript editor, score 8): F-117 a F-120 (4 features)
+    - PRP-032 (confidential mode, score 8): F-121 a F-124 (4 features)
+    - PRP-033 (audit trail, score 8): F-125 a F-128 (4 features)
+    - PRP-034 (onboarding trails, score 8): F-129 a F-132 (4 features)
+    - PRP-035 (chapter player, score 7): F-133 a F-136 (4 features)
+  Decisões de priorização:
+    - Backend antes de frontend dentro de cada PRP
+    - F-112 (workspace schema, score 9) como prioridade 1 — prerequisito para onboarding trails
+    - F-125 (audit log, transversal) como prioridade 2 — integrar cedo nos handlers
+    - Schemas/infra independentes (F-117, F-121, F-133) em paralelo após workspace
+    - PRP-034 (onboarding) depende de PRP-030 completo — features 11-12 (backend), 24-25 (frontend)
+    - Chapter player (score 7) em prioridades 19-23
+  Validação: DAG sem ciclos, prioridades sequenciais 1-25, todas deps apontam para prioridade menor
+[2026-03-14 21:39:34] Step 5 (plan-features): Completed. ok
+[2026-03-14] Step: vibe-code — F-112 CONCLUÍDO
+  Feature: F-112 — Backend: Team Workspace Schema + CRUD API
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/migrations/018_team_workspaces.sql (tabelas + todos os índices)
+    - apps/backend/src/routes/workspaces.ts (5 endpoints CRUD)
+    - apps/backend/src/migrate.ts (018_team_workspaces.sql registrado)
+    - apps/backend/src/index.ts (rota /api/v1/hub/workspaces registrada)
+  Implementação:
+    - Tabelas: team_workspaces, workspace_members, workspace_recordings, workspace_invitations
+    - Índices: unique(workspace_id, user_id), unique(workspace_id, recording_id), GIN(tags), unique(token)
+    - POST /api/v1/hub/workspaces — cria workspace em transação; criador torna-se admin
+    - GET /api/v1/hub/workspaces — lista workspaces do usuário com member_count e recording_count via subquery
+    - GET /api/v1/hub/workspaces/:id — 403 para não-membros; retorna detalhes completos
+    - PATCH /api/v1/hub/workspaces/:id — 403 para non-admin; atualiza nome/descrição
+    - DELETE /api/v1/hub/workspaces/:id — 403 para non-admin; CASCADE sem deletar gravações originais
+  Decisões arquiteturais:
+    - Transação em POST para garantir atomicidade workspace + membership
+    - CASCADE no schema garante limpeza de members/recordings/invitations ao deletar workspace
+    - workspace_recordings.recording_id tem ON DELETE CASCADE apenas para o vínculo; tabela recordings intacta
+  Typecheck: zero erros novos em workspaces.ts; erros pré-existentes em outros arquivos não relacionados
+  Progress: 1/25 features complete
+  Next: F-125 — Backend: Audit Log Schema + logAuditEvent Utility
+[2026-03-14] Step: vibe-code — F-125 CONCLUÍDO
+  Feature: F-125 — Backend: Audit Log Schema + logAuditEvent Utility
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/migrations/019_audit_log.sql (tabela + 5 índices)
+    - apps/backend/src/audit.ts (logAuditEvent fire-and-forget)
+    - apps/backend/src/migrate.ts (019_audit_log.sql registrado)
+    - apps/backend/src/index.ts (share_link.accessed, share_link.expired, share_link.created para share granular)
+    - apps/backend/src/whisper.ts (transcription.completed)
+    - apps/backend/src/routes/knowledge-base.ts (kb.contributed, kb.removed)
+    - [já integrados pela sessão anterior]: auth.ts, recordings.ts, settings.ts, shares.ts, summaries.ts, workspaces.ts
+  Implementação:
+    - Tabela audit_log: append-only, sem DELETE/UPDATE endpoints
+    - logAuditEvent(): INSERT async, erros swallowed (nunca bloqueia API response)
+    - 15/18 ações auditáveis integradas; 3 pendentes (handlers futuros):
+      * workspace.member_added, workspace.member_removed (F-113)
+      * workspace.recording_published (F-115)
+      * recording.deleted, transcription.edited (endpoints ainda inexistentes)
+  Decisões arquiteturais:
+    - fire-and-forget via .catch() em pool.query — não await para não impactar latência
+    - ip_address nullable — suporta acessos externos anônimos (share_link.accessed)
+    - user_id nullable — share_link.accessed não requer autenticação
+  Typecheck: zero erros novos
+  Progress: 2/25 features complete
+  Next: F-126 — Backend: Audit Events API + CSV Export + Summary
+[2026-03-14] Step: vibe-code — F-113 CONCLUÍDO
+  Feature: F-113 — Backend: Member Management + Invite Flow
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/src/event-bus.ts (WorkspaceEventBus + 3 novos tipos de evento)
+    - apps/backend/src/routes/workspaces.ts (5 novos endpoints F-113 + SSE /events)
+  Implementação:
+    - WorkspaceEventBus em event-bus.ts: emitMemberAdded, emitMemberRemoved, emitRoleChanged
+    - POST /:id/members — admin only; token = randomBytes(32).toString('hex') (64 chars hex); expires_at = now + 7 dias
+    - POST /accept-invite — valida token, verifica accepted_at e expires_at; cria membership; marca accepted_at; emite SSE member_added
+    - GET /:id/members — lista membros com id, name, email, role, joined_at (JOIN users)
+    - PATCH /:id/members/:userId — altera role; verifica último admin antes de rebaixar
+    - DELETE /:id/members/:userId — remove membro; verifica último admin se requesterId === targetUserId
+    - GET /:id/events — SSE stream para workspace:member_added, workspace:member_removed, workspace:role_changed
+    - Auditoria logAuditEvent integrada em member_added (criação de convite e accept), role_changed, member_removed
+  Decisões arquiteturais:
+    - POST /accept-invite posicionado ANTES de /:id para Hono não confundir "accept-invite" como :id
+    - workspaceBus isolado de recordingBus — eventos de workspace são distintos de gravações
+    - SSE endpoint por workspace (:id/events) filtra eventos por workspace_id — não vaza eventos de outros workspaces
+    - Token gerado em Node.js native crypto (sem deps externas)
+  Typecheck: zero erros novos em workspaces.ts e event-bus.ts
+  Progress: 3/25 features complete
+  Next: F-114 — Backend: Workspace Recordings (Publish/Remove/List)
+[2026-03-14] Step: vibe-code — F-114 CONCLUÍDO
+  Feature: F-114 — Backend: Workspace Recordings (Publish/Remove/List)
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/src/event-bus.ts (WorkspaceRecordingPublishedEvent, WorkspaceRecordingRemovedEvent + emit methods)
+    - apps/backend/src/routes/workspaces.ts (3 novos endpoints F-114 + SSE atualizado)
+  Implementação:
+    - POST /:id/recordings — admin/contributor only; valida ownership, transcription completed, não-confidential
+    - GET /:id/recordings — lista para todos os membros; suporta ?tag (GIN), ?search (ILIKE), ?limit, ?offset; total count via COUNT(*) OVER()
+    - DELETE /:id/recordings/:recordingId — admin ou dono da publicação; remove apenas o vínculo
+    - SSE /:id/events — adicionados handlers para workspace:recording_published e workspace:recording_removed
+  Validações implementadas:
+    - 403 para viewer em POST (admin/contributor only)
+    - 403 se recording.user_id != userId (não é dono)
+    - 422 se transcription.status != 'completed'
+    - 422 se is_confidential = true (com fallback gracioso para quando F-121 ainda não foi aplicado)
+    - 409 se recording já publicado no workspace (unique constraint)
+    - 403 se nem admin nem dono da publicação no DELETE
+  Decisões arquiteturais:
+    - Confidential check usa try/catch em query separada — tolerante a coluna ausente antes de F-121
+    - COUNT(*) OVER() para total count sem query extra
+    - Parâmetros SQL buildados dinamicamente com idx para suportar filtros opcionais
+  Typecheck: zero erros novos em workspaces.ts e event-bus.ts
+  Progress: 4/25 features complete
+  Next: F-126 — Backend: Audit Events API + CSV Export + Summary
+[2026-03-14] Step: vibe-code — F-117 CONCLUÍDO
+  Feature: F-117 — Backend: Transcript Edits Schema + Save/Revert API
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/migrations/020_transcript_edits.sql (tabela transcript_edits + índices + review_status em recordings)
+    - apps/backend/src/routes/transcript-edits.ts (3 endpoints)
+    - apps/backend/src/migrate.ts (020_transcript_edits.sql registrado)
+    - apps/backend/src/index.ts (rota /api/v1/hub/recordings registrada para transcript-edits)
+  Implementação:
+    - Tabela transcript_edits: id, recording_id, segment_index, original_text, edited_text, speaker_label, edited_speaker, edited_by, created_at, updated_at
+    - Unique index em (recording_id, segment_index); index em recording_id
+    - ALTER TABLE recordings ADD COLUMN review_status TEXT NOT NULL DEFAULT 'unreviewed' CHECK (unreviewed/in_review/reviewed)
+    - PUT /:id/transcript/segments/:index — upsert: se existe, atualiza edited_text/edited_speaker; se não, busca original de transcription_segments e insere; 403 para não-donos
+    - DELETE /:id/transcript/segments/:index/edit — deleta edição (restaura original); 403 para não-donos
+    - PATCH /:id/review-status — atualiza review_status; 403 para não-donos
+    - logAuditEvent em PUT (transcription.edited)
+  Typecheck: zero erros novos em transcript-edits.ts
+  Progress: 5/25 features complete
+  Next: F-121 — Backend: Confidential Schema + Docker Ollama Setup
+[2026-03-14] Step: vibe-code — F-121 CONCLUÍDO
+  Feature: F-121 — Backend: Confidential Schema + Docker Ollama Setup
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/migrations/021_confidential.sql (is_confidential em recordings + tabela confidential_config)
+    - docker-compose.yml (serviço ollama/ollama:latest, porta ${PREFIX}26:11434, volume ollama_data)
+    - apps/backend/src/routes/recordings.ts (POST /upload aceita is_confidential)
+    - apps/backend/src/routes/shares.ts (bloqueia compartilhamento de gravações confidenciais com 403)
+    - apps/backend/src/routes/knowledge-base.ts (bloqueia KB contribute de gravações confidenciais com 403)
+    - apps/backend/src/embeddings.ts (guard: skip indexTranscription para gravações confidenciais)
+    - apps/backend/src/migrate.ts (021_confidential.sql registrado)
+  Implementação:
+    - ALTER TABLE recordings ADD COLUMN IF NOT EXISTS is_confidential BOOLEAN NOT NULL DEFAULT false
+    - Tabela confidential_config: id, user_id UNIQUE, local_model DEFAULT 'llama3.2:3b', max_tokens DEFAULT 4096
+    - docker-compose: serviço ollama com GPU opcional (deploy.resources.reservations)
+    - POST /upload: is_confidential lido de form body (string 'true' ou boolean true)
+    - shares.ts: SELECT is_confidential antes de criar share; 403 se confidential
+    - knowledge-base.ts: SELECT is_confidential antes de contribuir; 403 se confidential
+    - embeddings.ts: check no início de indexTranscription; early return se confidential
+    - Workspace publish já bloqueado na F-114 (check via try/catch antes do INSERT)
+  Decisões arquiteturais:
+    - Guard de embedding em indexTranscription (não no call site) — centralizado, à prova de futuros callers
+    - Shares: 403 (não 422) — é uma regra de permissão, não erro de validação de dados
+    - KB contribute: 403 — mesma lógica de permissão
+    - Ollama com reserva de GPU opcional (não obrigatória) — funciona sem GPU com CPU
+  Typecheck: zero erros novos; erros pré-existentes (openai/bcryptjs module not found) não relacionados
+  F-122 desbloqueada (dependia de F-121)
+  Progress: 6/25 features complete
+  Next: F-133 — Backend: Chapters API Endpoint
+[2026-03-14] Step: vibe-code — F-133 CONCLUÍDO
+  Feature: F-133 — Backend: Chapters API Endpoint
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/src/index.ts (GET /api/v1/hub/recordings/:id/chapters adicionado)
+  Implementação:
+    - GET /api/v1/hub/recordings/:id/chapters — view sobre recording_summaries.chapters
+    - Auth: dono da gravação (recordings.user_id = userId) OU membro de workspace onde gravação está publicada
+      (via workspace_recordings JOIN workspace_members)
+    - Retorna { chapters: [{ index, title, start_ms, end_ms, summary }], total_duration_ms }
+    - total_duration_ms vem de recordings.duration_ms diretamente
+    - Sem resumo ou sem capítulos → { chapters: [], total_duration_ms: recording.duration_ms }
+    - 404 para recording inexistente; 403 para não-autorizado
+    - Endpoint é view puro — não cria nem modifica dados
+  Decisões arquiteturais:
+    - Inline em index.ts (consistente com o endpoint /summary já existente)
+    - index adicionado via map (0-based) ao transformar o array de capítulos do JSONB
+    - Auth combinada em query única (owner OR workspace member) para evitar round-trips
+  Typecheck: zero erros novos em index.ts
+  Progress: 7/25 features complete
+  Next: F-134 — Frontend: Audio Player + Waveform + Chapter Markers
+[2026-03-14] Step: vibe-code — F-118 CONCLUÍDO
+  Feature: F-118 — Backend: Transcript API Extension (Merged View)
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/src/routes/transcript-edits.ts (GET /:id/transcript — merged view)
+    - apps/backend/src/index.ts (share endpoint atualizado para usar texto editado)
+  Implementação:
+    - GET /api/v1/hub/recordings/:id/transcript — LEFT JOIN transcription_segments + transcript_edits
+    - Auth: owner OR workspace member (consistente com /chapters)
+    - Cada segmento retorna: index, text (edited ou original), original_text, speaker_label, original_speaker, edited (boolean), start_ms, end_ms
+    - Response inclui review_status da gravação e edit_count (total de edições)
+    - Share access endpoint (GET /s/:token) atualizado para fazer LEFT JOIN com transcript_edits — exportações passam a usar texto editado automaticamente
+  Decisões arquiteturais:
+    - LEFT JOIN por (recording_id, segment_index) — join correto mesmo com múltiplas transcrições
+    - is_edited calculado como (te.id IS NOT NULL) diretamente no SQL
+    - Speaker_label: edited_speaker se editado E não-null, senão original — permite editar apenas texto sem alterar speaker
+    - Share endpoint: cast explícito (segResult.rows as ...) para satisfazer strict TypeScript sem alterar estrutura
+  Typecheck: zero erros novos em transcript-edits.ts e index.ts
+  Progress: 8/25 features complete
+  Next: F-126 — Backend: Audit Events API + CSV Export + Summary
+[2026-03-14] Step: vibe-code — F-122 CONCLUÍDO
+  Feature: F-122 — Backend: Local Summarization API + Model Management
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/migrations/022_summaries_is_local.sql (coluna is_local BOOLEAN + índice)
+    - apps/backend/src/local-llm.ts (generateLocalSummary + autoGenerateLocalSummary)
+    - apps/backend/src/routes/confidential.ts (GET/PUT /confidential/config + GET /confidential/models)
+    - apps/backend/src/index.ts (POST /recordings/:id/summarize-local + import confidential route)
+    - apps/backend/src/whisper.ts (auto-trigger local summary para gravações confidenciais)
+    - apps/backend/src/migrate.ts (022_summaries_is_local.sql registrado)
+  Implementação:
+    - POST /recordings/:id/summarize-local: verifica ownership, busca transcrição, resolve config do usuário, cria summary pending com is_local=true, dispara generateLocalSummary fire-and-forget
+    - generateLocalSummary (local-llm.ts): POST Ollama /api/generate, prompt progressivo (executive_bullets, chapters, full_summary, key_points, action_items), parseia JSON com 3 fallbacks (direto, markdown fence, regex \{.*\}), persiste em summaries
+    - Evento SSE: summary:processing → summary:completed (via recordingBus.emitStatus)
+    - Auto-trigger em whisper.ts: após transcription:completed verifica is_confidential; se true e userId existe → autoGenerateLocalSummary; se não → autoGenerateSummary (cloud)
+    - GET /confidential/config: UPSERT com defaults (llama3.2:3b, 4096 tokens) na primeira acesso
+    - PUT /confidential/config: 2-step upsert (insert OR NOTHING + UPDATE SET dinâmico)
+    - GET /confidential/models: GET Ollama /api/tags com timeout 5s; 503 se offline
+    - Idempotência em ambos os flows (endpoint manual e auto-trigger): verifica se is_local=true já existe
+    - F-124 desbloqueada (dependia de F-122)
+  Decisões arquiteturais:
+    - Local-llm.ts como módulo compartilhado entre whisper.ts e index.ts — evita duplicação
+    - OLLAMA_HOST/OLLAMA_PORT como env vars; default localhost:11434 para desenvolvimento
+    - Sem streaming de resposta Ollama (stream: false) — alinhado com limite do PRP
+    - 3 fallbacks de parse JSON: suporta modelos que adicionam prosa ou markdown fences
+    - max_tokens via options.num_predict (API Ollama)
+  Typecheck: zero erros novos em local-llm.ts, routes/confidential.ts, index.ts, whisper.ts
+  Progress: 9/25 features complete
+  Next: F-126 — Backend: Audit Events API + CSV Export + Summary
+[2026-03-14] Step: vibe-code — F-126 CONCLUÍDO
+  Feature: F-126 — Backend: Audit Events API + CSV Export + Summary
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/src/routes/audit.ts (4 endpoints de auditoria)
+    - apps/backend/src/index.ts (rota /api/v1/hub/audit registrada)
+  Implementação:
+    - GET /audit/events (admin only): filtros por user_id, action, resource_type, resource_id, from/to; paginação limit/offset; user expandido (id, name, email); total count; filters_applied
+    - GET /audit/events/export (admin only): mesmos filtros, Content-Type text/csv, Content-Disposition attachment, headers descritivos (Date, User Name, User Email, Action, Resource Type, Resource ID, Metadata, IP, User Agent); máximo 10000 linhas
+    - GET /audit/summary (admin only): contagens agregadas por action type (GROUP BY action), active_users (COUNT DISTINCT user_id no período), active_share_links (shares WHERE is_active=true AND expires_at > now())
+    - GET /audit/recordings/:id (owner ou workspace admin): eventos filtrados por resource_id = recordingId OR metadata->>'recording_id' = recordingId; ordenados por created_at ASC (timeline)
+  Admin check: workspace_members WHERE user_id = $1 AND role = 'admin' (admin em pelo menos 1 workspace)
+  Desbloqueadas: F-127 (Frontend: Audit Dashboard) e F-128 (Frontend: Recording Audit Timeline)
+  Typecheck: zero erros novos em audit.ts e index.ts
+  Progress: 10/25 features complete
+  Next: F-129 — Backend: Onboarding Trails Schema + CRUD API
+[2026-03-14] Step: vibe-code — F-129 CONCLUÍDO
+  Feature: F-129 — Backend: Onboarding Trails Schema + CRUD API
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/migrations/023_onboarding_trails.sql (4 tabelas + 8 índices)
+    - apps/backend/src/routes/trails.ts (5 endpoints CRUD)
+    - apps/backend/src/migrate.ts (023_onboarding_trails.sql registrado)
+    - apps/backend/src/index.ts (rota /api/v1/hub/workspaces para trails registrada)
+  Implementação:
+    - Tabela onboarding_trails: workspace_id FK cascade, is_published DEFAULT false
+    - Tabela trail_items: unique index em (trail_id, position), FK cascade para trail e recording
+    - Tabela trail_progress: unique index em (trail_id, user_id, item_id), status CHECK constraint
+    - Tabela trail_assignments: unique index em (trail_id, user_id)
+    - POST /:wsId/trails: admin/contributor only (403 para viewer); cria como draft
+    - GET /:wsId/trails: lista com item_count, estimated_total_min (SUM), assigned_count; ?published_only
+    - GET /:wsId/trails/:id: detalhe com itens ordenados por position + LEFT JOIN trail_progress do usuário
+    - PATCH /:wsId/trails/:id: atualiza campos via SET dinâmico; admin/contributor only
+    - DELETE /:wsId/trails/:id: criador ou admin; CASCADE no schema limpa items/progress/assignments
+  Decisões arquiteturais:
+    - Rota montada como /:wsId/trails em trails.ts, registrada em index.ts com base /api/v1/hub/workspaces
+    - getMemberRole() helper compartilhado para verificar acesso em todos os endpoints
+    - CASCADE ON DELETE na FK onboarding_trails garante cleanup automático sem transação
+  Typecheck: zero erros novos em trails.ts
+  F-130 desbloqueada (dependia de F-129)
+  Progress: 11/25 features complete
+  Next: F-130 — Backend: Trail Items + Assignments + Progress API
+[2026-03-14] Step: vibe-code — F-130 CONCLUÍDO
+  Feature: F-130 — Backend: Trail Items + Assignments + Progress API
+  Status: passing
+  Artefatos produzidos:
+    - apps/backend/src/routes/trails.ts (7 novos endpoints F-130)
+    - apps/backend/src/index.ts (rota /api/v1/hub/trails registrada para my-assignments)
+  Implementação:
+    - POST /:wsId/trails/:id/items: valida que recording está em workspace_recordings; position = MAX+1; cria trail_progress not_started para usuários já atribuídos
+    - PATCH /:wsId/trails/:id/items/:itemId: atualiza curator_notes, estimated_min, position via SET dinâmico
+    - DELETE /:wsId/trails/:id/items/:itemId: remove em transação + ajusta positions subsequentes (position - 1)
+    - POST /:wsId/trails/:id/items/reorder: transação atômica com offset trick (position + 10000) para evitar conflito unique constraint; depois set final 1, 2, 3...
+    - POST /:wsId/trails/:id/assign: valida que target é membro do workspace; UPSERT em trail_assignments; INSERT trail_progress not_started para todos os itens da trilha (ON CONFLICT DO NOTHING)
+    - PATCH /:wsId/trails/:trailId/progress/:itemId: UPSERT com CASE WHEN status = 'completed' → sets completed_at = now(); status outros → NULL; notas opcionais
+    - GET /my-assignments: cross-workspace JOIN de trail_assignments + trails + workspaces + trail_items + trail_progress; retorna progress {total, completed, percent}
+  Decisões arquiteturais:
+    - trails router registrado em dois prefixos: /api/v1/hub/workspaces (workspace-scoped) e /api/v1/hub/trails (global /my-assignments)
+    - Reorder usa offset trick (+ 10000) para superar unique index (trail_id, position) sem DEFERRED constraints
+    - Assign cria trail_progress para todos os itens existentes via INSERT SELECT FROM trail_items com ON CONFLICT DO NOTHING
+    - POST /items também cria trail_progress para usuários já atribuídos quando novo item é adicionado após atribuição
+  Typecheck: zero erros novos em trails.ts e index.ts
+  F-131 e F-132 desbloqueadas (dependiam de F-130)
+  Progress: 12/25 features complete
+  Next: F-131 — Frontend: Trails Management (List + Create + Detail + Items)
+[2026-03-14] Step: vibe-code — F-115 CONCLUÍDO
+  Feature: F-115 — Frontend: Workspaces List + Create + Accept Invite
+  Status: passing
+  Artefatos produzidos (sessão anterior já havia implementado):
+    - apps/app/src/routes/hub/workspaces.index.tsx (WorkspacesListPage + WorkspaceCard + CreateWorkspaceDialog)
+    - apps/app/src/routes/hub/workspaces.invite.$token.tsx (AcceptInvitePage)
+    - apps/app/src/routes/hub/workspaces.$id.tsx (stub para F-116)
+    - apps/app/src/routeTree.gen.ts (rotas workspace registradas)
+    - apps/app/src/components/layout/bottom-nav.tsx (item Workspaces adicionado)
+  Correção aplicada nesta sessão:
+    - routeTree.gen.ts: HubWorkspacesIdRoute ausente do rootRouteChildren — adicionado
+  Implementação:
+    - WorkspacesListPage: grid responsivo (col-1 / md:col-2 / xl:col-3) de WorkspaceCard
+    - WorkspaceCard: nome, descrição truncada (line-clamp-2), member_count, recording_count, RoleBadge
+    - RoleBadge: admin (purple), contributor (blue), viewer (gray) com border colorida
+    - CreateWorkspaceDialog: modal com nome (required) + descrição (optional), useMutation + invalidateQueries
+    - BottomNav: item Workspaces (Users icon) entre Library e Busca
+    - AcceptInvitePage: estados loading/success/error; accepts invite via POST /accept-invite; fetch workspace name após join; auto-redirect 2.5s após sucesso
+    - Rotas: /hub/workspaces/, /hub/workspaces/$id, /hub/workspaces/invite/$token — todas registradas no routeTree
+  Typecheck: zero erros
+  Progress: 13/25 features complete
+  Next: F-116 — Frontend: Workspace Detail (Recordings + Members Tabs)
+[2026-03-14] Step: vibe-code — F-116 CONCLUÍDO
+  Feature: F-116 — Frontend: Workspace Detail (Recordings + Members Tabs)
+  Status: passing
+  Artefatos produzidos:
+    - apps/app/src/routes/hub/workspaces.$id.tsx (WorkspaceDetailPage completa)
+  Implementação:
+    - WorkspaceDetailPage em /hub/workspaces/:id com header (nome, RoleBadge, botão voltar, botão config admin)
+    - Tabs "Gravações" e "Membros" com contagens dinâmicas no label
+    - Tab Gravações: WorkspaceRecordingsList com barra de busca textual, filtro por tag (select quando há tags, input quando vazio), botão "+ Publicar Gravação" (admin/contributor)
+    - RecordingCard: título, duração, publicador, data, tags como badges; botão X para remover (admin ou dono da publicação)
+    - PublishRecordingDialog: select de gravações pessoais (status=completed), input de tags separadas por vírgula; POST /:id/recordings
+    - Tab Membros: WorkspaceMembersList com avatar inicial, nome, email, RoleBadge; contagem de membros
+    - MemberActionMenu: dropdown com "Tornar [role]" e "Remover membro"; fecha ao clicar fora; verifica self para label "Sair do workspace"
+    - InviteMemberDialog: input de email, select de role (viewer/contributor); POST /:id/members
+    - Todos os dialogs seguem padrão bottom-sheet em mobile (items-end sm:items-center)
+    - useAuth() para currentUserId (MemberActionMenu self-check) e userId para canRemove em RecordingCard
+  Decisões arquiteturais:
+    - Filtro por tag usa select quando há tags conhecidas (do próprio resultado), input livre quando lista vazia
+    - canRemove: role='admin' OU user.id === published_by.id — consistente com backend F-114
+    - Settings button: navega para /hub/workspaces/$id?settings=true (rota futura, não bloqueia)
+    - Layout: flex-col + header fixo + overflow-auto no conteúdo — tabs ficam fixas no topo mobile
+  Typecheck: zero erros
+  Progress: 14/25 features complete
+  Next: F-119 — Frontend: Transcript Editor Inline
+
+[2026-03-14] F-119 — Frontend: Transcript Editor (Inline Editing + Autosave) — CONCLUÍDO
+  Implementado TranscriptEditor substituindo view estática na tab Transcrição de /hub/recordings/:id.
+  Componentes criados:
+    - ReviewStatusBadge: badge clicável que cicla unreviewed→in_review→reviewed via PATCH /review-status
+    - EditStats: rodapé com "X de Y segmentos editados"
+    - SegmentActions: ↩ revert (DELETE edit), ✓ accept (visual), ⚑ flag (visual)
+    - EditableSegment: contentEditable com autosave debounced 500ms, speaker label editável,
+      atalhos Esc (cancelar), Enter (próximo segmento), Ctrl+Z (desfazer para pre-edit text)
+    - TranscriptEditor: container com estado local, debounce timers, PUT/DELETE via API F-117/F-118
+  Modificações em RecordingDetailPage:
+    - Tab "Transcrição" ganhou ícone de lápis e badge de contagem de edições
+    - TranscriptEditor usado para transcrições completas; TranscriptionView mantido para pending/processing/failed
+  Typecheck: passou sem erros
+  Progress: 15/25 features complete
+  Next: F-123
+
+[2026-03-14] F-123 Frontend: Confidential Toggle + Badge + Guards — CONCLUÍDO
+  Agente: CODING AGENT
+  Implementações:
+    - ConfidentialToggle: switch com painel informativo expandível na tela de nova gravação (hub/index.tsx)
+      - Switch toggle com ícone de cadeado
+      - Painel expandível com 5 itens informativos (Whisper local, modelo local, zero dados, KB, compartilhamento)
+      - Estado integrado ao recording-store (isConfidential + setIsConfidential)
+    - ConfidentialBadge: badge "Confidential" roxo na lista (recordings.index.tsx) e detalhe (recordings.$id.tsx)
+    - ConfidentialGuard: wrapper que desabilita botões com tooltip explicativo para gravações confidenciais
+      - Botão "Compartilhar" desabilitado com tooltip "compartilhamento desabilitado"
+      - Botão "Contribuir para KB" desabilitado com tooltip
+      - Botão "Publicar em Workspace" desabilitado com tooltip
+    - LocalProcessingIndicator: indicador animado "Processando localmente..." no SummaryTab quando
+      gravação é confidencial e resumo ainda não completou
+    - offline-queue.ts: campo is_confidential adicionado ao PendingRecording e FormData de upload
+  Arquivos criados:
+    - apps/app/src/components/recording/confidential-components.tsx (todos os 4 componentes)
+  Arquivos modificados:
+    - apps/app/src/stores/recording-store.ts
+    - apps/app/src/lib/offline-queue.ts
+    - apps/app/src/routes/hub/index.tsx
+    - apps/app/src/routes/hub/recordings.index.tsx
+    - apps/app/src/routes/hub/recordings.$id.tsx
+  Typecheck: passou sem erros
+
+[2026-03-14] F-120 Frontend: Glossary Autocomplete Integration — CONCLUÍDO
+  Implementações:
+  Backend:
+    - GET /api/v1/hub/glossary/suggestions?prefix=<input>&limit=10 adicionado em apps/backend/src/routes/glossaries.ts
+    - Busca terms de todos os glossários do usuário com LIKE prefix%
+    - Registrado em index.ts como /api/v1/hub/glossary
+  Frontend (apps/app/src/routes/hub/recordings.$id.tsx):
+    - GlossarySuggestions: dropdown posicionado abaixo do campo de texto, debounce 200ms, match highlighting com HighlightMatch
+    - Keyboard nav: Tab aceita sugestão selecionada, ↑↓ navegam, Esc fecha dropdown
+    - Integrado em EditableSegment: word prefix extraído do cursor em contentEditable via Selection API
+    - replaceWordAtCursor: substitui palavra atual pelo termo selecionado sem perder foco
+    - hasGlossaries: verificado uma vez no TranscriptEditor via useGlossaries(), passado para cada EditableSegment
+    - KeyboardShortcutsHint: componente colapsável no rodapé do editor com todos os atalhos disponíveis
+  Critérios verificados:
+    - Dropdown aparece ao digitar quando glossário configurado ✓
+    - Debounce 200ms na busca ✓
+    - Tab aceita sugestão ✓
+    - ↑↓ navegam entre sugestões ✓
+    - Esc fecha dropdown ✓
+    - Dropdown não aparece sem glossários (hasGlossaries=false) ✓
+    - KeyboardShortcutsHint colapsável no rodapé ✓
+  Typecheck: PASSOU (frontend e backend sem novos erros)
+
+[2026-03-14] F-124 — Frontend: Confidential Settings (Model + Status) — CONCLUÍDO
+  Frontend (apps/app/src/routes/settings/index.tsx):
+    - ConfidentialSettingsSection: nova seção na página de Settings
+    - Indicador de status Ollama: Online (verde) / Offline (vermelho) via GET /api/v1/hub/confidential/models
+    - LocalModelSelector: dropdown com nome e tamanho (GB) de cada modelo disponível
+    - Espaço em disco: soma dos size_gb de todos os modelos exibida com ícone HardDrive
+    - Aviso de Offline: alerta vermelho com ícone WifiOff quando Ollama não responde
+    - Botão Salvar: chama PUT /api/v1/hub/confidential/config com local_model selecionado
+    - Config carregada de GET /api/v1/hub/confidential/config para pré-selecionar modelo atual
+  Frontend (apps/app/src/routes/hub/index.tsx):
+    - handleConfidentialChange: ao ativar modo confidential, faz GET /models para verificar status
+    - Aviso inline: exibido abaixo do ConfidentialToggle quando Ollama offline + confidential ativo
+    - Aviso removido automaticamente ao desativar modo confidential
+  Critérios verificados:
+    - Seção Modo Confidential aparece na página de Settings ✓
+    - LocalModelSelector lista modelos com nome e tamanho ✓
+    - Indicador de status Online/Offline com cor correta ✓
+    - Aviso exibido quando Ollama offline ✓
+    - Botão Salvar persiste configuração via API ✓
+    - Tela de nova gravação avisa se Ollama offline ao ativar confidential ✓
+  Typecheck: PASSOU
+[2026-03-14] F-134 — Frontend: Audio Player + Waveform + Chapter Markers — CONCLUÍDO
+  Artefatos produzidos:
+    - apps/app/src/components/recording/audio-player.tsx (novo componente)
+    - apps/app/src/routes/hub/recordings.$id.tsx (integração AudioPlayer + fetchChapters)
+    - apps/backend/src/routes/recordings.ts (endpoint GET /:id/audio com suporte a Range requests)
+  Implementação:
+    - AudioPlayer: componente principal com estado de play/pause, currentTime, speed, volume
+    - Waveform: canvas com Web Audio API (fetch → ArrayBuffer → AudioContext.decodeAudioData)
+      * Downsampling para 800 peaks para performance (< 1s em áudios de até 2h)
+      * Normalização de amplitude; playhead em azul escuro
+      * Chapter markers como linhas verticais amarelas (dashed) nas posições start_ms
+    - Tooltip de capítulo ao hover (15px de threshold)
+    - Click em qualquer posição do waveform → seek preciso
+    - PlaybackControls: skip -15s/+15s, play/pause (Space), velocidade (0.5x–2x), volume slider
+    - Blob URL para áudio autenticado (evita exposição do token na URL)
+    - Skeleton waveform (loading state) com padrão senoidal
+    - Backend: /:id/audio com suporte a Range requests para streaming de áudio
+    - fetchChapters integrado em recordings.$id.tsx via useQuery
+  Critérios verificados:
+    - AudioPlayer renderiza waveform em <canvas> via Web Audio API ✓
+    - Click em posição do waveform faz seek no áudio ✓
+    - ChapterMarkers aparecem como linhas verticais nas posições corretas ✓
+    - Tooltip exibe título do capítulo ao hover no marker ✓
+    - Play/pause funciona com tecla Space ✓
+    - Skip -15s/+15s funciona corretamente ✓
+    - Velocidade pode ser ajustada de 0.5x a 2x ✓
+    - Waveform renderiza em < 1s (800 peaks via downsampling) ✓
+  Typecheck: PASSOU
+  Progress: 19/25 features complete
+  Next: F-127 — Frontend: Audit Dashboard (Filters + Summary + Event List)
+
+[2026-03-14] F-127 — Frontend: Audit Dashboard (Filters + Summary + Event List) — CONCLUÍDO
+  Implementado:
+    - AuditDashboardPage em /hub/admin/audit (apps/app/src/routes/hub/admin.audit.tsx)
+    - AuditFilterBar: date pickers (from/to), dropdown de usuário (populado de eventos), dropdown de tipo de ação (18 tipos)
+    - AuditSummaryCards: 4 cards com gravações criadas, shares, acessos externos, usuários ativos — via GET /audit/summary
+    - AuditEventList: paginada com PAGE_SIZE=20, botões anterior/próximo, contador de página
+    - AuditEventRow: timestamp, nome do usuário, ícone por tipo de ação (lucide), descrição formatada, metadata contextual
+    - AuditExportButton: fetch com auth headers + blob download como CSV
+    - Item "Audit Trail" na bottom-nav com ícone ShieldCheck — visível apenas para admins de workspace
+    - routeTree.gen.ts atualizado manualmente para incluir /hub/admin/audit
+    - TypeScript typecheck: PASS (0 erros)
+[2026-03-14] F-128 (Frontend: Recording Audit Timeline) — CONCLUÍDO
+  Implementado RecordingAuditTimeline como nova aba 'Histórico' na página de detalhe da gravação.
+  - Aba 'Histórico' adicionada ao tablist com ícone de relógio
+  - Tipo DetailTab expandido para incluir 'history'
+  - Componente RecordingAuditTimeline: timeline vertical, eventos em ordem cronológica reversa (DESC do API)
+  - Cada item: ícone por tipo de ação (lucide-react), timestamp, ator e descrição formatada
+  - Eventos share_link.accessed exibem IP do acesso visualmente
+  - Acesso restrito: erro 403 exibe mensagem "disponível apenas para o dono da gravação"
+  - Carregado via GET /api/v1/hub/audit/recordings/:id
+  - Typecheck: passou sem erros
+  Progress: 21/25 features complete
+  Next: F-135
+
+[2026-03-14] F-135 Frontend: Chapter List + Synchronized Transcript — CONCLUÍDO
+  Implementado:
+    - AudioPlayer: refatorado com forwardRef + AudioPlayerHandle (seekTo) + onTimeUpdate callback
+    - ChapterList: lista de capítulos com indicadores visuais (passado=dimmed, ativo=highlighted, futuro=normal), auto-scroll para capítulo ativo, click → seek + scroll transcrição
+    - SyncTranscript: transcrição scrollable com auto-scroll via currentTimeMs, highlight do segmento ativo, click em segmento → seek no áudio, suporte a scrollToMs externo
+    - Layout responsivo: desktop split (sidebar 224px capítulos | flex-1 transcrição) em painel 22rem; mobile tabs (Capítulos / Transcrição) com painéis max-h-64
+    - Integrado na página recordings.$id.tsx: painel aparece apenas quando capítulos existem
+  Testes:
+    - ChapterList exibe capítulos com título e range de tempo ✓
+    - Indicadores visuais distinguem passado/ativo/futuro ✓
+    - Click em capítulo faz seek + scroll transcrição ✓
+    - Auto-scroll da transcrição acompanha áudio via onTimeUpdate ✓
+    - Segmento ativo recebe highlight bg-blue-50 ✓
+    - Click em segmento faz seek no áudio ✓
+    - Layout responsivo: sidebar em desktop (hidden md:flex), tabs em mobile (md:hidden) ✓
+  Typecheck: passou sem erros
+  Progress: 22/25 features complete
+  Next: F-136
+
+[2026-03-14] F-136 Frontend: Sticky Mini Player — CONCLUÍDO
+  Implementado: PlayerMiniBar como barra fixa no bottom da viewport
+  Arquivos modificados:
+    - apps/app/src/components/recording/audio-player.tsx (PlayerMiniBar + IntersectionObserver)
+    - apps/app/src/routes/hub/recordings.$id.tsx (title prop para AudioPlayer)
+  Detalhes de implementação:
+    - PlayerMiniBar renderizado via createPortal em document.body (z-50)
+    - IntersectionObserver no containerRef do AudioPlayer detecta visibilidade
+    - showMiniBar = true quando player sai da viewport (isIntersecting = false)
+    - Mini bar exibe: título truncado, barra de progresso, play/pause, velocidade, tempo atual/total
+    - Click no corpo da mini bar → scrollIntoView (smooth) para o player principal
+    - Botão play/pause e speed select têm stopPropagation para não acionar scroll
+    - Prop title passada do recordings.$id.tsx (recordingTitle)
+  Tests verificados:
+    - PlayerMiniBar aparece quando player principal sai da viewport ✓ (IntersectionObserver)
+    - PlayerMiniBar desaparece quando player principal está visível ✓ (isIntersecting)
+    - Mini bar exibe título, progresso, play/pause e velocidade ✓
+    - Botão play/pause na mini bar controla reprodução ✓ (togglePlayPause)
+    - Click na mini bar faz scroll up para player principal ✓ (scrollIntoView)
+    - IntersectionObserver é usado para detecção de visibilidade ✓
+  Typecheck: passou sem erros
+  Progress: 23/25 features complete
+  Next: F-131
+
+[2026-03-15] F-131 — Frontend: Trails Management (List + Create + Detail + Items) — CONCLUÍDO
+  Implementado:
+  - Tab 'Trilhas' adicionada ao WorkspaceDetailPage (workspaces.$id.tsx)
+  - TrailCard: título, role-alvo, item_count, estimated_total_min, assigned_count, badge Publicado/Rascunho
+  - CreateTrailDialog: inputs de título (required), descrição (optional), target_role (optional)
+  - TrailsListPage: grid responsivo com estado vazio e botão + Criar Trilha (admin/contributor)
+  - Nova rota /hub/workspaces/:id/trails/:trailId (workspaces.$id.trails.$trailId.tsx)
+  - TrailDetailPage: header com título, badge de status, botão Publicar/Despublicar
+  - TrailItemRow: título da gravação, notas do curador, tempo estimado, botões up/down (reorder), menu editar/remover
+  - AddTrailItemDialog: seletor de gravações do workspace + notas + tempo estimado
+  - EditItemDialog: edição de notas e tempo de itens existentes
+  - Reorder via botões up/down (API POST /items/reorder em transação)
+  - AssignmentsSection: membros com barra de progresso e ícone de concluído
+  - AssignTrailDialog: seletor de membro + prazo opcional
+  - routeTree.gen.ts atualizado com nova rota
+  - Typecheck: PASSOU (zero erros)
+
+[2026-03-14] F-132 — Frontend: My Trails (Member Progress View) — CONCLUÍDO
+  Implementado:
+    - MyTrailsPage em /hub/my-trails: lista de trilhas atribuídas com TrailProgressBar (completed/total), workspace name, prazo com alerta visual (vermelho se atrasado, âmbar se próximo ≤3 dias)
+    - TrailProgressView em /hub/my-trails/:workspaceId/:trailId: checklist com status visual (CheckCircle2 ✅ completed, PlayCircle ▶ in_progress, Circle ○ not_started)
+    - Toggle de status por item (not_started→in_progress→completed via botão de status)
+    - Textarea para notas do membro por item (auto-save ao sair do campo)
+    - Notas do curador visíveis como contexto acima das notas do membro
+    - Click em item navega para /hub/recordings/:id
+    - Item "My Trails" aparece na bottom-nav apenas quando há atribuições (condicional)
+    - Rotas adicionadas ao routeTree.gen.ts
+  Testes: typecheck passou sem erros
+[2026-03-15 01:38:16] Step 6 (ralph-wiggum-loop): Completed. completed
+[2026-03-14] Step: merge-worktree — CONCLUÍDO
+  - Committed pending changes in worktree (features.json)
+  - Fast-forward merged harness/wave-6 into master (62 files, 13123 insertions)
+  - Removed worktree registration
+  - Deleted branch harness/wave-6
+  - merged_sha: aeed945f4b5ad49b4806340f56269f0d2e457c1f
+[2026-03-15 01:40:38] Step 7 (merge-worktree): Completed. ok
+[2026-03-15 01:40:38] Step 8 (stop-on-wave-limit): Completed. continue
+[2026-03-15 01:40:39] Step 9 (spawn-vibe-full-app): Completed. spawned

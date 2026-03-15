@@ -10,28 +10,18 @@ const MAX_LINES_OPTIONS = [50, 100, 200, 500] as const
 const LS_MAX_LINES_KEY = "aw-console-max-lines"
 const DEFAULT_MAX_LINES = 100
 
-type EventCategory = "workflow" | "feature" | "agent" | "loop" | "gutter" | "queue"
+type EventCategory = "queue"
 
-const ALL_CATEGORIES: EventCategory[] = ["workflow", "feature", "agent", "loop", "gutter", "queue"]
+const ALL_CATEGORIES: EventCategory[] = ["queue"]
 
 const CATEGORY_COLORS: Record<EventCategory, string> = {
-  workflow: "bg-blue-500/15 text-blue-700 dark:text-blue-400",
-  feature: "bg-green-500/15 text-green-700 dark:text-green-400",
-  agent: "bg-purple-500/15 text-purple-700 dark:text-purple-400",
-  loop: "bg-orange-500/15 text-orange-700 dark:text-orange-400",
-  gutter: "bg-red-500/15 text-red-700 dark:text-red-400",
   queue: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-400",
 }
 
-const ENGINE_EVENT_TYPES = [
-  "engine:event",
-  "engine:log",
-  "run:started",
-  "run:completed",
-  "run:failed",
-  "agent:action:start",
-  "agent:action:end",
-]
+// Console only cares about queue events (operator interaction).
+// engine:event is subscribed to detect queue:processing (pending → processed),
+// but non-queue inner events are discarded before reaching the feed.
+const ENGINE_EVENT_TYPES = ["engine:event"]
 
 interface ConversationEntry {
   role: "user" | "engine"
@@ -62,84 +52,24 @@ function nextId() {
   return String(++_id)
 }
 
-function getCategory(type: string, data: unknown): EventCategory {
-  if (type === "engine:event") {
-    const inner = (data as { payload?: { type?: string } })?.payload?.type ?? ""
-    if (inner.startsWith("workflow:")) return "workflow"
-    if (inner.startsWith("feature:")) return "feature"
-    if (inner.startsWith("agent:")) return "agent"
-    if (inner.startsWith("loop:")) return "loop"
-    if (inner.startsWith("gutter:")) return "gutter"
-    if (inner.startsWith("queue:") || inner.startsWith("operator:")) return "queue"
-    return "workflow"
-  }
-  if (type.startsWith("run:")) return "workflow"
-  if (type.startsWith("agent:action:")) return "agent"
-  if (type.startsWith("operator:")) return "queue"
-  return "workflow"
+function getEventCategory(_eventType: string): EventCategory {
+  return "queue"
 }
 
-function getEventCategory(eventType: string): EventCategory {
-  if (eventType.startsWith("workflow:")) return "workflow"
-  if (eventType.startsWith("feature:")) return "feature"
-  if (eventType.startsWith("agent:")) return "agent"
-  if (eventType.startsWith("loop:")) return "loop"
-  if (eventType.startsWith("gutter:")) return "gutter"
-  if (eventType.startsWith("queue:") || eventType.startsWith("operator:")) return "queue"
-  return "workflow"
-}
-
-function getLabel(type: string, data: unknown): string {
-  if (type === "engine:event") {
-    const inner = (data as { payload?: { type?: string } })?.payload?.type
-    return inner ? `engine:event / ${inner}` : "engine:event"
-  }
-  return type
-}
-
-function getSummary(type: string, data: unknown): string {
+function getSummary(_type: string, data: unknown): string {
   if (!data || typeof data !== "object") return ""
   const d = data as Record<string, unknown>
-  if (type === "engine:event") {
-    const slug = d.slug as string | undefined
-    const inner = (d as { payload?: { type?: string } }).payload?.type
-    const parts: string[] = []
-    if (slug) parts.push(slug)
-    if (inner) parts.push(inner)
-    return parts.join(" · ")
-  }
-  if (type === "run:started" || type === "run:completed" || type === "run:failed") {
-    const slug = d.slug as string | undefined
-    const workflow = d.workflow as string | undefined
-    const pid = d.pid as number | undefined
-    const parts: string[] = []
-    if (slug) parts.push(slug)
-    if (workflow) parts.push(workflow)
-    if (pid) parts.push(`pid:${pid}`)
-    return parts.join(" · ")
-  }
-  if (type === "agent:action:start" || type === "agent:action:end") {
-    const task = d.task_name as string | undefined
-    const feature = d.feature_id as string | undefined
-    const agent = d.agent_profile as string | undefined
-    const parts: string[] = []
-    if (task) parts.push(task)
-    if (feature) parts.push(feature)
-    if (agent) parts.push(agent)
-    return parts.join(" · ")
-  }
-  if (type === "engine:log") {
-    const line = d.line as string | undefined
-    return line ? line.slice(0, 80) : ""
-  }
-  return ""
+  const payload = d.payload as { type?: string; data?: Record<string, unknown> } | undefined
+  if (!payload?.data) return ""
+  const innerData = payload.data
+  const count = innerData.count as number | undefined
+  const exitCode = innerData.exit_code as number | undefined
+  const parts: string[] = []
+  if (count !== undefined) parts.push(`${count} msg`)
+  if (exitCode !== undefined) parts.push(`exit=${exitCode}`)
+  return parts.join(" · ")
 }
 
-function getEventSlug(_type: string, data: unknown): string | undefined {
-  if (!data || typeof data !== "object") return undefined
-  const d = data as Record<string, unknown>
-  return (d.slug as string | undefined) ?? (d.project_slug as string | undefined)
-}
 
 function formatRelative(ts: number): string {
   const diff = Math.floor((Date.now() - ts) / 1000)
@@ -251,25 +181,15 @@ export function WaveConsolePage() {
         })
       }
     }
-    const feedEv: EngineEventItem = {
-      ...event,
-      id: nextId(),
-      category: getCategory(event.type, event.data),
-      label: getLabel(event.type, event.data),
-      summary: getSummary(event.type, event.data),
-    }
-    setEngineEvents((prev) => {
-      const next = [...prev, feedEv]
-      return next.length > MAX_EVENTS ? next.slice(next.length - MAX_EVENTS) : next
-    })
-  }, [])
+    // Only add queue/operator events to the feed — skip workflow/feature/agent/loop noise
+    const innerType = payload.payload?.type ?? ""
+    if (!innerType.startsWith("queue:") && !innerType.startsWith("operator:")) return
 
-  const handleOtherEvent = useCallback((event: SSEEvent) => {
     const feedEv: EngineEventItem = {
       ...event,
       id: nextId(),
-      category: getCategory(event.type, event.data),
-      label: getLabel(event.type, event.data),
+      category: "queue" as EventCategory,
+      label: innerType,
       summary: getSummary(event.type, event.data),
     }
     setEngineEvents((prev) => {
@@ -279,15 +199,8 @@ export function WaveConsolePage() {
   }, [])
 
   useEffect(() => {
-    const unsub = subscribe("engine:event", handleEngineEvent)
-    const otherUnsubs = ENGINE_EVENT_TYPES.filter((t) => t !== "engine:event").map((t) =>
-      subscribe(t, handleOtherEvent)
-    )
-    return () => {
-      unsub()
-      otherUnsubs.forEach((u) => u())
-    }
-  }, [subscribe, handleEngineEvent, handleOtherEvent])
+    return subscribe("engine:event", handleEngineEvent)
+  }, [subscribe, handleEngineEvent])
 
   const sendMessage = async () => {
     const content = text.trim()
@@ -356,8 +269,10 @@ export function WaveConsolePage() {
           entry,
         })
       } else {
-        // engine log entries
-        const cat = getEventCategory(entry.event ?? "")
+        // Only show queue/operator engine entries in console
+        const eventName = entry.event ?? ""
+        if (!eventName.startsWith("queue:") && !eventName.startsWith("operator:")) continue
+        const cat = getEventCategory(eventName)
         if (!enabledCategories.has(cat)) continue
         if (q) {
           const text = `${entry.event ?? ""} ${getEngineEventSummary(entry)}`.toLowerCase()
@@ -385,11 +300,9 @@ export function WaveConsolePage() {
       }
     }
 
-    // Live engine events (SSE)
+    // Live queue events (SSE)
     for (const ev of engineEvents) {
       if (!enabledCategories.has(ev.category)) continue
-      const evSlug = getEventSlug(ev.type, ev.data)
-      if (evSlug && evSlug !== slug) continue
       if (q) {
         const text = `${ev.label} ${ev.summary}`.toLowerCase()
         if (!text.includes(q)) continue
@@ -478,27 +391,7 @@ export function WaveConsolePage() {
             className="overflow-hidden"
           >
             <div className="rounded-lg border border-border bg-card p-3 space-y-3">
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  Categorias de evento
-                </p>
-                <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-                  {ALL_CATEGORIES.map((cat) => (
-                    <label key={cat} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={enabledCategories.has(cat)}
-                        onChange={(e) => handleCategoryToggle(cat, e.target.checked)}
-                        className="w-3.5 h-3.5 rounded accent-primary"
-                      />
-                      <span className={`px-1.5 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[cat]}`}>
-                        {cat}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -507,6 +400,17 @@ export function WaveConsolePage() {
                     className="w-3.5 h-3.5 rounded accent-primary"
                   />
                   <span className="text-muted-foreground">Mensagens do operador</span>
+                </label>
+                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={enabledCategories.has("queue")}
+                    onChange={(e) => handleCategoryToggle("queue", e.target.checked)}
+                    className="w-3.5 h-3.5 rounded accent-primary"
+                  />
+                  <span className={`px-1.5 py-0.5 rounded-full font-medium ${CATEGORY_COLORS.queue}`}>
+                    Eventos da fila
+                  </span>
                 </label>
               </div>
               <div>

@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { promises as fs } from 'node:fs';
+import { promises as fs, writeFileSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { eventBus } from '../lib/event-bus.js';
 import { getAwRoot } from '../lib/paths.js';
+import { listWaveDirs } from '../lib/wave-state.js';
 
 export type RunStatus = 'running' | 'completed' | 'failed';
 export type RunMode = 'spawn' | 'detached';
@@ -98,14 +99,26 @@ export function attachEngineHandlers(
     const r = runsStore.get(runId);
     if (!r) return;
 
-    const crashed = code !== 0 && !r.intentionalStop && signal !== 'SIGTERM';
+    // User clicked "Stop" — persist stopped state so resume won't revive this workflow
+    if (r.intentionalStop) {
+      markWorkflowStopped(slug);
+    }
+
+    const externalSigterm = signal === 'SIGTERM' && !r.intentionalStop;
+    const crashed = (code !== 0 || externalSigterm) && !r.intentionalStop;
     if (crashed) {
       const retryCount = (r.retryCount ?? 0) + 1;
+      const crashMessage = externalSigterm
+        ? 'Engine killed by external SIGTERM (not intentional stop)'
+        : `Engine exited with code ${code}${signal ? ` (signal: ${signal})` : ''}`;
+
       eventBus.broadcast({
         type: 'run:crash',
-        data: { runId, slug, exitCode: code, signal, retryCount, maxRetries: MAX_RETRIES },
+        data: { runId, slug, exitCode: code, signal, retryCount, maxRetries: MAX_RETRIES, message: crashMessage },
         timestamp: new Date().toISOString(),
       });
+
+      writeServerCrashReport(slug, crashMessage, code, signal).catch(() => {});
 
       if (retryCount <= MAX_RETRIES) {
         r.retryCount = retryCount;
@@ -127,6 +140,96 @@ export function attachEngineHandlers(
       timestamp: new Date().toISOString(),
     });
   });
+}
+
+/**
+ * After an intentional stop, update workflow-state.json on disk so that
+ * resume.ts won't revive the workflow on server restart.
+ * Uses sync I/O because the exit handler runs in a tight window.
+ */
+function markWorkflowStopped(slug: string): void {
+  try {
+    const awRoot = getAwRoot();
+    const workspaceDir = path.join(awRoot, 'context', 'workspaces', slug);
+    const entries = readdirSync(workspaceDir, { encoding: 'utf-8' });
+    const waveDirs = entries.filter((e: string) => /^wave-\d+$/.test(e)).sort();
+    const lastWave = waveDirs[waveDirs.length - 1];
+    if (!lastWave) return;
+
+    const statePath = path.join(workspaceDir, lastWave, 'workflow-state.json');
+    const raw = readFileSync(statePath, 'utf-8');
+    const ws = JSON.parse(raw) as Record<string, unknown>;
+
+    ws['status'] = 'stopped';
+    ws['stopped_reason'] = 'intentional_stop';
+
+    // Mark running steps as interrupted
+    const steps = ws['steps'] as Array<Record<string, unknown>> | undefined;
+    if (Array.isArray(steps)) {
+      for (const step of steps) {
+        if (step['status'] === 'running') {
+          step['status'] = 'interrupted';
+          step['completed_at'] = new Date().toISOString();
+        }
+      }
+    }
+
+    writeFileSync(statePath, JSON.stringify(ws, null, 2));
+  } catch {
+    // Best-effort — don't crash the exit handler
+  }
+}
+
+async function writeServerCrashReport(
+  slug: string,
+  message: string,
+  exitCode: number | null,
+  signal: NodeJS.Signals | null,
+): Promise<void> {
+  const awRoot = getAwRoot();
+  const workspaceDir = path.join(awRoot, 'context', 'workspaces', slug);
+  const waveDirs = await listWaveDirs(workspaceDir);
+  const lastWave = waveDirs[waveDirs.length - 1];
+  if (!lastWave) return;
+
+  const waveDir = path.join(workspaceDir, lastWave);
+  const crashPath = path.join(waveDir, 'crash-report.log');
+
+  // Don't overwrite a crash report already written by the engine
+  try {
+    readFileSync(crashPath);
+    return;
+  } catch { /* does not exist — proceed */ }
+
+  const timestamp = new Date().toISOString();
+  const lines = [
+    '=== CRASH REPORT ===',
+    `timestamp:     ${timestamp}`,
+    `handler:       server-detected`,
+    `pid:           N/A`,
+    `node:          ${process.version}`,
+    `platform:      ${process.platform}`,
+    `uptime:        N/A`,
+    '',
+    '--- error ---',
+    message,
+    `exit_code: ${exitCode}`,
+    `signal: ${signal}`,
+    '',
+  ];
+
+  // Append workflow-state if available
+  try {
+    const stateRaw = readFileSync(path.join(waveDir, 'workflow-state.json'), 'utf8');
+    lines.push('--- workflow-state ---');
+    lines.push(stateRaw);
+    lines.push('');
+  } catch {
+    lines.push('--- workflow-state: (unavailable) ---');
+    lines.push('');
+  }
+
+  writeFileSync(crashPath, lines.join('\n'), 'utf8');
 }
 
 const app = new Hono();
@@ -212,6 +315,9 @@ app.delete('/:runId', (c) => {
   if (run.status !== 'running') {
     return c.json({ error: 'Run is not active' }, 409);
   }
+
+  // Write stopped state BEFORE killing — guarantees persistence even if exit handler doesn't fire
+  markWorkflowStopped(run.slug);
 
   try {
     run.intentionalStop = true;

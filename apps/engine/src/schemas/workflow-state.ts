@@ -20,11 +20,20 @@ export const WorkflowStepStateSchema = z.object({
   artifacts: z.array(z.string()).optional(),
 });
 
+export const WorkflowStatusSchema = z.enum([
+  'running',
+  'completed',
+  'stopped',
+  'failed',
+]);
+
 export const WorkflowStateSchema = z.object({
   workflow: z.string(),
   wave: z.number(),
   sprint: z.number(),
   initialized_at: z.string(),
+  status: WorkflowStatusSchema.optional(),
+  stopped_reason: z.string().optional(),
   steps: z.array(WorkflowStepStateSchema),
 });
 

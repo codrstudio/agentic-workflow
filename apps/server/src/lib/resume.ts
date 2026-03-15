@@ -52,8 +52,14 @@ async function maybeResumeWorkspace(awRoot: string, slug: string): Promise<void>
   const waveState = await readWorkflowState(path.join(workspaceDir, lastWaveDir));
   if (!waveState) return;
 
-  const hasInterruptedStep = waveState.steps.some((s) => s.status === 'running');
-  if (!hasInterruptedStep) return;
+  // If workflow ended intentionally, don't resume
+  const wsStatus = (waveState as unknown as Record<string, unknown>)['status'] as string | undefined;
+  if (wsStatus === 'completed' || wsStatus === 'stopped' || wsStatus === 'failed') return;
+
+  const hasResumableStep = waveState.steps.some(
+    (s) => s.status === 'running' || s.status === 'interrupted' || s.status === 'pending',
+  );
+  if (!hasResumableStep) return;
 
   const { workflow } = waveState;
   console.log(`[resume] Resuming interrupted workflow for "${slug}" (${workflow})`);

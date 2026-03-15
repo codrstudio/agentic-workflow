@@ -253,6 +253,12 @@ export async function detectResumableWave(
     const ws = await state.readJson<WorkflowState>(statePath);
     if (!ws || !ws.steps) continue;
 
+    // If workflow ended (completed or failed), don't resume.
+    // 'stopped' is intentional pause — still resumable when user clicks "Retomar".
+    if (ws.status === 'completed' || ws.status === 'failed') {
+      return null;
+    }
+
     const hasIncomplete = ws.steps.some((s: WorkflowStepState) => s.status !== 'completed');
     if (!hasIncomplete) return null; // wave is complete → nothing to resume
 
