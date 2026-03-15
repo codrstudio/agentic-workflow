@@ -75,7 +75,7 @@ export interface LoopJson {
   exit_reason?: string;
 }
 
-export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'interrupted';
+export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'interrupted' | 'skipped';
 
 export function deriveStatus(spawn: SpawnJson | null, dirExists: boolean): StepStatus {
   if (!dirExists) return 'pending';
@@ -224,10 +224,11 @@ export function deriveWaveStatus(steps: StepSummary[]): StepStatus {
   const interrupted = steps.filter((s) => s.status === 'interrupted').length;
   const failed = steps.filter((s) => s.status === 'failed').length;
   const done = steps.filter((s) => s.status === 'completed').length;
+  const skipped = steps.filter((s) => s.status === 'skipped').length;
   if (running > 0) return 'running';
   if (interrupted > 0) return 'interrupted';
   if (failed > 0) return 'failed';
-  if (done === total && total > 0) return 'completed';
+  if (done + skipped === total && total > 0) return 'completed';
   if (done > 0) return 'running';
   return 'pending';
 }
@@ -339,7 +340,8 @@ export function computeWaveTiming(steps: StepSummary[]): TimingResult | null {
   const completed_steps_avg_ms = completed_steps_total_ms / completedSteps.length;
 
   const completed = steps.filter((s) => s.status === 'completed').length;
-  const remaining_steps = steps.length - completed;
+  const skippedCount = steps.filter((s) => s.status === 'skipped').length;
+  const remaining_steps = steps.length - completed - skippedCount;
   const estimated_remaining_ms = remaining_steps * completed_steps_avg_ms;
   const estimated_completion = new Date(now + estimated_remaining_ms).toISOString();
 

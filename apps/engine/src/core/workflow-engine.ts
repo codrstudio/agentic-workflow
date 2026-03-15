@@ -248,6 +248,10 @@ export class WorkflowRunner {
         });
 
         if (result.reason === 'decide:stop') {
+          // Mark remaining steps as skipped
+          for (let j = i + 1; j < workflow.steps.length; j++) {
+            await this.updateStepState(statePath, j, { status: 'skipped' });
+          }
           await this.updateWorkflowStatus(statePath, 'stopped', `decide:stop at ${stepName}`);
           this.emitEvent('workflow:end', { reason: 'decide:stop', stopped_at_step: stepName });
           return { exitCode: 0, reason: 'decide:stop' };
