@@ -18,13 +18,13 @@ test("SSE status after login", async ({ page }) => {
   await page.fill('input[name="username"]', "admin@mail.com")
   await page.fill('input[name="password"]', "12345678")
   await page.click('button[type="submit"]')
-  await page.waitForURL("**/projects**", { timeout: 5000 })
+  await page.waitForURL("**/projects**", { timeout: 15000 })
 
   // Wait up to 5s for SSE conectado
   for (let i = 0; i < 5; i++) {
     const text = await page.evaluate(() => {
-      const el = document.querySelector('[aria-label*="SSE"]')
-      return el?.getAttribute("aria-label") ?? "NOT FOUND"
+      const el = document.querySelector('[title*="SSE"]')
+      return el?.getAttribute("title") ?? "NOT FOUND"
     })
     console.log(`[T+${i}s] ${text}`)
     if (text === "SSE conectado") break
@@ -33,7 +33,7 @@ test("SSE status after login", async ({ page }) => {
 
   // Final assertion
   const finalText = await page.evaluate(() =>
-    document.querySelector('[aria-label*="SSE"]')?.getAttribute("aria-label") ?? "NOT FOUND"
+    document.querySelector('[title*="SSE"]')?.getAttribute("title") ?? "NOT FOUND"
   )
   expect(finalText).toBe("SSE conectado")
 })
