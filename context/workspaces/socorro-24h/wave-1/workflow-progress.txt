@@ -19,3 +19,86 @@
   - Rationale: 17 discoveries com score 8+, 6 com score 9, 2 com score 10. TAM de 50M+ veículos sem seguro. First-mover em JF. Todas as 41 descobertas pendentes de implementação.
   - Summary: avg score 7.8 | 0 implemented | 41 pending
 [2026-03-17 09:15:30] Step 2 (go-no-go): Completed. decision=go
+[2026-03-17 07:47:32] Step 2 (go-no-go): Completed. decide:continue
+[2026-03-17] Step 3 (derive-specs): Concluído.
+  - Derivadas 7 specs técnicas a partir de 41 discoveries do brainstorming/ranking
+  - Priorizadas por score (discoveries score 8+ cobertas nas specs de maior prioridade)
+  - Artefatos produzidos em sprints/sprint-1/2-specs/:
+    - S-001-foundation-db-docker-config.md — DB schema (4 tabelas), Docker Compose, .env, monorepo scaffolding
+    - S-002-api-chamados-auth-sse.md — REST API completa: 20+ endpoints, state machine, auth, SSE events
+    - S-003-portal-landing-page-seo.md — Landing page SSG, JSON-LD LocalBusiness, SEO local, Leaflet
+    - S-004-portal-formulario-socorro-gps.md — Form multi-step com GPS, sessionStorage, validação Zod
+    - S-005-portal-rastreamento-avaliacoes.md — Tracking SSE real-time, progress bar 5 etapas, rating 1-5
+    - S-006-hub-dashboard-gestao-chamados.md — PWA dashboard, toggle disponibilidade, transições de status, SSE
+    - S-007-hub-historico-financeiro-config.md — Histórico paginado, métricas financeiras, CRUD serviços/preços
+  - Decisões:
+    - IDs começam em S-001 (primeiro sprint, sem sprints anteriores)
+    - Cada spec é auto-contida e implementável por um agente coder
+    - Stack respeita TASK.md: Hono API, Next.js portal, Vite hub, Drizzle + PostgreSQL
+    - Specs são incrementais com dependências explícitas (S-001 → S-002 → S-003..S-007)
+    - MCP server não recebeu spec dedicada — será derivado da API (S-002) em fase posterior
+[2026-03-17] Step 3 (derive-specs): Completed. 7 specs produced
+[2026-03-17 07:56:30] Step 3 (derive-specs): Completed. ok
+[2026-03-17] Step 4 (derive-prps): Concluído.
+  - Derivados 7 PRPs a partir de 7 specs técnicas
+  - 37 features atômicas no total (F-001..F-037), cada uma cabendo em 1 sessão de agente
+  - Artefatos produzidos em sprints/sprint-1/3-prps/:
+    - PRP-001-foundation-db-docker-monorepo.md — 7 features: monorepo, Drizzle schema, migrations/seed, Docker, config, types/validators stubs, core stub
+    - PRP-002-api-chamados-auth-sse.md — 8 features: core logic, validators, Hono setup+auth, rotas públicas, rotas autenticadas, serviços/settings/dashboard, SSE
+    - PRP-003-portal-landing-page-seo.md — 5 features: Next.js setup, hero/header, serviços/avaliações, mapa/contato/footer, SEO
+    - PRP-004-portal-formulario-socorro-gps.md — 4 features: form scaffold+step1, step2, step3+GPS, confirmação
+    - PRP-005-portal-rastreamento-avaliacoes.md — 3 features: tracking+progress bar, SSE+provider card, rating
+    - PRP-006-hub-dashboard-gestao-chamados.md — 6 features: setup+login, header+cards+toggle, lista+SSE, transições+detalhe, concluir/cancelar, layout+PWA
+    - PRP-007-hub-historico-financeiro-config.md — 4 features: filtros+resumo, lista paginada, settings form, tabela preços
+  - Cadeia de dependências: PRP-001 → PRP-002 → PRP-003/005/006 → PRP-004/007
+  - Decisões:
+    - PRPs mapeiam 1:1 com specs para manter rastreabilidade
+    - Features numeradas sequencialmente (F-001..F-037) para uso no ralph-wiggum loop
+    - Cada PRP inclui seção Limites explícita para evitar scope creep
+[2026-03-17] Step 4 (derive-prps): Completed. 7 PRPs, 37 features
+[2026-03-17 08:00:52] Step 4 (derive-prps): Completed. ok
+[2026-03-17] Step 5 (plan-features): Concluído.
+  - Gerado features.json com 37 features (F-001..F-037) a partir de 7 PRPs
+  - Artefato produzido: sprints/sprint-1/features.json
+  - Validações passaram: IDs únicos, prioridades únicas, DAG sem ciclos, todas com testes
+  - Cadeia de dependências por camada:
+    - Camada 1 (infra): F-001 monorepo → F-002 DB schema, F-004 Docker, F-005 config, F-007 core stub
+    - Camada 2 (packages): F-003 migrations, F-006 types/validators, F-008..F-009 core logic, F-010 validators Zod
+    - Camada 3 (API): F-011 Hono setup → F-012..F-015 rotas + SSE
+    - Camada 4 (frontends): F-016 portal setup, F-028 hub setup → seções, forms, tracking, dashboard
+    - Camada 5 (complementar): F-020 SEO, F-033 PWA, F-034..F-037 histórico/config
+  - Decisões:
+    - Risco técnico priorizado: infra e DB antes de API, API antes de UI
+    - Prioridades 1-37 refletem ordem lógica respeitando dependências
+    - Portal (F-016) e Hub (F-028) podem iniciar em paralelo após API estar pronta
+    - Cada feature é atômica e implementável em 1 sessão de agente coder
+[2026-03-17] Step 5 (plan-features): Completed. 37 features planned
+[2026-03-17 08:06:16] Step 5 (plan-features): Completed. ok
+
+[2026-03-17] Step vibe-code (F-001 Monorepo scaffolding): Completed. status=passing
+  - Criada estrutura de monorepo: apps/ (api, portal, hub, mcp) + packages/ (db, core, types, validators, config, http, ui)
+  - package.json raiz com workspaces: ["apps/*", "packages/*"], engines node>=20
+  - tsconfig.base.json com compilerOptions.paths mapeando @socorro/* → packages/*/src/index.ts
+  - tsconfig.json com project references para todos os packages
+  - Cada package com package.json (name @socorro/<name>, main/types/exports apontando para src/index.ts)
+  - Stubs src/index.ts criados em todos os packages
+  - .gitignore criado (node_modules/, dist/, .env)
+  - npm install: 12 packages instalados, 0 vulnerabilities
+  - Features desbloqueadas: F-002, F-004, F-005, F-007, F-016 (passaram a status=pending)
+  - Progress: 1/37 features complete
+
+[2026-03-17] Step vibe-code (F-002 Package db — Drizzle schema): Completed. status=passing
+  - Instaladas dependências: drizzle-orm ^0.39.1, postgres ^3.4.5, drizzle-kit ^0.30.4
+  - Criado packages/db/src/schema.ts com:
+    - 3 enums: callStatusEnum (6 valores), vehicleTypeEnum (4 valores), problemTypeEnum (6 valores)
+    - 4 tabelas: serviceCalls, serviceTypes, providerSettings, ratings
+    - Índices: idx_service_calls_status, idx_service_calls_created_at, idx_service_calls_tracking_token, idx_ratings_call_id
+    - Relações: serviceCallsRelations (1:1 com ratings), ratingsRelations
+    - Check constraint: chk_ratings_score (score >= 1 AND score <= 5)
+  - Criado packages/db/src/client.ts com drizzle client configurado via DATABASE_URL
+  - Atualizado packages/db/src/index.ts exportando db client, schema, relações e tipos inferidos
+    (ServiceCall, NewServiceCall, ServiceType, NewServiceType, ProviderSettings, NewProviderSettings, Rating, NewRating)
+  - Criado packages/db/tsconfig.json estendendo tsconfig.base.json
+  - TypeScript compila sem erros (npm run typecheck em packages/db)
+  - F-006 desbloqueada (dependia de F-002)
+  - Progress: 2/37 features complete
