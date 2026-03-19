@@ -16,6 +16,7 @@ export const SpawnAgentStepSchema = WorkflowStepBase.extend({
 export const FeatureLoopStepSchema = WorkflowStepBase.extend({
   type: z.literal('ralph-wiggum-loop'),
   task: z.string(),
+  features_file: z.string().optional(),
 });
 
 export const ChainWorkflowStepSchema = WorkflowStepBase.extend({

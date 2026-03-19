@@ -45,6 +45,7 @@ export interface FeatureLoopOptions {
   sleepBetween?: number;
   timeoutMs?: number;
   rollbackMode?: RollbackMode;
+  featuresFile?: string;
 }
 
 export class FeatureLoop {
@@ -72,7 +73,8 @@ export class FeatureLoop {
     opts: FeatureLoopOptions = {},
   ): Promise<{ exitCode: number; reason: string }> {
     const { sprintDir, stepDir, worktreeDir } = ctx;
-    const featuresPath = join(sprintDir, 'features.json');
+    const featuresFileName = opts.featuresFile ?? 'features.json';
+    const featuresPath = join(sprintDir, featuresFileName);
     const loopStatePath = join(stepDir, 'loop.json');
 
     const maxRetries = opts.maxRetries ?? 5;
