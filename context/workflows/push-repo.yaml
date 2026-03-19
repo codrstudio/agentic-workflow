@@ -1,0 +1,6 @@
+name: push-repo
+description: Push do repo do produto para o remote origin
+
+steps:
+  - type: spawn-agent
+    task: push-repo
