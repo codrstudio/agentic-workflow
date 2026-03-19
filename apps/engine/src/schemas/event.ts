@@ -25,6 +25,7 @@ export const EngineEventTypeSchema = z.enum([
   'queue:received',
   'queue:processing',
   'queue:done',
+  'repo:pull',
 ]);
 
 const base = z.object({
@@ -269,6 +270,17 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
         count: z.number().optional(),
         exit_code: z.number().optional(),
         timed_out: z.boolean().optional(),
+      })
+      .passthrough(),
+  }),
+  base.extend({
+    type: z.literal('repo:pull'),
+    data: z
+      .object({
+        branch: z.string(),
+        result: z.enum(['ok', 'conflict', 'failed']),
+        via: z.enum(['deterministic', 'agent']).optional(),
+        error: z.string().optional(),
       })
       .passthrough(),
   }),

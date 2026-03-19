@@ -104,7 +104,7 @@ export async function ensureWorkspace(
 
     if (repoUrl) {
       const cloneBranch = repoConfig?.source_branch
-        ? `-b "${repoConfig.source_branch}"`
+        ? `--single-branch -b "${repoConfig.source_branch}"`
         : '';
       execSync(`git clone ${cloneBranch} "${repoUrl}" repo`, {
         cwd: workspaceDir,

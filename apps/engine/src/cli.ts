@@ -106,6 +106,11 @@ function logEvent(event: EngineEvent): void {
     case 'queue:done':
       console.log(`${ts} ${chalk.cyan('queue:done')}          agent exit=${d.exit_code}${d.timed_out ? chalk.red(' TIMEOUT') : ''}`);
       break;
+    case 'repo:pull': {
+      const pullColor = d.result === 'ok' ? chalk.green : chalk.red;
+      console.log(`${ts} ${pullColor('repo:pull')}           ${d.branch} ${d.result}${d.via ? ` via=${d.via}` : ''}${d.error ? ` (${d.error})` : ''}`);
+      break;
+    }
     default:
       console.log(`${ts} ${chalk.gray(event.type)}  ${JSON.stringify(d)}`);
   }

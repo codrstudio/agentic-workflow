@@ -154,6 +154,11 @@ export class WorkflowRunner {
       wave: ctx.waveNumber,
     });
 
+    // Pull latest changes from remote before starting the wave
+    if (ctx.targetBranch) {
+      await this.pullRepo(ctx);
+    }
+
     try {
       for (let i = 0; i < workflow.steps.length; i++) {
         if (this.stopRequested) {
@@ -645,7 +650,7 @@ export class WorkflowRunner {
         return this.executeSpawnAgent(step.task, step.model, step.schema, step.stop_on, stepIndex, ctx);
 
       case 'ralph-wiggum-loop':
-        return this.executeFeatureLoop(step.task, step.model, stepIndex, ctx);
+        return this.executeFeatureLoop(step.task, step.model, stepIndex, ctx, step.features_file);
 
       case 'chain-workflow':
         return this.executeChainWorkflow(step.workflow, ctx);
@@ -772,6 +777,143 @@ export class WorkflowRunner {
   }
 
   /**
+   * Hybrid pull: attempts deterministic git pull first; on conflict/failure, falls back to agent.
+   * Runs before the step loop so the repo starts each wave with the latest remote changes.
+   */
+  private async pullRepo(ctx: WorkflowRunnerContext): Promise<void> {
+    const targetBranch = ctx.targetBranch!;
+    const progressPath = join(ctx.waveDir, 'workflow-progress.txt');
+
+    // Layer 1 — Deterministic: git pull on the repo's target branch
+    try {
+      // Ensure we're on the target branch
+      execSync(`git -C "${ctx.repoDir}" checkout "${targetBranch}"`, { stdio: 'pipe' });
+      execSync(`git -C "${ctx.repoDir}" pull --ff-only origin "${targetBranch}"`, { stdio: 'pipe' });
+
+      this.emitEvent('repo:pull', { branch: targetBranch, result: 'ok', via: 'deterministic' });
+      await this.state.appendLine(
+        progressPath,
+        `[${now().replace('T', ' ').replace('Z', '')}] repo:pull via=deterministic branch=${targetBranch} result=ok`,
+      );
+      return;
+    } catch (deterministicErr) {
+      // --ff-only failed (diverged history or conflict) — try regular pull
+      try {
+        // Abort any partial merge left by the failed pull
+        try { execSync(`git -C "${ctx.repoDir}" merge --abort`, { stdio: 'pipe' }); } catch { /* ignore */ }
+
+        execSync(`git -C "${ctx.repoDir}" pull origin "${targetBranch}" --no-edit`, { stdio: 'pipe' });
+
+        this.emitEvent('repo:pull', { branch: targetBranch, result: 'ok', via: 'deterministic' });
+        await this.state.appendLine(
+          progressPath,
+          `[${now().replace('T', ' ').replace('Z', '')}] repo:pull via=deterministic branch=${targetBranch} result=ok (non-ff)`,
+        );
+        return;
+      } catch (pullErr) {
+        // Regular pull also failed — fall through to agent
+        // Abort any in-progress merge before agent takes over
+        try { execSync(`git -C "${ctx.repoDir}" merge --abort`, { stdio: 'pipe' }); } catch { /* ignore */ }
+      }
+    }
+
+    // Layer 2 — Agent fallback: spawn agent to resolve conflicts
+    this.emitEvent('repo:pull', { branch: targetBranch, result: 'conflict', via: 'agent' });
+
+    try {
+      // Re-attempt the pull so the agent has the conflict state to work with
+      try {
+        execSync(`git -C "${ctx.repoDir}" pull origin "${targetBranch}" --no-edit`, { stdio: 'pipe' });
+      } catch {
+        // Expected to fail again — agent will resolve
+      }
+
+      const pullDir = join(ctx.waveDir, 'repo-pull');
+      await mkdir(pullDir, { recursive: true });
+
+      const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('resolve-pull-conflicts', ctx);
+      const resolved = this.resolveSpawnModelEffort('resolve-pull-conflicts', taskFrontmatter, frontmatter, ctx.plan);
+
+      const resolvedModel = await this.modelResolver.resolve({
+        profileModel: frontmatter.model as string | undefined,
+        stepName: 'resolve-pull-conflicts',
+        projectSlug: ctx.projectSlug,
+        workflowSlug: ctx.workflowSlug,
+      });
+
+      this.emitEvent('agent:spawn', { task: 'resolve-pull-conflicts', agent: agentName });
+
+      const meta: SpawnMeta = {
+        task: 'resolve-pull-conflicts',
+        agent: agentName,
+        wave: ctx.waveNumber,
+        step: 0,
+        parent_pid: process.pid,
+        pid: 0,
+        started_at: now(),
+        timed_out: false,
+        model_used: resolvedModel,
+      };
+      await this.spawner.writeSpawnMeta(pullDir, meta);
+
+      const result = await this.spawner.spawnAgent({
+        prompt: prompt + STATUS_PROMPT_FRAGMENT,
+        cwd: ctx.repoDir,
+        outputDir: pullDir,
+        agentConfig: {
+          allowedTools: frontmatter.allowedTools as string | undefined,
+          max_turns: frontmatter.max_turns as number | undefined,
+          model: resolved.model,
+          effort: resolved.effort,
+        },
+        jsonSchema: mergeStatusSchema(),
+        onSpawn: (pid) => {
+          meta.pid = pid;
+          void this.spawner.writeSpawnMeta(pullDir, meta);
+        },
+      });
+
+      meta.finished_at = now();
+      meta.exit_code = result.code;
+      meta.timed_out = result.timedOut;
+      await this.spawner.writeSpawnMeta(pullDir, meta);
+
+      if (result.code === 0) {
+        const parsed = SpawnAgentResponseSchema.safeParse(result.response);
+        if (parsed.success && parsed.data.success) {
+          this.emitEvent('repo:pull', { branch: targetBranch, result: 'ok', via: 'agent' });
+          await this.state.appendLine(
+            progressPath,
+            `[${now().replace('T', ' ').replace('Z', '')}] repo:pull via=agent branch=${targetBranch} result=ok`,
+          );
+          return;
+        }
+      }
+
+      // Agent failed — log but don't block the wave (best-effort pull)
+      const errMsg = `agent exit=${result.code} timed_out=${result.timedOut}`;
+      this.emitEvent('repo:pull', { branch: targetBranch, result: 'failed', via: 'agent', error: errMsg });
+      await this.state.appendLine(
+        progressPath,
+        `[${now().replace('T', ' ').replace('Z', '')}] repo:pull via=agent branch=${targetBranch} result=FAILED ${errMsg}`,
+      );
+
+      // Abort any partial merge so the wave can proceed with stale-but-clean state
+      try { execSync(`git -C "${ctx.repoDir}" merge --abort`, { stdio: 'pipe' }); } catch { /* ignore */ }
+    } catch (agentErr) {
+      const errMsg = agentErr instanceof Error ? agentErr.message : String(agentErr);
+      this.emitEvent('repo:pull', { branch: targetBranch, result: 'failed', error: errMsg });
+      await this.state.appendLine(
+        progressPath,
+        `[${now().replace('T', ' ').replace('Z', '')}] repo:pull branch=${targetBranch} result=FAILED ${errMsg}`,
+      );
+
+      // Abort any partial merge so the wave can proceed
+      try { execSync(`git -C "${ctx.repoDir}" merge --abort`, { stdio: 'pipe' }); } catch { /* ignore */ }
+    }
+  }
+
+  /**
    * Hybrid merge: attempts deterministic git merge first; on any failure, falls back to agent.
    */
   private async executeMergeWorktreeHybrid(
@@ -891,6 +1033,7 @@ export class WorkflowRunner {
     stepModel: string | undefined,
     stepIndex: number,
     ctx: WorkflowRunnerContext,
+    featuresFile?: string,
   ): Promise<{ exitCode: number; reason: string }> {
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'ralph-wiggum-loop', task: taskSlug }));
     await mkdir(stepDir, { recursive: true });
@@ -903,7 +1046,8 @@ export class WorkflowRunner {
     await mkdir(loopDir, { recursive: true });
 
     // Reset stale in_progress features (from crash/restart)
-    const featuresPath = join(ctx.sprintDir, 'features.json');
+    const featuresFileName = featuresFile ?? 'features.json';
+    const featuresPath = join(ctx.sprintDir, featuresFileName);
     const features = await this.state.readJson<Feature[]>(featuresPath);
     if (features && Array.isArray(features)) {
       let dirty = false;
@@ -932,6 +1076,8 @@ export class WorkflowRunner {
       project: ctx.projectName,
       projectSlug: ctx.projectSlug,
       onCheckpoint: () => this.drainOperatorQueue(ctx),
+    }, {
+      featuresFile: featuresFileName,
     });
   }
 
