@@ -196,4 +196,16 @@ db.exec(`
   }
 }
 
+// F-024: Cancellation policy table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS cancellation_policy (
+    therapist_id INTEGER PRIMARY KEY REFERENCES therapists(id) ON DELETE CASCADE,
+    janela_horas INTEGER NOT NULL DEFAULT 24,
+    taxa_noshow REAL NOT NULL DEFAULT 0,
+    mensagem TEXT DEFAULT NULL,
+    ativa INTEGER NOT NULL DEFAULT 1,
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 export default db;

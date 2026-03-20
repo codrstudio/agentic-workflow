@@ -429,3 +429,10 @@
   Widget integrado ao Dashboard.jsx.
   Testes: queries SQL validadas diretamente, endpoint sem conflitos de rota.
   Progress: 23/34 features complete. Next: F-024 Cancellation Policy Config.
+
+[2026-03-20] vibe-code F-024: Cancellation Policy Config implementado.
+  - DB: tabela cancellation_policy criada com campos janela_horas (INT), taxa_noshow (REAL), mensagem (TEXT), ativa (INT)
+  - API: GET /cancellation-policy retorna política atual (cria default na primeira chamada); PUT /cancellation-policy atualiza com validação (janela_horas > 0, taxa_noshow 0-100)
+  - Frontend: componente CancellationPolicyConfig.jsx com toggle de ativação, campo numérico de janela, taxa percentual e textarea de mensagem
+  - Integrado em Configuracoes.jsx como novo card
+  - Testes: tabela verificada via node, syntax dos arquivos validada

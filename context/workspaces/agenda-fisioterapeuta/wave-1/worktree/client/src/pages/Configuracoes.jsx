@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authHeader } from '../lib/auth.js';
 import NotificacoesConfig from '../components/NotificacoesConfig.jsx';
+import CancellationPolicyConfig from '../components/CancellationPolicyConfig.jsx';
 
 const TIMEZONES = [
   { value: 'America/Sao_Paulo', label: 'Brasília (UTC-3)' },
@@ -130,6 +131,13 @@ export default function Configuracoes() {
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Notificações e Lembretes</h2>
         <p className="text-sm text-gray-500 mb-6">Configure os lembretes automáticos enviados aos pacientes</p>
         <NotificacoesConfig onToast={showToast} />
+      </div>
+
+      {/* Cancellation policy card */}
+      <div className="col-span-1 bg-white rounded-2xl border border-gray-200 p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Política de Cancelamento</h2>
+        <p className="text-sm text-gray-500 mb-6">Defina as regras de cancelamento e no-show para seus pacientes</p>
+        <CancellationPolicyConfig onToast={showToast} />
       </div>
 
       <div className="col-span-1 bg-white rounded-2xl border border-gray-200 p-6">
