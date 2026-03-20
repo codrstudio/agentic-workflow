@@ -25,13 +25,14 @@ router.put('/settings', (req, res) => {
   const therapistId = req.therapistId;
   ensureSettings(therapistId);
 
-  const { enabled, reminder_48h, reminder_2h, confirmation_request, canal, custom_message } = req.body;
+  const { enabled, reminder_48h, reminder_24h, reminder_2h, confirmation_request, canal, custom_message } = req.body;
 
   db.prepare(`
     UPDATE notification_settings
     SET
       enabled = COALESCE(?, enabled),
       reminder_48h = COALESCE(?, reminder_48h),
+      reminder_24h = COALESCE(?, reminder_24h),
       reminder_2h = COALESCE(?, reminder_2h),
       confirmation_request = COALESCE(?, confirmation_request),
       canal = COALESCE(?, canal),
@@ -41,6 +42,7 @@ router.put('/settings', (req, res) => {
   `).run(
     enabled !== undefined ? (enabled ? 1 : 0) : null,
     reminder_48h !== undefined ? (reminder_48h ? 1 : 0) : null,
+    reminder_24h !== undefined ? (reminder_24h ? 1 : 0) : null,
     reminder_2h !== undefined ? (reminder_2h ? 1 : 0) : null,
     confirmation_request !== undefined ? (confirmation_request ? 1 : 0) : null,
     canal ?? null,

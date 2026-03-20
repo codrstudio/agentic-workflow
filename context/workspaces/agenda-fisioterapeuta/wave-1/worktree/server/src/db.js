@@ -131,6 +131,7 @@ db.exec(`
     therapist_id INTEGER PRIMARY KEY REFERENCES therapists(id) ON DELETE CASCADE,
     enabled INTEGER NOT NULL DEFAULT 1,
     reminder_48h INTEGER NOT NULL DEFAULT 1,
+    reminder_24h INTEGER NOT NULL DEFAULT 1,
     reminder_2h INTEGER NOT NULL DEFAULT 1,
     confirmation_request INTEGER NOT NULL DEFAULT 1,
     canal TEXT NOT NULL DEFAULT 'email',
@@ -142,7 +143,7 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
     patient_id INTEGER REFERENCES patients(id) ON DELETE SET NULL,
-    tipo TEXT NOT NULL CHECK (tipo IN ('reminder_48h', 'reminder_2h', 'confirmation_request', 'custom')),
+    tipo TEXT NOT NULL CHECK (tipo IN ('reminder_48h', 'reminder_24h', 'reminder_2h', 'confirmation_request', 'custom')),
     canal TEXT NOT NULL DEFAULT 'email',
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'delivered', 'failed')),
     scheduled_at TEXT NOT NULL,
@@ -152,5 +153,35 @@ db.exec(`
     UNIQUE(appointment_id, tipo)
   );
 `);
+
+// Incremental migrations — safe to run on existing DBs
+try { db.exec(`ALTER TABLE notification_settings ADD COLUMN reminder_24h INTEGER NOT NULL DEFAULT 1`); } catch (_) {}
+
+// Migrate notifications table to include reminder_24h in tipo CHECK constraint (if not already)
+{
+  const row = db.prepare("SELECT sql FROM sqlite_master WHERE name='notifications'").get();
+  if (row && !row.sql.includes('reminder_24h')) {
+    db.exec(`
+      PRAGMA foreign_keys = OFF;
+      CREATE TABLE notifications_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+        patient_id INTEGER REFERENCES patients(id) ON DELETE SET NULL,
+        tipo TEXT NOT NULL CHECK (tipo IN ('reminder_48h', 'reminder_24h', 'reminder_2h', 'confirmation_request', 'custom')),
+        canal TEXT NOT NULL DEFAULT 'email',
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'delivered', 'failed')),
+        scheduled_at TEXT NOT NULL,
+        sent_at TEXT DEFAULT NULL,
+        error_message TEXT DEFAULT NULL,
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(appointment_id, tipo)
+      );
+      INSERT INTO notifications_new SELECT * FROM notifications;
+      DROP TABLE notifications;
+      ALTER TABLE notifications_new RENAME TO notifications;
+      PRAGMA foreign_keys = ON;
+    `);
+  }
+}
 
 export default db;

@@ -387,3 +387,10 @@
   - 25/25 testes passaram
   Progress: 18/34 features complete
   Next: F-019 (Reminder Config)
+[2026-03-20] F-019 Reminder Config: Painel de configuração de notificações implementado.
+  - DB: adicionada coluna reminder_24h em notification_settings + migração da tabela notifications para incluir tipo 'reminder_24h' no CHECK constraint
+  - Engine: scheduleNotifications() agora agenda lembretes 24h antes (tipo reminder_24h)
+  - API: GET/PUT /notifications/settings com suporte a reminder_48h, reminder_24h, reminder_2h, confirmation_request, canal, custom_message
+  - UI: componente NotificacoesConfig.jsx com toggles master + por horário + campo de mensagem customizada + feedback visual
+  - Integrado em Configuracoes.jsx como card separado
+  Tests: GET retorna settings com 3 toggles de horário; PUT atualiza preferências; custom_message editável; master toggle desativa todos; feedback via toast

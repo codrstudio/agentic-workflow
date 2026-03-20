@@ -419,7 +419,7 @@
     "id": "F-019",
     "name": "Reminder Config",
     "description": "Painel de configuração de notificações do terapeuta: ativar/desativar lembretes, escolher horários de envio (48h antes, 24h antes, 2h antes), personalizar mensagem do lembrete. API: GET/PUT /notification-settings. Tela integrada nas configurações do app.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 19,
     "agent": "coder",
     "task": "vibe-code",
@@ -434,13 +434,14 @@
       "Alterações são salvas com feedback visual",
       "Horários desativados não geram notificações"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-04-notifications.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-04-notifications.md",
+    "completed_at": "2026-03-20T20:25:00Z"
   },
   {
     "id": "F-020",
     "name": "Confirmation Flow",
     "description": "Link de confirmação/cancelamento para o paciente, sem login. Modelo confirmation_token (token, appointment_id, action [confirm/cancel], used_at). API: GET /public/confirm/:token exibe página com dados do agendamento e botões 'Confirmo minha sessão' / 'Preciso cancelar'. Ao confirmar, atualiza appointment.status para 'confirmed'. Ao cancelar, atualiza para 'cancelled'. Token é de uso único.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 20,
     "agent": "coder",
     "task": "vibe-code",
@@ -483,7 +484,7 @@
     "id": "F-022",
     "name": "Manual Reminder",
     "description": "Botão para enviar lembrete manual de um agendamento específico. API: POST /notifications/send-now/:appointment_id dispara notificação imediata para o paciente. Acessível na modal de detalhes do agendamento. Exibe feedback de envio (sucesso/falha). Registra a notificação manual na tabela notifications.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 22,
     "agent": "coder",
     "task": "vibe-code",
@@ -504,7 +505,7 @@
     "id": "F-023",
     "name": "Notification Stats",
     "description": "Widget de métricas de notificação: taxa de confirmação, total de entregas, total de falhas, no-shows do período. API: GET /notifications/stats retorna métricas agregadas. Widget exibido como cards na dashboard ou seção dedicada. Filtro por período (semana, mês).",
-    "status": "blocked",
+    "status": "pending",
     "priority": 23,
     "agent": "coder",
     "task": "vibe-code",

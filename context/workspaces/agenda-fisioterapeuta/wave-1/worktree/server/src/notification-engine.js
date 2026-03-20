@@ -30,8 +30,8 @@ function nowISO() {
 export function ensureSettings(therapistId) {
   db.prepare(`
     INSERT OR IGNORE INTO notification_settings
-      (therapist_id, enabled, reminder_48h, reminder_2h, confirmation_request, canal)
-    VALUES (?, 1, 1, 1, 1, 'email')
+      (therapist_id, enabled, reminder_48h, reminder_24h, reminder_2h, confirmation_request, canal)
+    VALUES (?, 1, 1, 1, 1, 1, 'email')
   `).run(therapistId);
 }
 
@@ -78,6 +78,10 @@ export function scheduleNotifications(therapistId) {
       const dt = appt.datetime.replace(' ', 'T');
       if (settings.reminder_48h) {
         const r = insert.run(appt.id, appt.patient_id, 'reminder_48h', settings.canal, addHours(dt, -48));
+        scheduled += r.changes;
+      }
+      if (settings.reminder_24h) {
+        const r = insert.run(appt.id, appt.patient_id, 'reminder_24h', settings.canal, addHours(dt, -24));
         scheduled += r.changes;
       }
       if (settings.reminder_2h) {
