@@ -208,4 +208,30 @@ db.exec(`
   );
 `);
 
+// F-025: Policy acceptance table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS policy_acceptance (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_id INTEGER REFERENCES patients(id) ON DELETE SET NULL,
+    appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    accepted_at TEXT NOT NULL DEFAULT (datetime('now')),
+    policy_version TEXT NOT NULL,
+    ip TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
+// F-026: Reschedule log table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS reschedule_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    old_datetime TEXT NOT NULL,
+    new_datetime TEXT NOT NULL,
+    reason TEXT,
+    initiated_by TEXT NOT NULL DEFAULT 'patient' CHECK (initiated_by IN ('patient', 'therapist')),
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 export default db;

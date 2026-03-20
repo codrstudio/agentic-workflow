@@ -197,6 +197,221 @@ router.post('/confirm/:token', (req, res) => {
   res.json({ success: true, action, status: newStatus });
 });
 
+// ─── Reschedule Flow (F-026) ──────────────────────────────────────────────────
+
+// GET /public/reschedule/:token — exibe agendamento atual e slots disponíveis
+router.get('/reschedule/:token', (req, res) => {
+  const { token } = req.params;
+  const { date } = req.query;
+
+  const booking = db.prepare(
+    `SELECT b.booking_token, b.patient_name,
+            a.id AS appointment_id, a.datetime, a.duration, a.status,
+            a.therapist_id,
+            t.name AS therapist_name, t.session_duration, t.session_interval,
+            cs.clinic_name
+     FROM bookings b
+     JOIN appointments a ON a.id = b.appointment_id
+     JOIN therapists t ON t.id = a.therapist_id
+     LEFT JOIN clinic_settings cs ON cs.id = 1
+     WHERE b.booking_token = ?`
+  ).get(token);
+
+  if (!booking) {
+    return res.status(404).json({ error: 'Token inválido ou não encontrado' });
+  }
+
+  if (booking.status === 'cancelled') {
+    return res.status(410).json({ error: 'Agendamento cancelado' });
+  }
+
+  if (booking.status === 'completed') {
+    return res.status(410).json({ error: 'Agendamento já realizado' });
+  }
+
+  // Check cancellation policy window
+  const policy = db.prepare(
+    'SELECT janela_horas, ativa FROM cancellation_policy WHERE therapist_id = ?'
+  ).get(booking.therapist_id);
+
+  const appointmentTime = new Date(booking.datetime.replace(' ', 'T'));
+  const now = new Date();
+  const hoursUntilAppointment = (appointmentTime - now) / (1000 * 60 * 60);
+
+  const janela = policy?.ativa ? policy.janela_horas : 0;
+  const withinWindow = janela === 0 || hoursUntilAppointment > janela;
+
+  const response = {
+    booking_token: booking.booking_token,
+    appointment_id: booking.appointment_id,
+    datetime: booking.datetime,
+    duration: booking.duration,
+    status: booking.status,
+    patient_name: booking.patient_name,
+    therapist_name: booking.therapist_name,
+    clinic_name: booking.clinic_name || booking.therapist_name,
+    can_reschedule: withinWindow,
+    janela_horas: janela,
+  };
+
+  // If date requested, return slots for that date
+  if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const duration = booking.duration || booking.session_duration || 60;
+    const interval = booking.session_interval || 0;
+    // Exclude current appointment from slot blocking so its time shows as available
+    const slotsRaw = calculateSlotsExcluding(booking.therapist_id, date, duration, interval, booking.appointment_id);
+    response.slots = slotsRaw;
+    response.slots_date = date;
+  }
+
+  res.json(response);
+});
+
+// POST /public/reschedule/:token — executa reagendamento para novo horário
+router.post('/reschedule/:token', (req, res) => {
+  const { token } = req.params;
+  const { date, time, reason } = req.body;
+
+  if (!date || !time) {
+    return res.status(400).json({ error: 'Campos obrigatórios: date (YYYY-MM-DD), time (HH:MM)' });
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+    return res.status(400).json({ error: 'Formato inválido. Use date=YYYY-MM-DD e time=HH:MM' });
+  }
+
+  const booking = db.prepare(
+    `SELECT b.booking_token, b.patient_name,
+            a.id AS appointment_id, a.datetime, a.duration, a.status,
+            a.therapist_id,
+            t.session_duration, t.session_interval
+     FROM bookings b
+     JOIN appointments a ON a.id = b.appointment_id
+     JOIN therapists t ON t.id = a.therapist_id
+     WHERE b.booking_token = ?`
+  ).get(token);
+
+  if (!booking) {
+    return res.status(404).json({ error: 'Token inválido ou não encontrado' });
+  }
+
+  if (booking.status === 'cancelled') {
+    return res.status(410).json({ error: 'Agendamento cancelado' });
+  }
+
+  if (booking.status === 'completed') {
+    return res.status(410).json({ error: 'Agendamento já realizado' });
+  }
+
+  // Check cancellation policy window
+  const policy = db.prepare(
+    'SELECT janela_horas, ativa FROM cancellation_policy WHERE therapist_id = ?'
+  ).get(booking.therapist_id);
+
+  const appointmentTime = new Date(booking.datetime.replace(' ', 'T'));
+  const now = new Date();
+  const hoursUntilAppointment = (appointmentTime - now) / (1000 * 60 * 60);
+
+  const janela = policy?.ativa ? policy.janela_horas : 0;
+  if (janela > 0 && hoursUntilAppointment <= janela) {
+    return res.status(403).json({
+      error: `Reagendamento não permitido. A política exige aviso de pelo menos ${janela} hora(s) de antecedência`,
+      janela_horas: janela,
+    });
+  }
+
+  // Validate new slot availability (excluding current appointment)
+  const duration = booking.duration || booking.session_duration || 60;
+  const interval = booking.session_interval || 0;
+  const slots = calculateSlotsExcluding(booking.therapist_id, date, duration, interval, booking.appointment_id);
+  const slot = slots.find(s => s.start === time);
+
+  if (!slot) {
+    return res.status(400).json({ error: 'Horário não disponível' });
+  }
+
+  if (!slot.available) {
+    return res.status(409).json({ error: 'Horário já ocupado' });
+  }
+
+  const newDatetime = `${date} ${time}`;
+  const oldDatetime = booking.datetime;
+  const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+  db.transaction(() => {
+    db.prepare(
+      'UPDATE appointments SET datetime = ?, status = ?, updated_at = ? WHERE id = ?'
+    ).run(newDatetime, 'scheduled', nowStr, booking.appointment_id);
+
+    db.prepare(
+      `INSERT INTO reschedule_log (appointment_id, old_datetime, new_datetime, reason, initiated_by)
+       VALUES (?, ?, ?, ?, 'patient')`
+    ).run(booking.appointment_id, oldDatetime, newDatetime, reason || null);
+  })();
+
+  res.json({
+    success: true,
+    appointment_id: booking.appointment_id,
+    old_datetime: oldDatetime,
+    new_datetime: newDatetime,
+  });
+});
+
+// ─── Slot helper that excludes a specific appointment (for reschedule) ────────
+
+function calculateSlotsExcluding(therapistId, date, duration, interval, excludeAppointmentId) {
+  const dayOfWeek = new Date(date + 'T12:00:00Z').getUTCDay();
+
+  const blocks = db.prepare(
+    'SELECT hora_inicio, hora_fim FROM availability WHERE therapist_id = ? AND dia_semana = ? AND ativo = 1'
+  ).all(therapistId, dayOfWeek);
+
+  let ranges = blocks.map(b => [timeToMinutes(b.hora_inicio), timeToMinutes(b.hora_fim)]);
+  ranges = mergeRanges(ranges);
+
+  const overrides = db.prepare(
+    'SELECT tipo, hora_inicio, hora_fim FROM availability_override WHERE therapist_id = ? AND data = ?'
+  ).all(therapistId, date);
+
+  for (const ov of overrides) {
+    if (ov.tipo === 'bloqueio') {
+      if (!ov.hora_inicio && !ov.hora_fim) {
+        ranges = [];
+      } else {
+        ranges = subtractRange(ranges, timeToMinutes(ov.hora_inicio), timeToMinutes(ov.hora_fim));
+      }
+    } else if (ov.tipo === 'liberacao' && ov.hora_inicio && ov.hora_fim) {
+      ranges.push([timeToMinutes(ov.hora_inicio), timeToMinutes(ov.hora_fim)]);
+      ranges = mergeRanges(ranges);
+    }
+  }
+
+  const appointments = db.prepare(
+    `SELECT datetime, duration FROM appointments
+     WHERE therapist_id = ? AND date(datetime) = ? AND status NOT IN ('cancelled') AND id != ?`
+  ).all(therapistId, date, excludeAppointmentId);
+
+  const aptRanges = appointments.map(apt => {
+    const timePart = apt.datetime.substring(11, 16);
+    const start = timeToMinutes(timePart);
+    return [start, start + apt.duration];
+  });
+
+  const slots = [];
+  for (const [rangeStart, rangeEnd] of ranges) {
+    let slotStart = rangeStart;
+    while (slotStart + duration <= rangeEnd) {
+      const slotEnd = slotStart + duration;
+      const available = !aptRanges.some(([aptStart, aptEnd]) => slotStart < aptEnd && slotEnd > aptStart);
+      slots.push({ start: minutesToTime(slotStart), end: minutesToTime(slotEnd), available });
+      slotStart = slotEnd + interval;
+    }
+  }
+  return slots;
+}
+
+// ─── Booking token lookup ─────────────────────────────────────────────────────
+
 // GET /public/booking/:token — consultar status do booking pelo token
 // Must be defined BEFORE /:clinic_slug to avoid route conflict
 router.get('/booking/:token', (req, res) => {
@@ -327,6 +542,32 @@ router.get('/:clinic_slug/slots', (req, res) => {
   res.json(slots);
 });
 
+// GET /public/:clinic_slug/policy — retorna política de cancelamento ativa (F-025)
+router.get('/:clinic_slug/policy', (req, res) => {
+  const { clinic_slug } = req.params;
+
+  const page = getClinicBySlug(clinic_slug);
+  if (!page) {
+    return res.status(404).json({ error: 'Página não encontrada' });
+  }
+
+  const policy = db.prepare(
+    'SELECT janela_horas, taxa_noshow, mensagem, ativa, updated_at FROM cancellation_policy WHERE therapist_id = ?'
+  ).get(page.therapist_id);
+
+  if (!policy || !policy.ativa) {
+    return res.json({ ativa: false });
+  }
+
+  res.json({
+    ativa: true,
+    janela_horas: policy.janela_horas,
+    taxa_noshow: policy.taxa_noshow,
+    mensagem: policy.mensagem,
+    policy_version: policy.updated_at,
+  });
+});
+
 // POST /public/:clinic_slug/book
 router.post('/:clinic_slug/book', (req, res) => {
   const { clinic_slug } = req.params;
@@ -339,6 +580,16 @@ router.post('/:clinic_slug/book', (req, res) => {
   const page = getClinicBySlug(clinic_slug);
   if (!page) {
     return res.status(404).json({ error: 'Página não encontrada' });
+  }
+
+  // F-025: Check cancellation policy enforcement
+  const policy = db.prepare(
+    'SELECT ativa, updated_at FROM cancellation_policy WHERE therapist_id = ?'
+  ).get(page.therapist_id);
+
+  const policyAtiva = policy && policy.ativa;
+  if (policyAtiva && !aceite_politica) {
+    return res.status(400).json({ error: 'Aceite da política de cancelamento é obrigatório' });
   }
 
   const service = db.prepare(
@@ -365,6 +616,7 @@ router.post('/:clinic_slug/book', (req, res) => {
 
   const datetime = `${date} ${time}`;
   const booking_token = randomBytes(16).toString('hex');
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || null;
 
   const createAppointmentAndBooking = db.transaction(() => {
     const apt = db.prepare(
@@ -376,6 +628,14 @@ router.post('/:clinic_slug/book', (req, res) => {
       `INSERT INTO bookings (appointment_id, booking_token, patient_name, patient_phone, patient_email, aceite_politica)
        VALUES (?, ?, ?, ?, ?, ?)`
     ).run(apt.lastInsertRowid, booking_token, patient_name, patient_phone, patient_email || null, aceite_politica ? 1 : 0);
+
+    // F-025: Record policy acceptance if policy is active
+    if (policyAtiva && aceite_politica) {
+      db.prepare(
+        `INSERT INTO policy_acceptance (patient_id, appointment_id, accepted_at, policy_version, ip)
+         VALUES (?, ?, datetime('now'), ?, ?)`
+      ).run(null, apt.lastInsertRowid, policy.updated_at, clientIp);
+    }
 
     return apt.lastInsertRowid;
   });

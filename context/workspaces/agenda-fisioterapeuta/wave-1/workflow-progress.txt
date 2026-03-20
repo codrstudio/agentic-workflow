@@ -436,3 +436,19 @@
   - Frontend: componente CancellationPolicyConfig.jsx com toggle de ativação, campo numérico de janela, taxa percentual e textarea de mensagem
   - Integrado em Configuracoes.jsx como novo card
   - Testes: tabela verificada via node, syntax dos arquivos validada
+
+[2026-03-20] vibe-code F-025: Policy Acceptance implementado.
+  - DB: tabela policy_acceptance criada com campos patient_id, appointment_id, accepted_at, policy_version, ip
+  - API: GET /public/:clinic_slug/policy → retorna política ativa com todos campos (ativa, janela_horas, taxa_noshow, mensagem, policy_version); retorna { ativa: false } quando inativa ou inexistente
+  - API: POST /public/:clinic_slug/book atualizado: verifica se política ativa; bloqueia booking com 400 se aceite ausente; registra aceite em policy_acceptance com IP e policy_version
+  - Frontend: StepDados (passo 3 do booking) busca política na montagem; exibe card âmbar com termos e checkbox obrigatório apenas quando política ativa; sem checkbox quando inativa
+  - Validação: checkbox bloqueado no frontend + 400 no servidor (dupla proteção)
+  - Testes: todos 6 critérios validados via curl + node
+  Progress: 25/34 features complete. Next: F-026 Patient Self-Reschedule.
+[2026-03-20] F-026 Patient Self-Reschedule: Implementado reagendamento self-service pelo paciente via booking_token.
+  - Tabela reschedule_log criada (appointment_id, old_datetime, new_datetime, reason, initiated_by)
+  - GET /public/reschedule/:token: retorna dados do agendamento atual, can_reschedule, janela_horas; aceita ?date=YYYY-MM-DD para retornar slots disponíveis (exclui o próprio appointment do bloqueio)
+  - POST /public/reschedule/:token: valida janela de cancelamento, verifica disponibilidade do slot, atualiza appointment.datetime, registra reschedule_log com initiated_by='patient'
+  - Política de cancelamento respeitada: bloqueia reagendamento se appointment está dentro da janela_horas
+  - Casos de erro tratados: token inválido (404), agendamento cancelado/completado (410), dentro da janela (403), slot ocupado (409), campos faltando (400)
+  - Função calculateSlotsExcluding() criada para excluir o appointment atual do cálculo de conflitos

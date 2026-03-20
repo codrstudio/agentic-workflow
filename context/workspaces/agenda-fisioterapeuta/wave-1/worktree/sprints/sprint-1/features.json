@@ -552,7 +552,7 @@
     "id": "F-025",
     "name": "Policy Acceptance",
     "description": "Aceite digital da política de cancelamento durante o booking flow: exibir termos da política no passo 3 do booking com checkbox obrigatório. Modelo policy_acceptance (patient_id, appointment_id, accepted_at, policy_version, ip). Registrar aceite automaticamente ao concluir booking. Exibir termos de forma clara e legível.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 25,
     "agent": "coder",
     "task": "vibe-code",
@@ -568,13 +568,14 @@
       "Se política está desativada, checkbox não aparece",
       "Booking sem aceite (quando política ativa) é bloqueado"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-05-cancellation-rescheduling.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-05-cancellation-rescheduling.md",
+    "completed_at": "2026-03-20T21:16:49.428Z"
   },
   {
     "id": "F-026",
     "name": "Patient Self-Reschedule",
     "description": "Reagendamento self-service pelo paciente via link (sem login). API: GET /public/reschedule/:token exibe dados do agendamento atual + calendário de slots disponíveis. POST /public/reschedule/:token executa reagendamento para novo horário. Respeita janela da política de cancelamento. Modelo reschedule_log (appointment_id, old_datetime, new_datetime, reason, initiated_by). Reutiliza componente de slots do booking.",
-    "status": "pending",
+    "status": "passing",
     "priority": 26,
     "agent": "coder",
     "task": "vibe-code",
@@ -591,13 +592,14 @@
       "Log de reagendamento é criado com dados completos",
       "Token usado/inválido retorna mensagem adequada"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-05-cancellation-rescheduling.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-05-cancellation-rescheduling.md",
+    "completed_at": "2026-03-20T21:35:00Z"
   },
   {
     "id": "F-027",
     "name": "Patient Self-Cancel",
     "description": "Cancelamento self-service pelo paciente via link (sem login). API: POST /public/cancel/:token exibe confirmação com aviso da política de cancelamento. Se dentro da janela de aviso, permite cancelamento. Se fora, informa sobre taxa. Campo opcional de motivo. Atualiza appointment.status para 'cancelled'.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 27,
     "agent": "coder",
     "task": "vibe-code",
