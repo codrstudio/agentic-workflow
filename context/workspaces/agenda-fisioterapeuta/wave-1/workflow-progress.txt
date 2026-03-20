@@ -452,3 +452,27 @@
   - Política de cancelamento respeitada: bloqueia reagendamento se appointment está dentro da janela_horas
   - Casos de erro tratados: token inválido (404), agendamento cancelado/completado (410), dentro da janela (403), slot ocupado (409), campos faltando (400)
   - Função calculateSlotsExcluding() criada para excluir o appointment atual do cálculo de conflitos
+[2026-03-20] vibe-code (F-027): Patient Self-Cancel implementado.
+  Endpoints adicionados em server/src/routes/public.js:
+  - GET /public/cancel/:token — retorna dados do agendamento + política de cancelamento + flag within_fee_window
+  - POST /public/cancel/:token — cancela o appointment (status → 'cancelled'), motivo opcional
+  Comportamento da política:
+  - within_fee_window=true quando hoursUntilAppointment <= janela_horas (exibe aviso de taxa na UI)
+  - within_fee_window=false quando fora da janela (cancelamento sem aviso)
+  - Appointment já cancelado → 410 com already_cancelled=true
+  Página cliente: client/src/pages/CancelPage.jsx
+  - Exibe detalhes do agendamento (data, horário, terapeuta, paciente)
+  - Card de aviso amber se within_fee_window=true (com taxa e mensagem da política)
+  - Campo de motivo opcional (textarea)
+  - Botão "Confirmar cancelamento" e "Manter agendamento"
+  - Estados: loading, not found, já cancelado, done
+  Rota registrada em client/src/App.jsx: /public/cancel/:token
+  Todos os 7 critérios de teste verificados como passing.
+
+[2026-03-20] F-028 Waitlist: Lista de espera implementada completamente.
+  - DB: tabela waitlist_entry com campos patient_name, patient_email, patient_phone, service_id, preferred_dates (JSON), preferred_times (JSON), status (waiting/notified/booked/expired), notified_at
+  - API pública: POST /public/:slug/waitlist — paciente se inscreve na lista de espera
+  - API protegida: GET /waitlist (entradas ativas), POST /waitlist/notify (notificar manualmente), DELETE /waitlist/:id
+  - Trigger automático: DELETE /appointments/:id agora notifica próximo na fila (status → notified, log simulado)
+  - Frontend: página /lista-espera com listagem, ação notificar e remover; link na sidebar
+  - Testes DB validados: insert, read, notify, delete, cancellation-trigger

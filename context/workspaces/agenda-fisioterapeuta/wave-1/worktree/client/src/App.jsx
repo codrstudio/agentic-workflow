@@ -18,6 +18,8 @@ import ClinicaPublica from './pages/ClinicaPublica.jsx';
 import BookingFlow from './pages/BookingFlow.jsx';
 import BookingConfirmation from './pages/BookingConfirmation.jsx';
 import ConfirmationPage from './pages/ConfirmationPage.jsx';
+import CancelPage from './pages/CancelPage.jsx';
+import ListaEspera from './pages/ListaEspera.jsx';
 
 export default function App() {
   return (
@@ -28,6 +30,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/public/booking/:token" element={<BookingConfirmation />} />
           <Route path="/public/confirm/:token" element={<ConfirmationPage />} />
+          <Route path="/public/cancel/:token" element={<CancelPage />} />
           <Route path="/public/:clinic_slug" element={<ClinicaPublica />} />
           <Route path="/public/:clinic_slug/agendar" element={<BookingFlow />} />
           <Route
@@ -56,6 +59,7 @@ export default function App() {
             <Route path="disponibilidade" element={<Disponibilidade />} />
             <Route path="perfil" element={<Perfil />} />
             <Route path="pagina-clinica" element={<PaginaClinica />} />
+            <Route path="lista-espera" element={<ListaEspera />} />
             {/* legacy redirect */}
             <Route path="dashboard" element={<Navigate to="/agenda" replace />} />
           </Route>

@@ -12,6 +12,7 @@ import clinicPageRouter from './routes/clinic-page.js';
 import publicRouter from './routes/public.js';
 import notificationsRouter from './routes/notifications.js';
 import cancellationPolicyRouter from './routes/cancellation-policy.js';
+import waitlistRouter from './routes/waitlist.js';
 import { requireAuth } from './middleware/auth.js';
 import { startScheduler } from './notification-engine.js';
 
@@ -39,6 +40,7 @@ app.use('/services', servicesRouter);
 app.use('/clinic-page', clinicPageRouter);
 app.use('/notifications', notificationsRouter);
 app.use('/cancellation-policy', cancellationPolicyRouter);
+app.use('/waitlist', waitlistRouter);
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true }));

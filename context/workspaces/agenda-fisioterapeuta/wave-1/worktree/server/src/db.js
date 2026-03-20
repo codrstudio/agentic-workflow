@@ -234,4 +234,22 @@ db.exec(`
   );
 `);
 
+// F-028: Waitlist table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS waitlist_entry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    therapist_id INTEGER NOT NULL REFERENCES therapists(id) ON DELETE CASCADE,
+    patient_name TEXT NOT NULL,
+    patient_email TEXT,
+    patient_phone TEXT,
+    service_id INTEGER REFERENCES services(id) ON DELETE SET NULL,
+    preferred_dates TEXT NOT NULL DEFAULT '[]',
+    preferred_times TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'notified', 'booked', 'expired')),
+    notified_at TEXT DEFAULT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 export default db;

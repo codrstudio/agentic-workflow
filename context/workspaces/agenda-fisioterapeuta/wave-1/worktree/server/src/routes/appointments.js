@@ -142,7 +142,7 @@ router.put('/:id', (req, res) => {
   res.json(updated);
 });
 
-// DELETE /appointments/:id — sets status to cancelled
+// DELETE /appointments/:id — sets status to cancelled + triggers waitlist notification
 router.delete('/:id', (req, res) => {
   const therapistId = req.therapistId;
   const { id } = req.params;
@@ -158,7 +158,26 @@ router.delete('/:id', (req, res) => {
     WHERE id = ? AND therapist_id = ?
   `).run(id, therapistId);
 
-  res.json({ ok: true, status: 'cancelled' });
+  // F-028: Notify oldest waiting entry on this therapist's waitlist
+  const nextInQueue = db.prepare(`
+    SELECT w.id, w.patient_name, w.patient_email
+    FROM waitlist_entry w
+    WHERE w.therapist_id = ? AND w.status = 'waiting'
+    ORDER BY w.created_at ASC
+    LIMIT 1
+  `).get(therapistId);
+
+  if (nextInQueue) {
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    db.prepare(
+      `UPDATE waitlist_entry SET status = 'notified', notified_at = ?, updated_at = ? WHERE id = ?`
+    ).run(now, now, nextInQueue.id);
+    console.log(
+      `[Waitlist] NOTIFY (cancellation trigger) → ${nextInQueue.patient_email || '(no email)'} | patient=${nextInQueue.patient_name}`
+    );
+  }
+
+  res.json({ ok: true, status: 'cancelled', waitlist_notified: nextInQueue ? nextInQueue.id : null });
 });
 
 // POST /appointments/:id/confirmation-token — gerar/obter token de confirmação

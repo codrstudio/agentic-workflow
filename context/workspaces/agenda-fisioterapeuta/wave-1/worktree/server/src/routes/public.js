@@ -357,6 +357,116 @@ router.post('/reschedule/:token', (req, res) => {
   });
 });
 
+// ─── Cancel Flow (F-027) ──────────────────────────────────────────────────────
+
+// GET /public/cancel/:token — exibe dados do agendamento e política de cancelamento
+router.get('/cancel/:token', (req, res) => {
+  const { token } = req.params;
+
+  const booking = db.prepare(
+    `SELECT b.booking_token, b.patient_name,
+            a.id AS appointment_id, a.datetime, a.duration, a.status,
+            a.therapist_id,
+            t.name AS therapist_name,
+            cs.clinic_name
+     FROM bookings b
+     JOIN appointments a ON a.id = b.appointment_id
+     JOIN therapists t ON t.id = a.therapist_id
+     LEFT JOIN clinic_settings cs ON cs.id = 1
+     WHERE b.booking_token = ?`
+  ).get(token);
+
+  if (!booking) {
+    return res.status(404).json({ error: 'Token inválido ou não encontrado' });
+  }
+
+  if (booking.status === 'cancelled') {
+    return res.status(410).json({ error: 'Agendamento já cancelado', already_cancelled: true });
+  }
+
+  if (booking.status === 'completed') {
+    return res.status(410).json({ error: 'Agendamento já realizado' });
+  }
+
+  const policy = db.prepare(
+    'SELECT janela_horas, taxa_noshow, mensagem, ativa FROM cancellation_policy WHERE therapist_id = ?'
+  ).get(booking.therapist_id);
+
+  const appointmentTime = new Date(booking.datetime.replace(' ', 'T'));
+  const now = new Date();
+  const hoursUntilAppointment = (appointmentTime - now) / (1000 * 60 * 60);
+
+  const janela = policy?.ativa ? policy.janela_horas : 0;
+  const withinFeeWindow = janela > 0 && hoursUntilAppointment <= janela;
+
+  res.json({
+    booking_token: booking.booking_token,
+    appointment_id: booking.appointment_id,
+    datetime: booking.datetime,
+    duration: booking.duration,
+    status: booking.status,
+    patient_name: booking.patient_name,
+    therapist_name: booking.therapist_name,
+    clinic_name: booking.clinic_name || booking.therapist_name,
+    within_fee_window: withinFeeWindow,
+    janela_horas: janela,
+    taxa_noshow: policy?.ativa ? policy.taxa_noshow : 0,
+    policy_mensagem: policy?.ativa ? policy.mensagem : null,
+    policy_ativa: policy?.ativa === 1,
+  });
+});
+
+// POST /public/cancel/:token — executa cancelamento do agendamento
+router.post('/cancel/:token', (req, res) => {
+  const { token } = req.params;
+  const { reason } = req.body;
+
+  const booking = db.prepare(
+    `SELECT b.booking_token, b.patient_name,
+            a.id AS appointment_id, a.datetime, a.duration, a.status,
+            a.therapist_id
+     FROM bookings b
+     JOIN appointments a ON a.id = b.appointment_id
+     JOIN therapists t ON t.id = a.therapist_id
+     WHERE b.booking_token = ?`
+  ).get(token);
+
+  if (!booking) {
+    return res.status(404).json({ error: 'Token inválido ou não encontrado' });
+  }
+
+  if (booking.status === 'cancelled') {
+    return res.status(410).json({ error: 'Agendamento já cancelado', already_cancelled: true });
+  }
+
+  if (booking.status === 'completed') {
+    return res.status(410).json({ error: 'Agendamento já realizado' });
+  }
+
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const notesUpdate = reason
+    ? `${booking.notes ? booking.notes + '\n' : ''}Motivo do cancelamento: ${reason}`
+    : null;
+
+  db.transaction(() => {
+    if (notesUpdate) {
+      db.prepare(
+        'UPDATE appointments SET status = ?, notes = ?, updated_at = ? WHERE id = ?'
+      ).run('cancelled', notesUpdate, now, booking.appointment_id);
+    } else {
+      db.prepare(
+        'UPDATE appointments SET status = ?, updated_at = ? WHERE id = ?'
+      ).run('cancelled', now, booking.appointment_id);
+    }
+  })();
+
+  res.json({
+    success: true,
+    appointment_id: booking.appointment_id,
+    status: 'cancelled',
+  });
+});
+
 // ─── Slot helper that excludes a specific appointment (for reschedule) ────────
 
 function calculateSlotsExcluding(therapistId, date, duration, interval, excludeAppointmentId) {
@@ -565,6 +675,54 @@ router.get('/:clinic_slug/policy', (req, res) => {
     taxa_noshow: policy.taxa_noshow,
     mensagem: policy.mensagem,
     policy_version: policy.updated_at,
+  });
+});
+
+// POST /public/:clinic_slug/waitlist — F-028: patient joins waitlist
+router.post('/:clinic_slug/waitlist', (req, res) => {
+  const { clinic_slug } = req.params;
+  const { patient_name, patient_email, patient_phone, service_id, preferred_dates, preferred_times } = req.body;
+
+  if (!patient_name || !patient_name.trim()) {
+    return res.status(400).json({ error: 'Campo obrigatório: patient_name' });
+  }
+
+  const page = getClinicBySlug(clinic_slug);
+  if (!page) {
+    return res.status(404).json({ error: 'Página não encontrada' });
+  }
+
+  // Validate service if provided
+  if (service_id) {
+    const service = db.prepare(
+      'SELECT id FROM services WHERE id = ? AND therapist_id = ? AND ativo = 1'
+    ).get(Number(service_id), page.therapist_id);
+    if (!service) {
+      return res.status(404).json({ error: 'Serviço não encontrado' });
+    }
+  }
+
+  const datesJson = JSON.stringify(Array.isArray(preferred_dates) ? preferred_dates : []);
+  const timesJson = JSON.stringify(Array.isArray(preferred_times) ? preferred_times : []);
+
+  const result = db.prepare(`
+    INSERT INTO waitlist_entry
+      (therapist_id, patient_name, patient_email, patient_phone, service_id, preferred_dates, preferred_times, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'waiting')
+  `).run(
+    page.therapist_id,
+    patient_name.trim(),
+    patient_email || null,
+    patient_phone || null,
+    service_id ? Number(service_id) : null,
+    datesJson,
+    timesJson
+  );
+
+  res.status(201).json({
+    id: result.lastInsertRowid,
+    status: 'waiting',
+    message: 'Inscrição na lista de espera realizada com sucesso',
   });
 });
 
