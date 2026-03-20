@@ -407,3 +407,11 @@
   Tests: tabela existe com todos os campos; GET retorna dados; confirm atualiza status; cancel atualiza status; token usado retorna 410; token inválido retorna 404; página responsiva mobile
   Progress: 20/34 features complete
   Next: F-021 ou próxima feature pendente
+[2026-03-20] F-021 Confirmation Status Badge: Implementado badge visual de confirmação nos blocos de agendamento do calendário.
+  - Backend: GET /appointments agora retorna campo confirmation_status derivado via SQL CASE:
+    'confirmed' se appointment.status='confirmed', 'pending' se existe confirmation_token com used_at IS NULL, 'no_response' caso contrário.
+  - Frontend: Componente ConfirmationBadge (ponto colorido) adicionado em Agenda.jsx.
+    Verde (branco no bloco colorido): confirmado. Amarelo: pendente. Cinza: sem resposta.
+  - Badge visível tanto na visão diária quanto semanal (CalendarGrid compartilhado).
+  - Legenda de confirmação adicionada abaixo da legenda de status na página de agenda.
+  - Build Vite: OK (exit 0).

@@ -464,7 +464,7 @@
     "id": "F-021",
     "name": "Confirmation Status Badge",
     "description": "Badge visual no agendamento dentro da visão de calendário indicando o status de confirmação: confirmed (verde), pending (amarelo), no_response (cinza). O badge aparece no bloco do agendamento na agenda diária/semanal. Status é derivado da existência e uso de confirmation_token + appointment.status.",
-    "status": "blocked",
+    "status": "passing",
     "priority": 21,
     "agent": "coder",
     "task": "vibe-code",
@@ -479,7 +479,8 @@
       "Badge é visível tanto na visão diária quanto semanal",
       "Status atualiza após paciente usar link de confirmação"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-04-notifications.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-04-notifications.md",
+    "completed_at": "2026-03-20T20:42:22.089Z"
   },
   {
     "id": "F-022",
@@ -570,7 +571,7 @@
     "id": "F-026",
     "name": "Patient Self-Reschedule",
     "description": "Reagendamento self-service pelo paciente via link (sem login). API: GET /public/reschedule/:token exibe dados do agendamento atual + calendário de slots disponíveis. POST /public/reschedule/:token executa reagendamento para novo horário. Respeita janela da política de cancelamento. Modelo reschedule_log (appointment_id, old_datetime, new_datetime, reason, initiated_by). Reutiliza componente de slots do booking.",
-    "status": "blocked",
+    "status": "pending",
     "priority": 26,
     "agent": "coder",
     "task": "vibe-code",

@@ -32,7 +32,12 @@ router.get('/', (req, res) => {
   const therapistId = req.therapistId;
 
   let sql = `
-    SELECT a.*, p.nome as patient_nome, p.telefone as patient_telefone
+    SELECT a.*, p.nome as patient_nome, p.telefone as patient_telefone,
+      CASE
+        WHEN a.status = 'confirmed' THEN 'confirmed'
+        WHEN (SELECT COUNT(*) FROM confirmation_tokens ct WHERE ct.appointment_id = a.id AND ct.used_at IS NULL) > 0 THEN 'pending'
+        ELSE 'no_response'
+      END as confirmation_status
     FROM appointments a
     LEFT JOIN patients p ON p.id = a.patient_id
     WHERE a.therapist_id = ?
