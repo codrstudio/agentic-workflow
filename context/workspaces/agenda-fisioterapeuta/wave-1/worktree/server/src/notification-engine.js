@@ -10,6 +10,26 @@
  */
 
 import db from './db.js';
+import { randomBytes } from 'crypto';
+
+// --- Confirmation token helpers ---
+
+/**
+ * Create a confirmation token for an appointment if one doesn't exist yet.
+ * Returns the token string.
+ */
+export function createOrGetConfirmationToken(appointmentId) {
+  const existing = db.prepare(
+    'SELECT token FROM confirmation_tokens WHERE appointment_id = ? AND used_at IS NULL'
+  ).get(appointmentId);
+  if (existing) return existing.token;
+
+  const token = randomBytes(20).toString('hex');
+  db.prepare(
+    'INSERT INTO confirmation_tokens (token, appointment_id) VALUES (?, ?)'
+  ).run(token, appointmentId);
+  return token;
+}
 
 // --- Helpers ---
 
@@ -91,6 +111,8 @@ export function scheduleNotifications(therapistId) {
       if (settings.confirmation_request) {
         const r = insert.run(appt.id, appt.patient_id, 'confirmation_request', settings.canal, addHours(dt, -48));
         scheduled += r.changes;
+        // Ensure confirmation token exists for this appointment
+        createOrGetConfirmationToken(appt.id);
       }
     }
   });

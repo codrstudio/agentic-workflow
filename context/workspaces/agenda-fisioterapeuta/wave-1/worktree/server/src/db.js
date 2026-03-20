@@ -157,6 +157,18 @@ db.exec(`
 // Incremental migrations — safe to run on existing DBs
 try { db.exec(`ALTER TABLE notification_settings ADD COLUMN reminder_24h INTEGER NOT NULL DEFAULT 1`); } catch (_) {}
 
+// F-020: Confirmation tokens table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS confirmation_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT NOT NULL UNIQUE,
+    appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    action TEXT CHECK (action IN ('confirm', 'cancel')) DEFAULT NULL,
+    used_at TEXT DEFAULT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // Migrate notifications table to include reminder_24h in tipo CHECK constraint (if not already)
 {
   const row = db.prepare("SELECT sql FROM sqlite_master WHERE name='notifications'").get();

@@ -441,7 +441,7 @@
     "id": "F-020",
     "name": "Confirmation Flow",
     "description": "Link de confirmação/cancelamento para o paciente, sem login. Modelo confirmation_token (token, appointment_id, action [confirm/cancel], used_at). API: GET /public/confirm/:token exibe página com dados do agendamento e botões 'Confirmo minha sessão' / 'Preciso cancelar'. Ao confirmar, atualiza appointment.status para 'confirmed'. Ao cancelar, atualiza para 'cancelled'. Token é de uso único.",
-    "status": "pending",
+    "status": "passing",
     "priority": 20,
     "agent": "coder",
     "task": "vibe-code",
@@ -457,7 +457,8 @@
       "Token inválido retorna 404",
       "Página de confirmação é responsiva e funciona em mobile"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-04-notifications.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-04-notifications.md",
+    "completed_at": "2026-03-20T20:31:58.711Z"
   },
   {
     "id": "F-021",

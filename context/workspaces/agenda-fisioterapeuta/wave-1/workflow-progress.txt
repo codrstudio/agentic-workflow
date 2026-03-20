@@ -394,3 +394,16 @@
   - UI: componente NotificacoesConfig.jsx com toggles master + por horário + campo de mensagem customizada + feedback visual
   - Integrado em Configuracoes.jsx como card separado
   Tests: GET retorna settings com 3 toggles de horário; PUT atualiza preferências; custom_message editável; master toggle desativa todos; feedback via toast
+[2026-03-20] F-020 Confirmation Flow: Implementado fluxo de confirmação/cancelamento para pacientes.
+  - Tabela confirmation_tokens criada: token (UNIQUE), appointment_id (FK), action (confirm/cancel), used_at
+  - createOrGetConfirmationToken() em notification-engine.js: cria token idempotente ao agendar confirmation_request
+  - GET /public/confirm/:token: retorna dados do agendamento (sem login); 404 para inválido; 410 se já usado
+  - POST /public/confirm/:token { action: 'confirm'|'cancel' }: atualiza appointment.status + marca token como usado
+  - POST /appointments/:id/confirmation-token: endpoint autenticado para gerar token manualmente (testes/envio manual)
+  - ConfirmationPage.jsx: página responsiva com dados do agendamento, botão verde 'Confirmo minha sessão' e botão 'Preciso cancelar'
+  - Rota /public/confirm/:token registrada no App.jsx
+  - Tokens de uso único: segundo uso retorna 410 com mensagem 'já utilizado'
+  - Build: vite build passou sem erros (52 módulos, 2.14s)
+  Tests: tabela existe com todos os campos; GET retorna dados; confirm atualiza status; cancel atualiza status; token usado retorna 410; token inválido retorna 404; página responsiva mobile
+  Progress: 20/34 features complete
+  Next: F-021 ou próxima feature pendente
