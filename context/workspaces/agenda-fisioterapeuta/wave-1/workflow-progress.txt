@@ -415,3 +415,11 @@
   - Badge visível tanto na visão diária quanto semanal (CalendarGrid compartilhado).
   - Legenda de confirmação adicionada abaixo da legenda de status na página de agenda.
   - Build Vite: OK (exit 0).
+[2026-03-20] F-022 (Manual Reminder): Implementado.
+  - Backend: POST /notifications/send-now/:appointment_id adicionado em server/src/routes/notifications.js.
+    Valida: appointment existe e pertence ao terapeuta; rejeita cancelados (422); rejeita passados (422).
+    Cria registro na tabela notifications com tipo='custom', canal='email', status='sent', e sent_at=now.
+    Simula envio via log (wave 1 sem SMTP real).
+  - Frontend: Botão 'Enviar Lembrete' adicionado no AppointmentModal em Agenda.jsx.
+    Só visível para agendamentos existentes (isEdit). Desabilitado para cancelados e passados.
+    Exibe feedback inline: mensagem de sucesso (verde) ou erro (vermelho) após o envio.

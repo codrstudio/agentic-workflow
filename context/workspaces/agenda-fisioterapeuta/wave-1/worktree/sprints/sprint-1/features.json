@@ -486,7 +486,7 @@
     "id": "F-022",
     "name": "Manual Reminder",
     "description": "Botão para enviar lembrete manual de um agendamento específico. API: POST /notifications/send-now/:appointment_id dispara notificação imediata para o paciente. Acessível na modal de detalhes do agendamento. Exibe feedback de envio (sucesso/falha). Registra a notificação manual na tabela notifications.",
-    "status": "pending",
+    "status": "passing",
     "priority": 22,
     "agent": "coder",
     "task": "vibe-code",
@@ -501,7 +501,8 @@
       "Notificação manual é registrada na tabela notifications",
       "Não permite envio para agendamento já passado ou cancelado"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-04-notifications.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-04-notifications.md",
+    "completed_at": "2026-03-20T20:49:49.828Z"
   },
   {
     "id": "F-023",

@@ -96,4 +96,58 @@ router.post('/process', (req, res) => {
   res.json(result);
 });
 
+// POST /notifications/send-now/:appointment_id — F-022 Manual Reminder
+router.post('/send-now/:appointment_id', (req, res) => {
+  const therapistId = req.therapistId;
+  const appointmentId = Number(req.params.appointment_id);
+
+  if (!appointmentId) {
+    return res.status(400).json({ error: 'appointment_id inválido' });
+  }
+
+  // Validate appointment belongs to this therapist
+  const appointment = db.prepare(`
+    SELECT a.*, p.email AS patient_email, p.nome AS patient_nome
+    FROM appointments a
+    LEFT JOIN patients p ON p.id = a.patient_id
+    WHERE a.id = ? AND a.therapist_id = ?
+  `).get(appointmentId, therapistId);
+
+  if (!appointment) {
+    return res.status(404).json({ error: 'Agendamento não encontrado' });
+  }
+
+  // Reject cancelled appointments
+  if (appointment.status === 'cancelled') {
+    return res.status(422).json({ error: 'Não é possível enviar lembrete para agendamento cancelado' });
+  }
+
+  // Reject past appointments
+  const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+  const apptDatetime = appointment.datetime;
+  if (apptDatetime <= now) {
+    return res.status(422).json({ error: 'Não é possível enviar lembrete para agendamento já passado' });
+  }
+
+  // Create a manual notification and mark as sent immediately
+  const insert = db.prepare(`
+    INSERT INTO notifications
+      (appointment_id, patient_id, tipo, canal, status, scheduled_at, sent_at)
+    VALUES (?, ?, 'custom', 'email', 'sent', ?, ?)
+  `);
+
+  const result = insert.run(appointmentId, appointment.patient_id, now, now);
+
+  console.log(
+    `[NotificationEngine] MANUAL SEND email → ${appointment.patient_email || '(no email)'} | appt=${appointment.datetime}`
+  );
+
+  res.json({
+    success: true,
+    notification_id: result.lastInsertRowid,
+    patient: appointment.patient_nome || null,
+    message: 'Lembrete enviado com sucesso',
+  });
+});
+
 export default router;

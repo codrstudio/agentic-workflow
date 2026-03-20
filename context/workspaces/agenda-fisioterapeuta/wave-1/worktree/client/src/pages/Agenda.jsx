@@ -193,9 +193,39 @@ function AppointmentModal({ appointment, defaultDate, defaultTime, onClose, onSa
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
 
+  // F-022 Manual Reminder state
+  const [reminderLoading, setReminderLoading] = useState(false);
+  const [reminderFeedback, setReminderFeedback] = useState(null); // { ok: bool, msg: string }
+
   const availableStatuses = isEdit
     ? [appointment.status, ...STATUS_TRANSITIONS[appointment.status]]
     : ['scheduled'];
+
+  // Whether the "Enviar Lembrete" button should be enabled
+  const canSendReminder = isEdit &&
+    appointment.status !== 'cancelled' &&
+    new Date(appointment.datetime.replace(' ', 'T')) > new Date();
+
+  async function handleSendReminder() {
+    setReminderLoading(true);
+    setReminderFeedback(null);
+    try {
+      const res = await fetch(`/notifications/send-now/${appointment.id}`, {
+        method: 'POST',
+        headers: authHeader(),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReminderFeedback({ ok: true, msg: data.message || 'Lembrete enviado!' });
+      } else {
+        setReminderFeedback({ ok: false, msg: data.error || 'Erro ao enviar lembrete' });
+      }
+    } catch {
+      setReminderFeedback({ ok: false, msg: 'Erro de conexão' });
+    } finally {
+      setReminderLoading(false);
+    }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -281,6 +311,27 @@ function AppointmentModal({ appointment, defaultDate, defaultTime, onClose, onSa
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
+
+          {/* F-022 Manual Reminder */}
+          {isEdit && (
+            <div className="pt-1 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={handleSendReminder}
+                disabled={reminderLoading || !canSendReminder}
+                title={!canSendReminder ? 'Lembrete indisponível para agendamentos passados ou cancelados' : 'Enviar lembrete agora'}
+                className="w-full flex items-center justify-center gap-2 border border-blue-300 rounded-lg py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span>📩</span>
+                {reminderLoading ? 'Enviando...' : 'Enviar Lembrete'}
+              </button>
+              {reminderFeedback && (
+                <p className={`mt-1 text-xs text-center ${reminderFeedback.ok ? 'text-green-600' : 'text-red-600'}`}>
+                  {reminderFeedback.msg}
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
