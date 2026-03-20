@@ -423,3 +423,9 @@
   - Frontend: Botão 'Enviar Lembrete' adicionado no AppointmentModal em Agenda.jsx.
     Só visível para agendamentos existentes (isEdit). Desabilitado para cancelados e passados.
     Exibe feedback inline: mensagem de sucesso (verde) ou erro (vermelho) após o envio.
+[2026-03-20] F-023 Notification Stats: Implementado widget de métricas de notificação.
+  Backend: GET /notifications/stats?period=week|month retorna { total_sent, total_delivered, total_failed, total_appointments_with_notifications, confirmed_appointments, no_shows, confirmation_rate }.
+  Frontend: componente NotificationStats.jsx com 4 cards (taxa de confirmação, entregas, falhas, no-shows) e filtro semana/mês.
+  Widget integrado ao Dashboard.jsx.
+  Testes: queries SQL validadas diretamente, endpoint sem conflitos de rota.
+  Progress: 23/34 features complete. Next: F-024 Cancellation Policy Config.

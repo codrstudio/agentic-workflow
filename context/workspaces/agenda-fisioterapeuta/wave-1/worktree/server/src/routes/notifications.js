@@ -96,6 +96,61 @@ router.post('/process', (req, res) => {
   res.json(result);
 });
 
+// GET /notifications/stats?period=week|month — F-023 Notification Stats
+router.get('/stats', (req, res) => {
+  const therapistId = req.therapistId;
+  const period = req.query.period === 'month' ? 'month' : 'week';
+  const days = period === 'month' ? 30 : 7;
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .replace('T', ' ')
+    .slice(0, 19);
+
+  // Notification delivery stats
+  const notifStats = db.prepare(`
+    SELECT
+      COUNT(*) AS total_sent,
+      SUM(CASE WHEN n.status = 'delivered' THEN 1 ELSE 0 END) AS total_delivered,
+      SUM(CASE WHEN n.status = 'failed' THEN 1 ELSE 0 END) AS total_failed
+    FROM notifications n
+    JOIN appointments a ON a.id = n.appointment_id
+    WHERE a.therapist_id = ?
+      AND n.status IN ('sent', 'delivered', 'failed')
+      AND n.sent_at >= ?
+  `).get(therapistId, since);
+
+  // Appointments that had at least one notification sent in the period
+  const apptStats = db.prepare(`
+    SELECT
+      COUNT(DISTINCT a.id) AS total_appointments_with_notifications,
+      SUM(CASE WHEN a.status = 'confirmed' THEN 1 ELSE 0 END) AS confirmed_appointments,
+      SUM(CASE WHEN a.status = 'no_show' THEN 1 ELSE 0 END) AS no_shows
+    FROM appointments a
+    WHERE a.therapist_id = ?
+      AND EXISTS (
+        SELECT 1 FROM notifications n
+        WHERE n.appointment_id = a.id
+          AND n.status IN ('sent', 'delivered')
+          AND n.sent_at >= ?
+      )
+  `).get(therapistId, since);
+
+  const total = apptStats.total_appointments_with_notifications || 0;
+  const confirmed = apptStats.confirmed_appointments || 0;
+  const confirmation_rate = total > 0 ? Math.round((confirmed / total) * 100) / 100 : 0;
+
+  res.json({
+    period,
+    total_sent: notifStats.total_sent || 0,
+    total_delivered: notifStats.total_delivered || 0,
+    total_failed: notifStats.total_failed || 0,
+    total_appointments_with_notifications: total,
+    confirmed_appointments: confirmed,
+    no_shows: apptStats.no_shows || 0,
+    confirmation_rate,
+  });
+});
+
 // POST /notifications/send-now/:appointment_id — F-022 Manual Reminder
 router.post('/send-now/:appointment_id', (req, res) => {
   const therapistId = req.therapistId;
