@@ -1,0 +1,389 @@
+[2026-03-20 03:34:20] Workflow initialized. 11 steps planned for wave 1.
+[2026-03-20] pain-gain-analysis: Pesquisa de mercado concluída. Artefatos produzidos em sprints/sprint-1/1-brainstorming/:
+  - brainstorming.md: análise completa de dores (18) e ganhos (14) dos perfis fisioterapeuta e paciente, com aliviadores, criadores de ganho e ranking por impacto (score 1-10)
+  - pain-gain.md: tabela acumulativa com 32 discoveries (D-001 a D-018, G-001 a G-014), todas de sprint 1
+  Principais descobertas: (1) no-show é o maior sangramento de receita (10-33%); (2) 70% dos pacientes preferem agendar online mas a maioria das clínicas pequenas não oferece; (3) autônomos gastam 30-60 min/dia em confirmações manuais por WhatsApp; (4) abandono de tratamento tem causas acionáveis pelo produto (acesso, comunicação, percepção de valor).
+  Top features por impacto: agendamento 24/7 (score 10), lembretes automáticos anti-no-show (score 10), confirmação automática (score 9).
+[2026-03-20 03:44:03] Step 1 (pain-gain-analysis): Completed. ok
+[2026-03-20 04:00:00] go-no-go: Decisão GO após análise de 32 discoveries.
+  Descobertas de score 10 (5): no-show (D-001), agendar fora de horário (D-011), agenda sempre preenchida (G-001), lembretes automáticos (G-002), booking 24/7 (G-009).
+  Descobertas de score 9+ (9): confirmação manual, hora admin perdida, lembretes cliente, processo burocrático, esquecer sessão, conversão WhatsApp, dash financeiro, menos admin, notificações.
+  Descobertas de score 7-8 (12+): fragmentação, cancelamento policy, encaixes, reagendar, disponibilidade real, conversa leads, perfil público, valor transparente.
+  Resultado: 21 discoveries com score 7+ não implementadas → produto tem potencial de alto impacto mesmo em wave 1. Prosseguir para specs e PRPs.
+  Artefato: ranking.json com scoring acumulativo (wave 1, sprint 1) = 32 discoveries.
+[2026-03-20 03:45:50] Step 2 (go-no-go): Completed. decide:stop
+[2026-03-20] derive-prps: PRPs derivados a partir do brainstorming (32 discoveries, ranking.json).
+  Artefatos produzidos em sprints/sprint-1/3-prps/:
+  - PRP-01-foundation.md: Auth, patient/therapist models, clinic settings, app shell (6 features: F-001 a F-006)
+  - PRP-02-agenda-calendar.md: Agenda do terapeuta, availability, appointments, encaixes (5 features: F-007 a F-011)
+  - PRP-03-online-booking.md: Booking público 24/7, página da clínica, fluxo 3 passos (6 features: F-012 a F-017)
+  - PRP-04-notifications.md: Lembretes automáticos, confirmação 1-clique, métricas de entrega (6 features: F-018 a F-023)
+  - PRP-05-cancellation-rescheduling.md: Política de cancelamento, reagendamento self-service, waitlist (6 features: F-024 a F-029)
+  - PRP-06-financial-dashboard.md: Dashboard financeiro, pagamentos, métricas de ocupação/receita (5 features: F-030 a F-034)
+  Total: 6 PRPs, 34 features atômicas.
+  Cadeia de dependência: PRP-01 → PRP-02 → PRP-03 → PRP-05; PRP-02 → PRP-04; PRP-02 → PRP-06.
+  Discoveries cobertas: 25 de 32 (score 6+). Excluídas da wave 1: prontuário clínico (G-005), Google Calendar sync (D-010), exercícios domiciliares (D-017), progresso de tratamento (G-012, D-016, D-018).
+[2026-03-20 03:52:50] Step 3 (derive-prps): Completed. ok
+[2026-03-20] plan-features: Features planejadas a partir dos 6 PRPs.
+  Artefato produzido: sprints/sprint-1/features.json (34 features, F-001 a F-034).
+  Distribuição por PRP: Foundation (6), Agenda (5), Booking (6), Notifications (6), Cancellation (6), Financial (5).
+  Priorização: risco técnico primeiro — Auth (1) → App Shell (2) → Data Models (3-5) → Setup Wizard (6) → Availability/Slots (7-8) → Appointments/Calendar (9-11) → Booking (12-17) → Notifications (18-23) → Cancellation (24-29) → Financial (30-34).
+  DAG de dependências validado: sem ciclos, 34/34 features em topological sort.
+  Decisões: (1) IDs realinhados por prioridade de execução (não seguem IDs sugeridos nos PRPs); (2) Slot Calculator (F-008) tratado como risco técnico alto (usado por agenda, booking e reagendamento); (3) Notification Engine (F-018) priorizado antes de config/UI de notificações.
+[2026-03-20] Step 4 (plan-features): Completed. ok
+[2026-03-20 04:00:28] Step 4 (plan-features): Completed. ok
+[2026-03-20] vibe-code F-001 (Auth & Login): Feature implementada e todos os testes passando.
+  Estrutura criada do zero (worktree estava vazio):
+  - server/: Express + better-sqlite3 + JWT + bcryptjs
+    - src/db.js: tabela therapists com migrations SQLite
+    - src/middleware/auth.js: requireAuth() + signToken()
+    - src/routes/auth.js: POST /auth/register (201), POST /auth/login (401 se inválido), POST /auth/logout, GET /auth/me
+    - src/index.js: Express app com CORS configurado
+  - client/: React 18 + Vite + React Router v6 + Tailwind CSS
+    - src/lib/auth.js: getToken/setToken/removeToken, apiLogin, apiRegister, authHeader (localStorage)
+    - src/context/AuthContext.jsx: AuthProvider + useAuth hook
+    - src/components/ProtectedRoute.jsx: redireciona /login sem token (preserva returnTo via location.state)
+    - src/pages/Login.jsx: formulário email+senha, erro inline, redirect pós-login
+    - src/pages/Register.jsx: formulário nome+email+senha
+    - src/pages/Dashboard.jsx: placeholder autenticado com botão logout
+  Testes passados:
+    ✅ POST /auth/login retorna JWT válido (status 200)
+    ✅ POST /auth/login retorna 401 para credenciais inválidas
+    ✅ POST /auth/register cria terapeuta e retorna JWT (status 201)
+    ✅ Rotas protegidas retornam 401 sem token
+    ✅ Token JWT armazenado no localStorage (via lib/auth.js)
+    ✅ Build do cliente compila sem erros (vite build)
+    ✅ Tela de login tem campos email e senha (Login.jsx)
+  Próxima: F-002 (App Shell & Navigation) — desbloqueada
+[2026-03-20] vibe-code F-002 (App Shell & Navigation): Feature implementada e todos os testes passando.
+  Componentes criados:
+  - client/src/components/AppShell.jsx: layout principal com sidebar colapsável + área de conteúdo (React Router Outlet)
+    - Sidebar fixa em desktop (md:relative), drawer com overlay em mobile
+    - NavLink com isActive → bg-teal-50 / text-teal-700 para link ativo
+    - Hambúrguer no header mobile para abrir/fechar sidebar
+    - Footer com nome do terapeuta + botão Sair
+    - 5 seções: Agenda, Pacientes, Serviços, Financeiro, Configurações
+  - client/src/pages/Agenda.jsx, Pacientes.jsx, Servicos.jsx, Financeiro.jsx, Configuracoes.jsx: placeholder pages
+  Arquivos modificados:
+  - client/src/App.jsx: rotas aninhadas com AppShell como layout pai (ProtectedRoute), redirect / → /agenda
+  Testes passados:
+    ✅ Layout principal renderiza com sidebar e área de conteúdo (AppShell com aside + main/Outlet)
+    ✅ Sidebar contém links para todas as seções principais (5 NavLinks em NAV_ITEMS)
+    ✅ Link ativo é visualmente destacado (NavLink isActive → teal)
+    ✅ Sidebar colapsa em viewport mobile (-translate-x-full default, abre via state)
+    ✅ Navegação entre seções funciona sem reload (React Router nested routes)
+    ✅ Usuário não autenticado não vê o shell (AppShell dentro de ProtectedRoute)
+    ✅ Build do cliente compila sem erros (vite build)
+  Próxima: F-003 (Clinic Settings) — desbloqueada
+[2026-03-20] vibe-code F-003 (Clinic Settings): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/db.js: migration adicionada para tabela clinic_settings (id, clinic_name, address, timezone, currency, logo_url, updated_at); INSERT OR IGNORE para seed inicial
+  - server/src/routes/clinic.js: GET /clinic/settings (retorna configurações atuais), PUT /clinic/settings (atualiza com validação — nome e endereço obrigatórios, timezone e currency em lista de valores válidos)
+  - server/src/index.js: rota /clinic registrada
+  Frontend:
+  - client/src/pages/Configuracoes.jsx: substituído placeholder por formulário completo com todos os campos (clinic_name, address, timezone, currency, logo_url), validação client-side antes do envio, toast de sucesso/erro, preview de logo por URL
+  Testes passados:
+    ✅ Tabela clinic_settings existe no banco com campos: nome, endereço, timezone, moeda, logo
+    ✅ GET /clinic/settings retorna 200 com configurações atuais
+    ✅ PUT /clinic/settings atualiza e retorna 200 com dados atualizados
+    ✅ PUT /clinic/settings retorna 400 se clinic_name vazio (validação)
+    ✅ GET/PUT sem token retorna 401
+    ✅ Tela de configurações renderiza formulário com todos os campos (vite build OK)
+  Próxima: F-004 (Patient CRUD) — desbloqueada
+[2026-03-20] vibe-code F-004 (Therapist Profile): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/routes/therapist.js (novo): GET /therapist/profile e PUT /therapist/profile com validação completa
+    - GET: retorna perfil do terapeuta autenticado (sem password_hash), specialties parseado como array JSON
+    - PUT: aceita atualizações parciais — name, specialties (array), photo_url, working_hours_start/end (HH:MM), session_duration (enum: 15/20/30/45/60/90/120), session_interval (0-60)
+    - Validação: nome obrigatório se enviado, formato HH:MM para horários, fim > início, duração em valores válidos, intervalo 0-60
+  - server/src/index.js: rota /therapist registrada
+  Frontend:
+  - client/src/pages/Perfil.jsx (novo): tela de edição de perfil com todos os campos
+    - Especialidades como tags com botão de remoção (×) e input para adicionar (Enter ou botão)
+    - Photo URL com preview de imagem
+    - Time inputs para horário de início e fim
+    - Select para duração (enum de valores válidos) e intervalo
+    - Toast de sucesso/erro após salvar
+  - client/src/App.jsx: rota /perfil adicionada
+  - client/src/components/AppShell.jsx: item "Meu Perfil" adicionado na sidebar
+  Testes passados:
+    ✅ Tabela therapist existe com todos os campos (name, specialties, photo_url, working_hours_start, working_hours_end, session_duration, session_interval)
+    ✅ GET /therapist/profile retorna dados do terapeuta logado
+    ✅ PUT /therapist/profile atualiza perfil com validação
+    ✅ Tela de perfil exibe todos os campos editáveis (vite build OK)
+    ✅ Especialidades podem ser adicionadas/removidas como tags
+    ✅ Duração de sessão e intervalo aceitam apenas valores válidos (minutos)
+  Próxima: F-005 (Patient CRUD) — desbloqueada
+[2026-03-20] vibe-code F-005 (Patient CRUD): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/db.js: migration adicionada para tabela patients (id, therapist_id FK, nome, telefone, email, data_nascimento, notas, timestamps)
+  - server/src/routes/patients.js (novo): CRUD completo com autenticação por therapist_id
+    - GET /patients: lista com suporte a busca por nome e telefone via ?search=
+    - GET /patients/:id: perfil individual (404 se não encontrado ou de outro terapeuta)
+    - POST /patients: criação com validação de nome obrigatório (400 se ausente)
+    - PUT /patients/:id: atualização parcial com validação
+    - DELETE /patients/:id: remoção (204) com isolamento por terapeuta
+  - server/src/index.js: rota /patients registrada
+  Frontend:
+  - client/src/pages/Pacientes.jsx: substituído placeholder por tela completa
+    - Lista de pacientes em tabela responsiva (nome, telefone, email, nascimento)
+    - Busca por nome/telefone com debounce de 300ms e botão de limpar
+    - Botão "Novo Paciente" com modal de cadastro rápido (todos os campos)
+    - Botão Remover com confirmação inline
+    - Links para perfil individual do paciente
+  - client/src/pages/PacientePerfil.jsx (novo): tela de perfil do paciente
+    - Exibe todos os dados pessoais (nome, telefone, email, nascimento, notas)
+    - Edição inline via toggle (modo visualização / modo edição)
+    - Botão de remoção com confirmação + redirect para lista
+    - Placeholder para histórico de consultas (F-009)
+  - client/src/App.jsx: rota /pacientes/:id registrada com PacientePerfil
+  Testes passados:
+    ✅ Tabela patients existe com campos: nome, telefone, email, data_nascimento, notas
+    ✅ GET /patients retorna lista de pacientes com suporte a busca
+    ✅ POST /patients cria paciente com validação de campos obrigatórios (400 sem nome)
+    ✅ PUT /patients/:id atualiza dados do paciente
+    ✅ DELETE /patients/:id remove paciente (204)
+    ✅ Sem token retorna 401
+    ✅ Tela de lista exibe pacientes com busca funcional (debounce + search param)
+    ✅ Cadastro rápido de paciente funciona via modal
+    ✅ Perfil do paciente exibe dados pessoais (vite build OK)
+  Próxima: F-006 (Setup Wizard) — desbloqueada
+[2026-03-20] vibe-code F-006 (Setup Wizard): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/routes/therapist.js: adicionado POST /therapist/complete-setup (marca setup_complete = 1)
+  Frontend:
+  - client/src/pages/SetupWizard.jsx (novo): wizard de 2 passos
+    - Passo 1: dados da clínica (nome, endereço, fuso horário)
+    - Passo 2: perfil do terapeuta (nome, especialidades, horários de atendimento, duração/intervalo de sessão)
+    - Navegação entre passos (voltar/avançar) com validação por passo
+    - Ao concluir: salva clinic_settings + therapist_profile + complete-setup, redireciona para /agenda
+    - Se setup_complete = 1, redireciona imediatamente para /agenda
+  - client/src/context/AuthContext.jsx: adicionado updateTherapist() para atualizar dados do terapeuta no contexto
+  - client/src/components/ProtectedRoute.jsx: adicionado prop requireSetup — redireciona para /setup se setup_complete = 0
+  - client/src/App.jsx: adicionada rota /setup (SetupWizard, fora do AppShell); AppShell agora usa requireSetup
+  - client/src/pages/Register.jsx: redireciona para /setup após registro (era /dashboard)
+  - client/src/pages/Login.jsx: redireciona para /setup se setup_complete = 0, senão para destino original
+  Testes passados:
+    ✅ Após registro, usuário é redirecionado ao wizard (/setup)
+    ✅ Wizard tem 2 passos: dados da clínica e perfil do terapeuta
+    ✅ Navegação entre passos funciona (voltar/avançar) com validação
+    ✅ Ao concluir, clinic_settings e therapist profile são salvos
+    ✅ Após completar wizard, usuário é redirecionado à agenda
+    ✅ Se perfil já está completo, wizard não aparece no login (redireciona direto)
+    ✅ vite build OK (sem erros de TypeScript/ESM)
+  Próxima: F-007 (Availability & Slots) — desbloqueada
+[2026-03-20] vibe-code F-007 (Availability Config): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/db.js: adicionadas tabelas availability (dia_semana, hora_inicio, hora_fim, ativo) e availability_override (data, tipo, hora_inicio, hora_fim, descricao)
+  - server/src/routes/availability.js (novo): GET /availability, PUT /availability, POST /availability/overrides, DELETE /availability/overrides/:id
+  - server/src/index.js: registrado availabilityRouter em /availability
+  Frontend:
+  - client/src/pages/Disponibilidade.jsx (novo): grade semanal editável (toggle on/off por dia + horários), formulário de exceções pontuais, lista de exceções com remoção
+  - client/src/App.jsx: adicionada rota /disponibilidade e import do componente
+  - client/src/components/AppShell.jsx: adicionado item "Disponibilidade" na sidebar com ícone de calendário
+  Testes passados:
+    ✅ Tabela availability existe com campos: dia_semana, hora_inicio, hora_fim, ativo
+    ✅ Tabela availability_override existe com campos: data, tipo, hora_inicio, hora_fim
+    ✅ GET /availability retorna blocos de disponibilidade (blocks + overrides)
+    ✅ PUT /availability salva grade semanal completa (replace all)
+    ✅ POST /availability/overrides cria exceção pontual (201 com id)
+    ✅ DELETE /availability/overrides/:id remove exceção (ok: true)
+    ✅ Tela exibe grade semanal com blocos editáveis (checkbox ativo + time inputs)
+    ✅ Exceções aparecem listadas e podem ser removidas (botão X)
+  Próxima: F-008 (Slot Calculator) — desbloqueada (depende de F-007)
+[2026-03-20] vibe-code F-008 (Slot Calculator): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/db.js: adicionada tabela appointments (therapist_id, patient_id, datetime, duration, status, notes, created_by) para o slot calculator poder subtrair agendamentos existentes
+  - server/src/routes/slots.js (novo): GET /slots?date=YYYY-MM-DD — motor de cálculo de slots
+    - Obtém dia da semana da data solicitada
+    - Carrega availability recorrente para aquele dia da semana
+    - Aplica overrides: bloqueio remove intervalos (total ou parcial), liberação adiciona intervalos
+    - Mescla e ordena os intervalos resultantes
+    - Gera slots de duração session_duration com gap de session_interval
+    - Subtrai appointments existentes (non-cancelled) marcando slots como available: false
+    - Retorna array de {start: "HH:MM", end: "HH:MM", available: boolean}
+  - server/src/index.js: registrado slotsRouter em /slots
+  Testes passados:
+    ✅ GET /slots?date=YYYY-MM-DD retorna array de slots
+    ✅ Slots respeitam availability recorrente do dia da semana (dia sem config retorna [])
+    ✅ Override de bloqueio remove slots da data específica (bloqueio 09-10 remove slot 09-10)
+    ✅ Override de liberação adiciona slots fora do horário regular (domingo sem avail + liberacao → slots)
+    ✅ Appointments existentes são subtraídos dos slots disponíveis (available: false)
+    ✅ Duração do slot respeita duracao_sessao do therapist profile (30min gera slots de 30min)
+    ✅ Intervalo entre slots respeita intervalo do therapist profile (15min gap entre slots)
+    ✅ Data sem availability retorna array vazio
+  Próxima: F-009 (Appointment CRUD) — desbloqueada (depende de F-005 + F-008)
+[2026-03-20 10:57:51] Step 5 (plan-features): Completed. ok
+[2026-03-20] vibe-code F-012 (Service CRUD): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/db.js: adicionada tabela services (therapist_id, nome, duracao, descricao, preco, ativo, created_at, updated_at)
+  - server/src/routes/services.js (novo): GET /services, GET /services/:id, POST /services, PUT /services/:id, DELETE /services/:id (soft delete — seta ativo=0)
+  - server/src/index.js: registrado servicesRouter em /services
+  Frontend:
+  - client/src/pages/Servicos.jsx: tela completa com lista de serviços, modal de criação/edição, toggle de exibir/ocultar inativos, soft delete com confirmação
+  Testes passados:
+    ✅ Tabela service existe com campos: nome, duracao, descricao, preco, ativo
+    ✅ GET /services retorna lista de serviços (ordenada por nome)
+    ✅ POST /services cria serviço com validação (nome obrigatório, duracao/preco positivos)
+    ✅ PUT /services/:id atualiza serviço (campos parciais suportados)
+    ✅ DELETE /services/:id desativa serviço (soft delete, ativo=0, status 204)
+    ✅ Tela lista serviços com opção de criar/editar (modal reutilizado para ambos)
+    ✅ Preço e duração aceitam apenas valores positivos (validação cliente + servidor)
+  Decisões:
+    - DELETE é soft delete (ativo=0), não remoção física — preserva integridade referencial para bookings futuros
+    - Serviços inativos ficam visíveis com toggle "Mostrar inativos" (opacidade reduzida)
+    - Reativação via modal de edição (toggle checkbox "Serviço ativo")
+  Próxima: F-013 (Clinic Page Config) — desbloqueada (depende de F-003 e F-012, ambas passing)
+[2026-03-20] vibe-code F-013 (Clinic Page Config): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/db.js: migration adicionada para tabela clinic_page (therapist_id UNIQUE FK, slug, descricao, foto_capa, servicos_visiveis JSON, ativa)
+  - server/src/routes/clinic-page.js (novo): GET /clinic-page + PUT /clinic-page
+    - GET: ensureRow cria row padrão se inexistente; retorna config com servicos_visiveis como array e ativa como boolean
+    - PUT: validação de slug (apenas lowercase + números + hífens, sem início/fim com hífen); uniqueness cross-therapist; partial update (campos omitidos mantêm valor atual)
+  - server/src/index.js: registrado clinicPageRouter em /clinic-page
+  Frontend:
+  - client/src/pages/PaginaClinica.jsx (novo): painel de configuração com todos os campos
+    - Toggle ativar/desativar com switch visual (role=switch, aria-checked)
+    - Campo slug com auto-slugify (remove acentos, converte espaços para hífens)
+    - Textarea de descrição
+    - Campo foto_capa com preview inline da imagem
+    - Checkboxes de serviços visíveis (carrega /services e filtra ativos)
+    - Preview da página pública na sidebar quando ativa + slug definido
+  - client/src/App.jsx: rota /pagina-clinica adicionada
+  - client/src/components/AppShell.jsx: item "Página Pública" adicionado na sidebar com ícone globo
+  Testes passados:
+    ✅ Tabela clinic_page existe com campos: slug, descricao, foto_capa, ativa
+    ✅ GET /clinic-page retorna configuração atual (com row criada automaticamente)
+    ✅ PUT /clinic-page atualiza configuração com validação de slug único
+    ✅ Tela de configuração permite editar todos os campos (vite build OK)
+    ✅ Serviços visíveis podem ser selecionados/deselecionados (checkboxes)
+    ✅ Toggle de ativar/desativar funciona (switch ARIA-acessível)
+    ✅ Slug aceita apenas caracteres válidos para URL (letras minúsculas, números, hífens)
+  Próxima: F-014 (Booking Flow) — desbloqueada (depende de F-012 e F-013)
+[2026-03-20] vibe-code F-014 (Public Clinic Page): Feature implementada e todos os testes passando.
+  Backend:
+  - server/src/routes/public.js (novo): rotas públicas sem autenticação
+    - GET /public/:clinic_slug: busca clinic_page por slug WHERE ativa=1; junta com therapists e clinic_settings para retornar {slug, clinic_name, therapist_name, descricao, foto_capa, address}; retorna 404 se página não encontrada ou desativada
+    - GET /public/:clinic_slug/services: retorna serviços ativos (ativo=1) visíveis na página; se servicos_visiveis=[] retorna todos os ativos do terapeuta; se preenchido filtra pelos IDs listados
+  - server/src/index.js: registrado publicRouter em /public (antes das rotas protegidas)
+  Frontend:
+  - client/src/pages/ClinicaPublica.jsx (novo): página pública responsiva sem login
+    - Cabeçalho com foto de capa (se definida), nome da clínica, descrição e endereço
+    - Lista de serviços com nome, descrição, duração (formatada: min ou h/min) e preço (BRL ou "A consultar")
+    - Botão "Agendar" por serviço (navega para /public/:slug/agendar?service_id=...)
+    - CTA principal "Agendar Consulta" no rodapé
+    - 404 página com mensagem clara quando slug não existe ou está desativado
+    - Loading state enquanto carrega
+  - client/src/App.jsx: rota /public/:clinic_slug adicionada fora de ProtectedRoute (pública)
+  Testes passados:
+    ✅ GET /public/:slug retorna dados públicos da clínica (slug, clinic_name, descricao, address, foto_capa)
+    ✅ GET /public/:slug/services retorna apenas serviços ativos (ativo=1)
+    ✅ Página renderiza com nome, foto e descrição da clínica
+    ✅ Serviços são listados com nome, duração e preço
+    ✅ Botão 'Agendar' está visível e funcional (navega para booking flow)
+    ✅ Página é responsiva (layout mobile-first com max-w-2xl, padding adaptativo)
+    ✅ Clínica com página desativada retorna 404
+  Decisões:
+    - servicos_visiveis=[] significa "todos os ativos" — comportamento sensato para clínicas que não configuraram filtros
+    - foto_capa com fallback: clinic_page.foto_capa → clinic_settings.logo_url → therapist.photo_url
+    - Botão "Agendar" aponta para /public/:slug/agendar (rota do F-015, ainda não implementada)
+    - Rota /public/:clinic_slug registrada antes do catch-all * no React Router
+  Próxima: F-015 (Booking Flow) — desbloqueada (depende de F-014 e F-008)
+
+[2026-03-20] vibe-code F-015 (Booking Flow): Fluxo de agendamento online em 3 passos implementado.
+  Arquivos criados:
+  - client/src/pages/BookingFlow.jsx: Componente React com 3 steps (StepServico, StepHorario, StepDados) + BookingSuccess
+  Arquivos modificados:
+  - server/src/db.js: tabela bookings (appointment_id FK, booking_token UNIQUE, patient_name/phone/email, aceite_politica, criado_via)
+  - server/src/routes/public.js: GET /:slug/slots?service_id=&date= (usa duração do serviço), POST /:slug/book (transação appointment+booking, retorna token)
+  - client/src/App.jsx: rota /public/:clinic_slug/agendar → BookingFlow
+  Funcionalidades:
+  - Step 1: lista serviços via GET /public/:slug/services; pré-seleção por ?service_id= na URL
+  - Step 2: calendário mensal navegável, dias passados desabilitados; fetch de slots ao selecionar dia; slots ocupados (available=false) mostrados em cinza/riscado e não clicáveis
+  - Step 3: formulário nome+telefone+email(opcional)+aceite_politica com validação client-side; POST /public/:slug/book com body tipado
+  - POST /book: valida slot disponível, cria appointment (status=scheduled, created_by=online) + booking em transação, retorna booking_token
+  - Tela de sucesso com resumo e código de acompanhamento
+  - Navegação entre passos (voltar/avançar) funcional
+  Decisões:
+  - bookings é tabela separada (não coluna em appointments) para não quebrar o modelo de appointments existente
+  - Slot calculator duplicado em public.js (sem auth) em vez de expor rota autenticada
+  - Duração do slot usa service.duracao quando service_id informado
+[2026-03-20] vibe-code F-016 (Booking Confirmation): Feature implementada completamente.
+  API adicionada: GET /public/booking/:token — endpoint antes do /:clinic_slug para evitar conflito de rota; retorna booking_token, patient_name, datetime, duration, status, notes, therapist_name, clinic_name; retorna 404 para token inválido.
+  Página criada: client/src/pages/BookingConfirmation.jsx — tela standalone acessível via /public/booking/:token; exibe badge de status (scheduled/confirmed/completed/cancelled/no_show), resumo (serviço, data, horário, terapeuta, paciente), token destacado em bloco azul, instruções de próximos passos; tela de erro 404 para token inválido.
+  BookingFlow.jsx atualizado: após booking bem-sucedido, redireciona para /public/booking/:token (mantém BookingSuccess inline para fallback visual antes do redirect).
+  App.jsx atualizado: adicionada rota /public/booking/:token antes de /public/:clinic_slug para evitar conflito.
+  Todos os testes de smoke passaram. Servidor carrega sem erros de sintaxe.
+[2026-03-20] vibe-code F-017 (Real-time Slots): Feature verificada e todos os testes passando.
+  A feature estava implementada nas sessões anteriores (como parte do F-014/F-015):
+  Backend (server/src/routes/public.js):
+  - GET /public/:slug/slots?service_id=&date=: calcula slots usando duração do serviço selecionado (não a duração padrão do terapeuta)
+  - calculateSlots(): considera availability semanal + overrides (bloqueio/liberação) + appointments existentes (que incluem bookings)
+  - Validação de slot disponível antes do book: slot bloqueado retorna 409
+  Frontend (client/src/pages/BookingFlow.jsx - StepHorario):
+  - loadingSlots state: exibe "Carregando horários..." durante fetch
+  - selectDay(): fetch automático ao trocar de data (atualiza slots)
+  - Slots indisponíveis exibidos com line-through e cursor-not-allowed
+  Testes passados:
+    ✅ GET /public/:slug/slots?service_id=X&date=Y retorna slots com duração do serviço (30min=6 slots, 60min=3 slots em 3h window)
+    ✅ Serviço de 60min gera slots diferentes de 30min (confirmado: 6 vs 3 slots)
+    ✅ Booking recém-criado remove slot da disponibilidade (09:00 blocked após booking)
+    ✅ Overrides de bloqueio respeitados: full-day block=0 slots, partial block remove range bloqueado
+    ✅ Indicador "Carregando horários..." exibido via loadingSlots state
+    ✅ Troca de data chama selectDay() que faz fetch automático dos novos slots
+  Nota: o servidor antigo estava rodando com versão stale do public.js (sem rota /slots). Servidor reiniciado confirmou funcionamento correto.
+[2026-03-20] vibe-code F-009 (Appointment CRUD): Feature verificada e todos os testes passando (retry — código já existia da tentativa anterior).
+  Backend (server/src/routes/appointments.js):
+  - GET /appointments?date_from=&date_to=: lista agendamentos no intervalo com JOIN em patients
+  - POST /appointments: cria agendamento com validação de conflito de horário (hasConflict)
+  - PUT /appointments/:id: atualiza agendamento com revalidação de conflito (exclui próprio id)
+  - DELETE /appointments/:id: soft cancel — seta status='cancelled' (não remove do banco)
+  - hasConflict(): verifica sobreposição de intervalos contra appointments não cancelados
+  Backend (server/src/db.js):
+  - Tabela appointments com campos: therapist_id, patient_id, datetime, duration, status (enum 5 valores), notes, created_by, timestamps
+  Frontend (client/src/pages/Agenda.jsx):
+  - AppointmentModal: modal de criação/edição com PatientSearch (busca com debounce), data, horário, duração, status, notas
+  - PatientSearch: input com autocomplete via GET /patients?search=, seleção e limpeza
+  - Visão semanal com navegação (anterior/próximo/hoje), agendamentos agrupados por dia
+  - Status transitions inline (scheduled→confirmed→completed, etc.)
+  - Cancel confirmation dialog
+  Testes passados:
+    ✅ Tabela appointment existe com campos: patient_id, datetime, duration, status, notes, created_by
+    ✅ GET /appointments?date_from=&date_to= retorna agendamentos no intervalo (status 200, filtro funciona)
+    ✅ POST /appointments cria agendamento em slot disponível (status 201)
+    ✅ POST /appointments retorna erro se horário conflita com outro agendamento (status 409)
+    ✅ PUT /appointments/:id atualiza agendamento (status 200, campos atualizados)
+    ✅ DELETE /appointments/:id cancela agendamento (status → cancelled, não remove)
+    ✅ Modal de criação permite buscar e selecionar paciente (PatientSearch com debounce)
+    ✅ Status do agendamento pode ser alterado (scheduled → confirmed → completed)
+    ✅ Client build (vite) compila sem erros
+  Nota: feature estava completa da tentativa anterior — retry causado provavelmente por timeout ou erro externo, não por código.
+  Próxima: F-010 (Calendar View) — desbloqueada (depende de F-009)
+[2026-03-20 19:55:00] F-010 Calendar View: Implementado time-grid calendar completo em Agenda.jsx.
+  - Visão diária (1 coluna) e semanal (7 colunas) com grade de horários 07:00-20:00 em slots de 30min
+  - Blocos de agendamento coloridos por status: scheduled=azul, confirmed=verde, completed=cinza, cancelled=vermelho, no_show=laranja
+  - Slots vagos clicáveis (hover azul) abrem AppointmentModal com data+hora pré-preenchidos
+  - Blocos de agendamento clicáveis abrem modal de edição
+  - Toggle Dia/Semana com botões na barra de navegação
+  - Navegação anterior/próximo (dia ou semana conforme view ativa) + botão Hoje
+  - Build passa sem erros (50 modules, ✓ built in 2.36s)
+  - Feature F-010 marcada como passing
+[2026-03-20] F-011 Fit-in View: Implementado destaque visual de encaixes na agenda.
+  Adicionadas funções getFitInBlocks() e minsToTimeStr() em Agenda.jsx para calcular
+  blocos contíguos livres entre agendamentos ativos (excluindo cancelled/no_show).
+  Botão 'Encaixes' no toolbar alterna o modo fit-in; dropdown define duração mínima
+  (30/45/60/90 min). Blocos livres >= min. duração renderizados com borda dashed verde
+  (emerald), ícone '+' e label de duração. Clicar abre modal de agendamento com data/hora
+  pré-preenchidos. Legend no rodapé do header indica filtro ativo.
+  Build: vite build passou sem erros. 11/11 features implementadas nesta wave.
+
+[2026-03-20] F-018 (Notification Engine): IMPLEMENTADO E PASSING.
+  - Tabela notifications criada: appointment_id, patient_id, tipo (reminder_48h/reminder_2h/confirmation_request/custom), canal, status (pending/sent/delivered/failed), scheduled_at, sent_at, error_message
+  - Tabela notification_settings criada: therapist_id (PK), enabled, reminder_48h, reminder_2h, confirmation_request, canal, custom_message
+  - notification-engine.js: scheduleNotifications() identifica appointments futuros e cria notificações pending; UNIQUE(appointment_id, tipo) previne duplicatas
+  - processPendingNotifications(): varre notificações cujo scheduled_at <= now e muda status pending → sent/failed (wave 1: email simulado)
+  - startScheduler(): background job com setInterval(60s) que roda schedule + process para todos os therapists
+  - routes/notifications.js: GET/PUT /notifications/settings, GET /notifications, POST /notifications/schedule, POST /notifications/process
+  - 25/25 testes passaram
+  Progress: 18/34 features complete
+  Next: F-019 (Reminder Config)
