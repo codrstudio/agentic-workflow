@@ -476,3 +476,15 @@
   - Trigger automático: DELETE /appointments/:id agora notifica próximo na fila (status → notified, log simulado)
   - Frontend: página /lista-espera com listagem, ação notificar e remover; link na sidebar
   - Testes DB validados: insert, read, notify, delete, cancellation-trigger
+
+[2026-03-21] reschedule-log (F-029): Histórico de reagendamentos implementado no perfil do paciente.
+  - Backend: GET /patients/:id/reschedule-log (server/src/routes/patients.js) — query reschedule_log JOIN appointments filtrado por patient_id e therapist_id, ordenado por created_at DESC.
+  - Frontend: PacientePerfil.jsx carrega o log em paralelo com os dados do paciente. Seção "Histórico de Reagendamentos" substituiu o placeholder de consultas. Componente RescheduleEntry exibe data original, nova data, motivo e badge colorido diferenciando paciente (azul) vs terapeuta (teal). Estado vazio exibe mensagem amigável.
+  - Smoke test: query SQL executada diretamente via db.js — OK (0 rows, estrutura válida).
+[2026-03-21] vibe-code F-030: Payment CRUD implementado.
+  - Tabela 'payment' criada em db.js (appointment_id, patient_id, amount, method, status, paid_at, notes)
+  - server/src/routes/payments.js: POST /payments, PUT /payments/:id, GET /payments?patient_id=&date_from=&date_to=
+  - Validações: amount positivo, method em [cash,pix,card,transfer], status em [pending,paid,partial,waived], appointment pertence ao terapeuta
+  - PaymentModal adicionado em Agenda.jsx: aparece automaticamente ao marcar sessão como concluída
+  - Financeiro.jsx atualizado com lista de pagamentos filtrada por período
+  - Todos os testes de API passaram manualmente

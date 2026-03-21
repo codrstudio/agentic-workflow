@@ -646,7 +646,7 @@
     "id": "F-029",
     "name": "Reschedule Log",
     "description": "Histórico de reagendamentos visível no perfil do paciente: listar todas as entradas de reschedule_log associadas ao paciente, mostrando data original, nova data, motivo e quem iniciou (paciente/terapeuta). Integrado na tela de perfil do paciente (F-005) como seção ou tab adicional.",
-    "status": "pending",
+    "status": "passing",
     "priority": 29,
     "agent": "coder",
     "task": "vibe-code",
@@ -661,13 +661,14 @@
       "Paciente sem reagendamentos mostra mensagem vazia",
       "Reagendamentos feitos pelo paciente e pelo terapeuta são diferenciados"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-05-cancellation-rescheduling.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-05-cancellation-rescheduling.md",
+    "completed_at": "2026-03-21T23:34:03.943Z"
   },
   {
     "id": "F-030",
     "name": "Payment CRUD",
     "description": "Implementar modelo payment (appointment_id, patient_id, amount, method [cash/pix/card/transfer], status [pending/paid/partial/waived], paid_at, notes). APIs: POST /payments, PUT /payments/:id, GET /payments?patient_id=&date_from=&date_to=. Modal de registro de pagamento ao marcar sessão como concluída: valor, método, parcial/total. Validar que valor é positivo e appointment existe.",
-    "status": "pending",
+    "status": "passing",
     "priority": 30,
     "agent": "coder",
     "task": "vibe-code",
@@ -683,7 +684,8 @@
       "Métodos de pagamento são selecionáveis (cash, pix, card, transfer)",
       "Valor aceita apenas números positivos"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-06-financial-dashboard.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-06-financial-dashboard.md",
+    "completed_at": "2026-03-21T23:42:41.539Z"
   },
   {
     "id": "F-031",

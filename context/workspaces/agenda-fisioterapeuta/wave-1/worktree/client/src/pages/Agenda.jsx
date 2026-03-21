@@ -349,6 +349,119 @@ function AppointmentModal({ appointment, defaultDate, defaultTime, onClose, onSa
   );
 }
 
+// ── Payment Modal (F-030) ─────────────────────────────────────────────────────
+
+const METHOD_LABELS = { cash: 'Dinheiro', pix: 'Pix', card: 'Cartão', transfer: 'Transferência' };
+const PAYMENT_STATUS_LABELS = { paid: 'Pago (total)', partial: 'Pago (parcial)', waived: 'Isento', pending: 'Pendente' };
+
+function PaymentModal({ appointment, onClose, onSaved }) {
+  const [amount,  setAmount]  = useState('');
+  const [method,  setMethod]  = useState('pix');
+  const [status,  setStatus]  = useState('paid');
+  const [notes,   setNotes]   = useState('');
+  const [error,   setError]   = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    const num = parseFloat(amount);
+    if (isNaN(num) || num <= 0) { setError('Valor deve ser um número positivo'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch('/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({
+          appointment_id: appointment.id,
+          patient_id: appointment.patient_id || null,
+          amount: num,
+          method,
+          status,
+          paid_at: status !== 'pending' ? new Date().toISOString() : null,
+          notes: notes || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Erro ao registrar pagamento'); return; }
+      onSaved(data);
+      onClose();
+    } catch {
+      setError('Erro de conexão');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900">Registrar Pagamento</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        {appointment.patient_nome && (
+          <div className="px-6 pt-4 text-sm text-gray-500">
+            Paciente: <span className="font-medium text-gray-800">{appointment.patient_nome}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
+            <input
+              type="number" min="0.01" step="0.01" value={amount}
+              onChange={e => setAmount(e.target.value)} required
+              placeholder="0,00"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Método</label>
+            <select value={method} onChange={e => setMethod(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {Object.entries(METHOD_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select value={status} onChange={e => setStatus(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              {Object.entries(PAYMENT_STATUS_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Notas (opcional)</label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+          </div>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-300 rounded-lg py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+              Pular
+            </button>
+            <button type="submit" disabled={loading}
+              className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+              {loading ? 'Salvando...' : 'Registrar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Fit-in helpers ────────────────────────────────────────────────────────────
 
 /** Returns contiguous free ranges on a given day whose length >= minDuration. */
@@ -581,6 +694,7 @@ export default function Agenda() {
   const [appointments,      setAppointments]     = useState([]);
   const [loading,           setLoading]          = useState(false);
   const [modal,             setModal]            = useState(null);
+  const [paymentModal,      setPaymentModal]     = useState(null);
   const [cancelConfirm,     setCancelConfirm]    = useState(null);
   const [fitInMode,         setFitInMode]        = useState(false);
   const [fitInMinDuration,  setFitInMinDuration] = useState(30);
@@ -748,7 +862,20 @@ export default function Agenda() {
           defaultDate={modal.defaultDate}
           defaultTime={modal.defaultTime}
           onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); load(); }}
+          onSaved={(savedAppt) => {
+            setModal(null);
+            load();
+            if (savedAppt?.status === 'completed') setPaymentModal({ appointment: savedAppt });
+          }}
+        />
+      )}
+
+      {/* ── Payment Modal (F-030) ── */}
+      {paymentModal && (
+        <PaymentModal
+          appointment={paymentModal.appointment}
+          onClose={() => setPaymentModal(null)}
+          onSaved={() => {}}
         />
       )}
 

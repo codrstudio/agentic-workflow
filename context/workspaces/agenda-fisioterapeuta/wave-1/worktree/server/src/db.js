@@ -252,4 +252,20 @@ db.exec(`
   );
 `);
 
+// F-030: Payment table
+db.exec(`
+  CREATE TABLE IF NOT EXISTS payment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    appointment_id INTEGER NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    patient_id INTEGER REFERENCES patients(id) ON DELETE SET NULL,
+    amount REAL NOT NULL,
+    method TEXT NOT NULL CHECK (method IN ('cash', 'pix', 'card', 'transfer')),
+    status TEXT NOT NULL DEFAULT 'paid' CHECK (status IN ('pending', 'paid', 'partial', 'waived')),
+    paid_at TEXT DEFAULT NULL,
+    notes TEXT DEFAULT NULL,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 export default db;
