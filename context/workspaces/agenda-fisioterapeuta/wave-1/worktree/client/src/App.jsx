@@ -20,6 +20,7 @@ import BookingConfirmation from './pages/BookingConfirmation.jsx';
 import ConfirmationPage from './pages/ConfirmationPage.jsx';
 import CancelPage from './pages/CancelPage.jsx';
 import ListaEspera from './pages/ListaEspera.jsx';
+import HistoricoPagamentos from './pages/HistoricoPagamentos.jsx';
 
 export default function App() {
   return (
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="perfil" element={<Perfil />} />
             <Route path="pagina-clinica" element={<PaginaClinica />} />
             <Route path="lista-espera" element={<ListaEspera />} />
+            <Route path="historico-pagamentos" element={<HistoricoPagamentos />} />
             {/* legacy redirect */}
             <Route path="dashboard" element={<Navigate to="/agenda" replace />} />
           </Route>

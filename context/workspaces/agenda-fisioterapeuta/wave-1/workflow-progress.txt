@@ -519,3 +519,10 @@
   - Modal: pré-preenche valor com saldo_restante, suporta POST (sem pagamento) e PUT (pagamento parcial existente)
   - Sessões com status 'paid' não aparecem (filtradas no backend: p.status != 'paid')
   - Build Vite: OK (55 módulos, sem erros)
+[2026-03-22] payment-history: F-034 Payment History implementado.
+  - Backend: GET /payments agora inclui service_nome (JOIN services), filtra por method, e retorna paginação { data, total, page, page_size }.
+  - Bug fix: migration ALTER TABLE appointments ADD COLUMN service_id adicionada (estava faltando, causava erro em financial.js e payments.js).
+  - Frontend: HistoricoPagamentos.jsx criada com filtros (paciente, data_from, data_to, método), tabela (data, paciente, serviço, valor, método, status), paginação (20 por página) e export CSV com BOM UTF-8.
+  - Rota /historico-pagamentos adicionada ao App.jsx.
+  - Link "Histórico" adicionado ao sidebar (AppShell.jsx).
+  Todos os critérios de teste atendidos.

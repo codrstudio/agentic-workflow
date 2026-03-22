@@ -268,4 +268,7 @@ db.exec(`
   );
 `);
 
+// F-030 fix: add service_id to appointments (idempotent)
+try { db.exec(`ALTER TABLE appointments ADD COLUMN service_id INTEGER REFERENCES services(id) ON DELETE SET NULL`); } catch (_) {}
+
 export default db;

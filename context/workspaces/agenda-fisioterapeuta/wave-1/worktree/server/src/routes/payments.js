@@ -8,16 +8,19 @@ router.use(requireAuth);
 const VALID_METHODS  = ['cash', 'pix', 'card', 'transfer'];
 const VALID_STATUSES = ['pending', 'paid', 'partial', 'waived'];
 
-// GET /payments?patient_id=&date_from=&date_to=
+// GET /payments?patient_id=&date_from=&date_to=&method=&page=&page_size=
 router.get('/', (req, res) => {
   const therapistId = req.therapistId;
-  const { patient_id, date_from, date_to } = req.query;
+  const { patient_id, date_from, date_to, method, page, page_size } = req.query;
 
   let sql = `
-    SELECT p.*, a.datetime AS appointment_datetime, pat.nome AS patient_nome
+    SELECT p.*, a.datetime AS appointment_datetime,
+           pat.nome AS patient_nome,
+           s.nome AS service_nome
     FROM payment p
     JOIN appointments a ON a.id = p.appointment_id
     LEFT JOIN patients pat ON pat.id = p.patient_id
+    LEFT JOIN services s ON s.id = a.service_id
     WHERE a.therapist_id = ?
   `;
   const params = [therapistId];
@@ -25,10 +28,23 @@ router.get('/', (req, res) => {
   if (patient_id) { sql += ' AND p.patient_id = ?'; params.push(patient_id); }
   if (date_from)  { sql += ' AND a.datetime >= ?';  params.push(date_from); }
   if (date_to)    { sql += ' AND a.datetime <= ?';  params.push(date_to + 'T23:59:59'); }
+  if (method && VALID_METHODS.includes(method)) { sql += ' AND p.method = ?'; params.push(method); }
 
   sql += ' ORDER BY a.datetime DESC';
 
-  res.json(db.prepare(sql).all(...params));
+  const pageNum  = Math.max(1, parseInt(page, 10) || 1);
+  const pageSize = Math.min(200, Math.max(1, parseInt(page_size, 10) || 50));
+
+  const countSql = sql.replace(
+    /SELECT p\.\*, a\.datetime.*FROM payment p/s,
+    'SELECT COUNT(*) AS total FROM payment p'
+  );
+  const total = db.prepare(countSql).get(...params)?.total ?? 0;
+
+  sql += ` LIMIT ? OFFSET ?`;
+  params.push(pageSize, (pageNum - 1) * pageSize);
+
+  res.json({ data: db.prepare(sql).all(...params), total, page: pageNum, page_size: pageSize });
 });
 
 // POST /payments
