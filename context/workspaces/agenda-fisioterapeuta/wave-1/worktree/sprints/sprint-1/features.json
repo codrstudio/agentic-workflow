@@ -736,7 +736,7 @@
     "id": "F-033",
     "name": "Pending Payments",
     "description": "Lista de sessões realizadas (status 'completed') sem pagamento registrado ou com pagamento parcial. Exibida no dashboard financeiro e acessível como seção separada. Cada item mostra: paciente, data da sessão, serviço, valor esperado. Ação rápida para registrar pagamento inline. Filtro por período.",
-    "status": "pending",
+    "status": "passing",
     "priority": 33,
     "agent": "coder",
     "task": "vibe-code",
@@ -752,7 +752,8 @@
       "Sessão com pagamento 'partial' aparece com saldo restante",
       "Filtro por período funciona"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-06-financial-dashboard.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-06-financial-dashboard.md",
+    "completed_at": "2026-03-22T21:58:12.142Z"
   },
   {
     "id": "F-034",

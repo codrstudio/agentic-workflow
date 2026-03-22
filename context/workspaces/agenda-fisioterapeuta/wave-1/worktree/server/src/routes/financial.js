@@ -217,11 +217,24 @@ router.get('/daily', (req, res) => {
   res.json(rows.map(r => ({ date: r.date, revenue: r.revenue || 0 })));
 });
 
-// ── GET /financial/pending ────────────────────────────────────────────────────
+// ── GET /financial/pending?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD ───────────
 // Completed appointments without a fully-paid payment (no payment OR status != 'paid')
 
 router.get('/pending', (req, res) => {
   const therapistId = req.therapistId;
+  const { date_from, date_to } = req.query;
+
+  let whereExtra = '';
+  const params = [therapistId];
+
+  if (date_from) {
+    whereExtra += ' AND date(a.datetime) >= ?';
+    params.push(date_from);
+  }
+  if (date_to) {
+    whereExtra += ' AND date(a.datetime) <= ?';
+    params.push(date_to);
+  }
 
   const rows = db.prepare(`
     SELECT
@@ -242,11 +255,21 @@ router.get('/pending', (req, res) => {
     WHERE a.therapist_id = ?
       AND a.status = 'completed'
       AND (p.id IS NULL OR p.status != 'paid')
+      ${whereExtra}
     ORDER BY a.datetime DESC
     LIMIT 50
-  `).all(therapistId);
+  `).all(...params);
 
-  res.json(rows);
+  // Compute saldo_restante for each row
+  const result = rows.map(row => {
+    const expected = row.service_preco ?? 0;
+    const paid = (row.payment_status === 'partial' && row.payment_amount != null)
+      ? row.payment_amount
+      : 0;
+    return { ...row, saldo_restante: expected - paid };
+  });
+
+  res.json(result);
 });
 
 export default router;

@@ -509,3 +509,13 @@
   - Layout responsivo: col-span grid 1/2/4 colunas
   Progress: 32/34 features complete
   Next: F-033 Pending Payments
+
+[2026-03-22] F-033 Pending Payments: Implementada lista de sessões pendentes de pagamento com:
+  - Backend: endpoint GET /financial/pending agora aceita date_from e date_to para filtro por período
+  - Backend: campo saldo_restante calculado por row (service_preco - paid_amount para parciais)
+  - Frontend: filtro de período (De/Até) na seção de pendentes com botão limpar
+  - Frontend: coluna "Saldo restante" destacada em laranja nas linhas parciais
+  - Frontend: botão "Registrar" por linha que abre modal inline com valor, método e status
+  - Modal: pré-preenche valor com saldo_restante, suporta POST (sem pagamento) e PUT (pagamento parcial existente)
+  - Sessões com status 'paid' não aparecem (filtradas no backend: p.status != 'paid')
+  - Build Vite: OK (55 módulos, sem erros)
