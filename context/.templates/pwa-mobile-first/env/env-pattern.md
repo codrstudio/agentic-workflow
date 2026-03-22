@@ -24,7 +24,7 @@ Todas as portas sao derivadas de `PREFIX`. O default e `20`:
 ### Mapa de portas (${PREFIX}XX)
 
     Sources (apps)
-      ${PREFIX}00  PUBLIC_PORT   (caddy/proxy)
+      ${PREFIX}00  PROXY_PORT   (caddy/proxy)
       ${PREFIX}02  CENTRAL_PORT
       ${PREFIX}03  LOJISTA_PORT
       ${PREFIX}04  MOTOBOY_PORT
