@@ -1,0 +1,6 @@
+name: pull-repo
+description: Pull do remote origin para o repo do produto
+
+steps:
+  - type: spawn-agent
+    task: pull-repo
