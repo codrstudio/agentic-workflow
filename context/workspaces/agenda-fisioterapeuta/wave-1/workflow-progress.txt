@@ -488,3 +488,14 @@
   - PaymentModal adicionado em Agenda.jsx: aparece automaticamente ao marcar sessão como concluída
   - Financeiro.jsx atualizado com lista de pagamentos filtrada por período
   - Todos os testes de API passaram manualmente
+[2026-03-21] vibe-code F-031: Financial Summary implementada.
+  - Criado server/src/routes/financial.js com dois endpoints:
+    GET /financial/summary?period=month&date=YYYY-MM → retorna receita_total, receita_esperada, sessoes_realizadas, sessoes_canceladas, no_shows, slots_ocupados, slots_disponiveis, taxa_ocupacao, ticket_medio, inadimplencia
+    GET /financial/daily?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD → retorna [{date, revenue}] com receita paga por dia
+  - Registrado em server/src/index.js (app.use('/financial', financialRouter))
+  - Taxa de ocupação calculada iterando todos os dias do período com lógica de slots (availability + overrides)
+  - Inadimplência = sessões completed sem payment com status 'paid'
+  - Validações: period inválido, date ausente/formato inválido, date_from > date_to retornam 400
+  Testes passaram: todas as 7 assertions da feature
+  Progress: 31/34 features complete
+  Next: F-032 Financial Dashboard (desbloqueada)

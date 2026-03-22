@@ -14,6 +14,7 @@ import notificationsRouter from './routes/notifications.js';
 import cancellationPolicyRouter from './routes/cancellation-policy.js';
 import waitlistRouter from './routes/waitlist.js';
 import paymentsRouter from './routes/payments.js';
+import financialRouter from './routes/financial.js';
 import { requireAuth } from './middleware/auth.js';
 import { startScheduler } from './notification-engine.js';
 
@@ -43,6 +44,7 @@ app.use('/notifications', notificationsRouter);
 app.use('/cancellation-policy', cancellationPolicyRouter);
 app.use('/waitlist', waitlistRouter);
 app.use('/payments', paymentsRouter);
+app.use('/financial', financialRouter);
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true }));
