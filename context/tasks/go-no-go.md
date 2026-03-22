@@ -19,7 +19,7 @@ Avalie o Value Map produzido na etapa anterior e decida se o ciclo continua (GO)
 2. Analise discoveries desta wave:
    - Maioria abaixo de 3 E nenhuma acima de 7 nao implementada → **STOP**
    - Discoveries acima de 7 nao implementadas → **GO**
-3. Wave 1 tem tendencia GO (primeiras waves tem valor intrinseco)
+3. **Wave 1 é SEMPRE GO** — retorne `stop: false` incondicionalmente se `{wave_number}` for 1. Primeiras waves têm valor intrínseco e não devem ser bloqueadas pela análise
 
 ## Artefato
 
