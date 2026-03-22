@@ -499,3 +499,13 @@
   Testes passaram: todas as 7 assertions da feature
   Progress: 31/34 features complete
   Next: F-032 Financial Dashboard (desbloqueada)
+
+[2026-03-22] vibe-code F-032 Financial Dashboard: Dashboard financeiro implementado.
+  - Reescrita completa de Financeiro.jsx como dashboard com 4 cards de métricas (receita, ocupação, ticket médio, no-shows)
+  - Gráfico de barras SVG de receita diária com preenchimento de todos os dias do mês (zeros onde sem dados)
+  - Seletor de mês que recarrega todos os dados
+  - Lista de sessões pendentes de pagamento (sessões completed sem pagamento 'paid')
+  - Novo endpoint GET /financial/pending no servidor
+  - Layout responsivo: col-span grid 1/2/4 colunas
+  Progress: 32/34 features complete
+  Next: F-033 Pending Payments

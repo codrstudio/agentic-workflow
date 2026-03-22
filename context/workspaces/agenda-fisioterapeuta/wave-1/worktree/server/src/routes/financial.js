@@ -217,4 +217,36 @@ router.get('/daily', (req, res) => {
   res.json(rows.map(r => ({ date: r.date, revenue: r.revenue || 0 })));
 });
 
+// ── GET /financial/pending ────────────────────────────────────────────────────
+// Completed appointments without a fully-paid payment (no payment OR status != 'paid')
+
+router.get('/pending', (req, res) => {
+  const therapistId = req.therapistId;
+
+  const rows = db.prepare(`
+    SELECT
+      a.id            AS appointment_id,
+      a.datetime      AS appointment_datetime,
+      a.status        AS appointment_status,
+      pat.id          AS patient_id,
+      pat.nome        AS patient_nome,
+      p.id            AS payment_id,
+      p.amount        AS payment_amount,
+      p.status        AS payment_status,
+      s.nome          AS service_nome,
+      s.preco         AS service_preco
+    FROM appointments a
+    LEFT JOIN patients pat ON pat.id = a.patient_id
+    LEFT JOIN services s   ON s.id  = a.service_id
+    LEFT JOIN payment p    ON p.appointment_id = a.id
+    WHERE a.therapist_id = ?
+      AND a.status = 'completed'
+      AND (p.id IS NULL OR p.status != 'paid')
+    ORDER BY a.datetime DESC
+    LIMIT 50
+  `).all(therapistId);
+
+  res.json(rows);
+});
+
 export default router;

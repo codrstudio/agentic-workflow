@@ -714,7 +714,7 @@
     "id": "F-032",
     "name": "Financial Dashboard",
     "description": "Tela de dashboard financeiro com: cards de métricas (receita do mês, taxa de ocupação, ticket médio, no-shows), gráfico de barras de receita diária, lista de sessões pendentes de pagamento. Usar dados de GET /financial/summary e GET /financial/daily. Seletor de período (mês). Design limpo com foco em clareza dos números.",
-    "status": "pending",
+    "status": "passing",
     "priority": 32,
     "agent": "coder",
     "task": "vibe-code",
@@ -729,7 +729,8 @@
       "Dashboard carrega sem erros mesmo sem dados",
       "Layout é responsivo"
     ],
-    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-06-financial-dashboard.md"
+    "prp_path": "D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/wave-1/worktree/sprints/sprint-1/3-prps/PRP-06-financial-dashboard.md",
+    "completed_at": "2026-03-22T21:49:32Z"
   },
   {
     "id": "F-033",
