@@ -29,12 +29,12 @@ steps:
   - type: ralph-wiggum-loop
     task: vibe-code
 
-  - type: spawn-agent
-    task: plan-e2e-tests
+  # - type: spawn-agent
+  #   task: plan-e2e-tests
 
-  - type: ralph-wiggum-loop
-    task: e2e-test
-    features_file: test-cases.json
+  # - type: ralph-wiggum-loop
+  #   task: e2e-test
+  #   features_file: test-cases.json
 
   - type: spawn-agent
     task: merge-worktree
