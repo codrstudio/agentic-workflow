@@ -15,3 +15,14 @@
   - S-045: Inline edit nome e email no perfil (D-212)
   - IDs continuam de sprint-7 (S-039) — sequenciais
 [2026-03-24 11:34:01] Step 2 (derive-specs): Completed. ok
+[2026-03-24 11:35:38] Step 2 (derive-specs): Completed. ok
+[2026-03-24 11:40:00] derive-prps via=agent sprint=9 result=ok
+  - 5 PRPs derivados (PRP-035 a PRP-039) cobrindo 6 specs (S-040 a S-045)
+  - PRP-035: Migration + backend arquivamento (S-040, S-041) — crítico, bloqueia PRP-037
+  - PRP-036: Layout responsivo lista clientes (S-042) — independente
+  - PRP-037: Toggle arquivados + botão perfil (S-043) — depende PRP-035
+  - PRP-038: Tokens semânticos + shadcn Dialog (S-044) — independente
+  - PRP-039: Inline edit nome e email (S-045) — independente
+  - Features F-121 a F-130 (10 features, continuam de F-120 sprint-7)
+  - Grafo de dependências: PRP-035 → PRP-037; demais independentes
+[2026-03-24 11:40:01] Step 3 (derive-prps): Completed. ok
