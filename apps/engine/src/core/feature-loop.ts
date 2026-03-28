@@ -354,15 +354,12 @@ export class FeatureLoop {
             });
           }
         } else {
-          // Reset status from "in_progress" back to "failing" so the feature
-          // can be re-selected in the next iteration
-          if (updatedFeature) {
-            (updatedFeature as Record<string, unknown>).status = 'failing';
-          }
-
           const newRetries = retries + 1;
+          // Reset to "failing" so the feature can be re-selected next iteration
           if (updatedFeature) {
-            (updatedFeature as Record<string, unknown>).retries = newRetries;
+            const f = updatedFeature as Record<string, unknown>;
+            f.status = 'failing';
+            f.retries = newRetries;
           }
 
           // Check if feature was auto-rejected by quality gate
