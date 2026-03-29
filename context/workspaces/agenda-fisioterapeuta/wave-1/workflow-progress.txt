@@ -527,3 +527,19 @@
   - Link "Histórico" adicionado ao sidebar (AppShell.jsx).
   Todos os critérios de teste atendidos.
 [2026-03-22 22:14:18] Step 6 (ralph-wiggum-loop): Completed. completed
+
+[2026-03-22 19:48:47] merge-worktree: Merge da wave-1 concluído com sucesso.
+  Método: cópia direta de client/src, server/src e features.json do worktree para o repo.
+  merged_sha: dcbdaa521a994bb6c52e52360b29615a3c9f7fdf (master do repo)
+  Repo: D:/sources/_unowned/agentic-workflow/context/workspaces/agenda-fisioterapeuta/repo (branch master)
+  26 arquivos alterados, 3878 inserções(+), 35 deleções(-).
+[2026-03-22 22:49:07] Step 7 (merge-worktree): Completed. ok
+[2026-03-22 22:49:07] Step 8 (stop-on-wave-limit): Completed. continue
+[2026-03-22 22:49:08] Step 9 (spawn-vibe-full-app): Completed. spawned
+
+[2026-03-22] merge-worktree (verificação): Diagnóstico de recuperação executado. Estado confirmado como 100% concluído.
+  - Merge wave-1 → master: ✅ SHA dcbdaa521a994bb6c52e52360b29615a3c9f7fdf
+  - Worktree removida: ✅ (não aparece em git worktree list)
+  - Branch harness/wave-1 deletado: ✅ (apenas harness/wave-2 existe)
+  - workflow-state.json step 9 (merge-worktree): status=completed
+  Nenhuma ação adicional necessária.

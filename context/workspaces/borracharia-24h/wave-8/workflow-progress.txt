@@ -26,3 +26,119 @@
   - Features F-121 a F-130 (10 features, continuam de F-120 sprint-7)
   - Grafo de dependências: PRP-035 → PRP-037; demais independentes
 [2026-03-24 11:40:01] Step 3 (derive-prps): Completed. ok
+[2026-03-24 11:39:38] Step 3 (derive-prps): Completed. ok
+[2026-03-24 11:45:00] plan-features via=agent sprint=9 result=ok
+  - 10 features planejadas (F-121 a F-130) a partir de 5 PRPs (PRP-035 a PRP-039)
+  - F-121: Migration coluna archived (priority 1, sem deps)
+  - F-122: Core archive/unarchive + tipos (priority 2, deps F-121)
+  - F-123: Core + validator filtro archived (priority 3, deps F-122)
+  - F-124: API endpoints archive/unarchive (priority 4, deps F-122, F-123)
+  - F-125: Layout responsivo tabela/cards (priority 5, sem deps)
+  - F-126: Toggle arquivados + badge lista (priority 6, deps F-124, F-125)
+  - F-127: Botão arquivar/desarquivar perfil (priority 7, deps F-124)
+  - F-128: Tokens semânticos Dialog criação (priority 8, sem deps)
+  - F-129: Tokens semânticos perfil cliente (priority 9, sem deps)
+  - F-130: Inline edit nome e email (priority 10, sem deps)
+  - DAG validado: sem ciclos, deps referenciam IDs existentes, prioridades respeitam ordem
+  - Estratégia: infra/schema primeiro (F-121→F-124), UI estrutural (F-125→F-127), refinamento visual (F-128→F-130)
+[2026-03-24 11:45:01] Step 4 (plan-features): Completed. ok
+[2026-03-24 11:43:39] Step 4 (plan-features): Completed. ok
+[2026-03-24 12:00:00] F-121 via=agent result=passing
+  - Adicionada coluna archived: boolean, notNull, default false em packages/db/src/schema.ts na tabela customers (após notes, antes de createdAt)
+  - Adicionado índice idx_customers_archived na tabela customers
+  - Corrigido bug pré-existente: constraint duplicada em push_subscriptions (inline .unique() + explicit unique() com mesmo nome)
+  - Migration gerada: packages/db/migrations/0007_sloppy_captain_midlands.sql com ALTER TABLE customers ADD COLUMN archived + CREATE INDEX idx_customers_archived
+  - @socorro/db typecheck passa sem erros; erros de outros packages são pré-existentes (ioredis, sharp, web-push, next, leaflet)
+  - F-122 desbloqueada (dep F-121 agora passing)
+[2026-03-24 13:00:00] F-122 via=agent result=passing
+  - Adicionado campo archived: boolean a CustomerWithStats e CustomerProfile em packages/core/src/customers.ts
+  - listCustomers() agora seleciona customers.archived e inclui no resultado mapeado
+  - getCustomer() agora retorna archived no objeto CustomerProfile
+  - Implementado archiveCustomer(id): busca cliente (NOT_FOUND se inexistente), idempotente (retorna success se já archived), seta archived=true + updatedAt=now()
+  - Implementado unarchiveCustomer(id): mesma lógica invertida, seta archived=false
+  - Ambas funções exportadas de packages/core/src/customers.ts
+  - Erros de typecheck em push.ts (web-push) e redis.ts (ioredis) são pré-existentes — sem erros em customers.ts
+  - F-123 desbloqueada (dep F-122 agora passing)
+[2026-03-24 14:00:00] F-123 via=agent result=passing
+  - Adicionado campo archived?: boolean a ListCustomersFilters em packages/core/src/customers.ts
+  - Adicionado import de `and` de drizzle-orm em customers.ts
+  - listCustomers() agora filtra por archived com default false (retrocompatível — sem param = ativos)
+  - WHERE clause: and(eq(customers.archived, archived), searchCondition?) aplicado tanto no COUNT quanto no SELECT
+  - Adicionado archived: z.coerce.boolean().optional() ao CustomerListFiltersSchema em packages/validators/src/index.ts
+  - Erros de typecheck em push.ts (web-push) e redis.ts (ioredis) são pré-existentes — sem erros novos
+  - F-124 desbloqueada (deps F-122 e F-123 agora passing)
+[2026-03-24 15:00:00] F-124 via=agent result=passing
+  - PATCH /customers/:id/archive adicionado em apps/api/src/routes/customers.ts — protegido via customersRouter.use('*', requireAuth), chama archiveCustomer(), retorna { success: true } ou 404
+  - PATCH /customers/:id/unarchive adicionado — mesma estrutura, chama unarchiveCustomer()
+  - GET /customers corrigido: archived extraído de result.data e passado para listCustomers()
+  - Erros de typecheck em push.ts (web-push), redis.ts (ioredis) e setup-config.ts (sharp) são pré-existentes — sem erros novos em customers.ts
+  - F-126 desbloqueada (deps F-124 e F-125 — F-125 ainda pending)
+  - F-127 desbloqueada (dep F-124 agora passing)
+[2026-03-24 16:00:00] F-125 via=agent result=passing
+  - Tabela desktop encapsulada em <div className='hidden md:block bg-card border border-border rounded-xl overflow-hidden'>
+  - Bloco mobile <div className='md:hidden space-y-3'> adicionado com CustomerCard para cada cliente
+  - Componente CustomerCard definido inline em apps/hub/src/routes/customers.tsx
+  - CustomerCard exibe: nome (font-medium) + StarRating à direita; telefone (text-muted-foreground); total chamados + última visita
+  - CustomerCard tem onClick que navega para /hub/customers/${id} via handleRowClick existente
+  - Tokens semânticos: bg-card, border-border, text-muted-foreground, hover:bg-accent/50 — sem zinc no card
+  - F-126 desbloqueada (deps F-124 e F-125 agora passing)
+  - Typecheck: apenas erros pré-existentes (vite-plugin-pwa/client, ioredis, sharp, web-push, next)
+[2026-03-24 17:00:00] F-126 via=agent result=passing
+  - Criado componente Switch de shadcn em apps/hub/src/components/ui/switch.tsx (usa @radix-ui/react-switch)
+  - Adicionado archived?: boolean a api.customers.list() em apps/hub/src/lib/api.ts
+  - Estado local showArchived (boolean, default false) adicionado em CustomersPage
+  - Toggle Switch + label 'Arquivados' adicionados ao lado da barra de busca
+  - handleArchivedToggle reseta para página 1 ao alternar
+  - load() e useEffect atualizados para passar archived: showArchived
+  - Badge variant='secondary' className='text-xs'>Arquivado</Badge> renderizado em CustomerRow (tabela desktop) e CustomerCard (cards mobile) quando showArchived ativo
+  - npm install executado para instalar dependências frontend (radix-ui etc.)
+  - typecheck: EXIT 0 sem erros
+  - F-127 desbloqueada (dep F-124 já passing)
+[2026-03-24 18:00:00] F-127 via=agent result=passing
+  - Adicionado campo archived: boolean a CustomerProfile em apps/hub/src/lib/api.ts
+  - Adicionados métodos api.customers.archive(id) e api.customers.unarchive(id) em apps/hub/src/lib/api.ts
+  - Badge <Badge variant='destructive'>Arquivado</Badge> ao lado do nome quando profile.archived é true
+  - Botão 'Arquivar cliente' visível quando não arquivado; abre Dialog de confirmação
+  - Dialog de confirmação: mensagem com nome do cliente → confirma → PATCH /customers/:id/archive → badge aparece, botão muda
+  - Botão 'Desarquivar cliente' visível quando arquivado; chama PATCH /customers/:id/unarchive diretamente sem dialog
+  - Erro inline exibido abaixo do botão (sem lib de toast disponível)
+  - Imports: Badge, Button, Dialog* de @/components/ui/
+  - typecheck: EXIT 0 sem erros
+[2026-03-24 19:00:00] F-128 via=agent result=passing
+  - Criado componente Textarea de shadcn em apps/hub/src/components/ui/textarea.tsx
+  - Substituído <textarea> nativo por <Textarea> de shadcn no Dialog de criação (NewCustomerDialog)
+  - Substituídos <button> bare de cancelar e criar por <Button variant='outline'> e <Button variant='default'>
+  - Substituído <button> bare 'Novo cliente' no header por <Button size='sm'>
+  - Substituídos <button> bare de paginação por <Button variant='ghost' size='icon'>
+  - Removidas todas as referências a zinc-700, zinc-800, zinc-900 do arquivo customers.tsx (DialogContent, DialogTitle, textarea, buttons)
+  - Import de Textarea de @/components/ui/textarea adicionado
+  - Import de Button de @/components/ui/button adicionado
+  - npm run typecheck passa sem erros
+  - F-129 e F-130 desbloqueadas (sem deps pendentes)
+[2026-03-24 20:00:00] F-129 via=agent result=passing
+  - Adicionado import de Textarea de @/components/ui/textarea em customers.$id.tsx
+  - StatCard: bg-zinc-800/60 → bg-card, border-zinc-700 → border-border, text-zinc-500 → text-muted-foreground, text-zinc-100 → text-foreground
+  - NotesEditor: <textarea> nativo → <Textarea> shadcn; botões bare Salvar/Cancelar/Editar → <Button> shadcn (variant=default/outline/ghost)
+  - CallHistory items: bg-zinc-800/60 → bg-card, border-zinc-700 → border-border, hover:bg-zinc-800 → hover:bg-accent/50
+  - Paginação CallHistory: <button> bare → <Button variant=ghost size=icon>
+  - Back buttons e notFound button: <button> bare → <Button variant=ghost>
+  - Containers (dados, observações, histórico): bg-zinc-900 border border-zinc-800 → bg-card border border-border
+  - Avatar div: bg-zinc-700 → bg-muted; ícone User: text-zinc-400 → text-muted-foreground
+  - Zero referências zinc-700, zinc-800, zinc-900 no arquivo ao final
+  - npm run typecheck passa sem erros
+[2026-03-24 21:00:00] F-130 via=agent result=passing
+  - Criado componente InlineEditField em customers.$id.tsx com props { value, onSave, placeholder?, type?, validate?, canStartEdit?, onStartEdit?, onStopEdit? }
+  - Modo visualização: texto + ícone lápis visível ao hover (opacity-0 → group-hover:opacity-100)
+  - Modo edição: Input shadcn + botões ✓ (Check verde) e ✕ (X vermelho) com Button size='icon'
+  - Enter salva, Escape cancela; loading state desabilita botões durante salvamento
+  - Request não enviado se valor não mudou (draft.trim() === value.trim() → cancelEdit sem request)
+  - Adicionado import de Input de @/components/ui/input
+  - Estado activeEditField: 'name' | 'email' | null no CustomerProfilePage garante apenas um campo editável por vez
+  - handleSaveName: PATCH /customers/:id com { name: val }; handleSaveEmail: PATCH /customers/:id com { email: val || null }
+  - Nome: validação 2-120 chars; Email: formato email ou vazio (campo sempre visível, mesmo sem email)
+  - Telefone exibido como <Phone> + <span> sem InlineEditField (imutável por regra de negócio)
+  - npm run typecheck passa sem erros
+  - Sprint 9 completo: todas as 10 features (F-121 a F-130) com status passing
+[2026-03-24 14:32:26] Step 5 (ralph-wiggum-loop): Completed. completed
+[2026-03-24 14:32:35] merge-worktree via=deterministic sha=7528479cc7a71a6b9d77825392476a52285994cc
+[2026-03-24 14:32:35] Step 6 (merge-worktree): Completed. ok
