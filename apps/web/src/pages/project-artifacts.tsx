@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useParams, Link } from "@tanstack/react-router"
-import MDEditor from "@uiw/react-md-editor"
 import {
   Folder,
   File as FileIcon,
@@ -98,13 +97,6 @@ export function ProjectArtifactsPage() {
     editContent: "",
     saving: false,
   })
-
-  const [colorMode, setColorMode] = useState<"light" | "dark">("light")
-
-  useEffect(() => {
-    const isDark = document.documentElement.classList.contains("dark")
-    setColorMode(isDark ? "dark" : "light")
-  }, [])
 
   const fetchArtifacts = useCallback(() => {
     setLoading(true)
@@ -637,13 +629,12 @@ export function ProjectArtifactsPage() {
               ) : drawer.editing ? (
                 <div className="flex flex-col gap-3 h-full">
                   {drawerExt === "md" ? (
-                    <div data-color-mode={colorMode} className="flex-1">
-                      <MDEditor
-                        value={drawer.editContent}
-                        onChange={v => setDrawer(d => ({ ...d, editContent: v ?? "" }))}
-                        height={400}
-                      />
-                    </div>
+                    <textarea
+                      value={drawer.editContent}
+                      onChange={e => setDrawer(d => ({ ...d, editContent: e.target.value }))}
+                      className="w-full flex-1 resize-none rounded-md border border-border bg-background p-4 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                      spellCheck={false}
+                    />
                   ) : (
                     <textarea
                       value={drawer.editContent}

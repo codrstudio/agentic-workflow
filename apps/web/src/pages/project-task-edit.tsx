@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "@tanstack/react-router"
-import { Loader2 } from "lucide-react"
-import MDEditor from "@uiw/react-md-editor"
+import { Loader2, Eye, EyeOff } from "lucide-react"
+import { MarkdownViewer } from "@/components/ui/markdown-viewer"
 import { apiFetch } from "@/lib/api"
 
 export function ProjectTaskEditPage() {
@@ -12,7 +12,7 @@ export function ProjectTaskEditPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
+  const [showPreview, setShowPreview] = useState(true)
   useEffect(() => {
     apiFetch(`/api/v1/projects/${slug}/task`)
       .then((r) => r.json() as Promise<{ content: string }>)
@@ -47,7 +47,7 @@ export function ProjectTaskEditPage() {
   }
 
   return (
-    <div className="flex flex-col h-full p-6 gap-4">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden p-6 gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-base font-semibold">
           Editando TASK.md — <span className="font-mono text-muted-foreground">{slug}</span>
@@ -76,11 +76,31 @@ export function ProjectTaskEditPage() {
       {loading ? (
         <div className="flex-1 bg-muted rounded-lg animate-pulse" />
       ) : (
-        <MDEditor
-          value={content}
-          onChange={(v) => setContent(v ?? '')}
-          height="calc(100vh - 160px)"
-        />
+        <div className="flex-1 flex flex-col gap-2 min-h-0">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPreview(p => !p)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+            >
+              {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showPreview ? "Ocultar preview" : "Mostrar preview"}
+            </button>
+          </div>
+          <div className={`flex-1 grid min-h-0 gap-4 ${showPreview ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="min-h-0 w-full resize-none overflow-y-auto rounded-md border border-border bg-background p-4 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              spellCheck={false}
+            />
+            {showPreview && (
+              <div className="min-h-0 overflow-y-auto rounded-md border border-border bg-muted/30 p-4">
+                <MarkdownViewer content={content} />
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
