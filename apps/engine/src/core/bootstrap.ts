@@ -266,6 +266,12 @@ export async function detectResumableWave(
     const isStoppedOrFailed = ws.status === 'stopped' || ws.status === 'failed';
 
     if (!hasIncomplete && !(isStoppedOrFailed && hasSkipped)) {
+      // All steps are done. Auto-heal: set status to 'completed' since the
+      // engine may have crashed after completing all steps but before writing
+      // the workflow-level 'completed' status.
+      (ws as Record<string, unknown>).status = 'completed';
+      const healPath = join(workspaceDir, `wave-${n}`, 'workflow-state.json');
+      await state.writeJson(healPath, ws);
       return null; // all steps truly done and not a stopped/failed wave with skipped work
     }
 
@@ -315,6 +321,7 @@ export async function setupWave(
     wave: waveNumber,
     sprint: sprintNumber ?? null,
     initialized_at: now(),
+    status: 'running',
     steps: workflow.steps.map((step, i) => ({
       index: i + 1,
       task: stepTaskName(step),

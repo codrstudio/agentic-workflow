@@ -120,8 +120,8 @@ export class WorkflowRunner {
       let dirty = false;
       const wasStoppedOrFailed = workflowState.status === 'stopped' || workflowState.status === 'failed';
 
-      // Clear workflow-level stopped/failed status on resume
-      if (wasStoppedOrFailed) {
+      // Ensure status is always set to 'running' at execution start
+      if (workflowState.status !== 'running') {
         workflowState.status = 'running' as WorkflowState['status'];
         (workflowState as Record<string, unknown>)['stopped_reason'] = undefined;
         dirty = true;

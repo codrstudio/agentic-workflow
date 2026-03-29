@@ -233,28 +233,41 @@ async function main(): Promise<void> {
   // Execute workflow
   const execResult = await runner.execute(ctx);
 
-  // Drain spawn-workflow / chain-workflow background runners before merge and exit
-  await runner.waitForBackground();
+  // Post-execute tasks (merge, auto-merge, background draining).
+  // Wrapped in try-catch so that failures here don't cause retries that
+  // create unnecessary new waves when the workflow itself completed successfully.
+  try {
+    // Drain spawn-workflow / chain-workflow background runners before merge and exit
+    await runner.waitForBackground();
 
-  // Merge worktree into target branch (skip if stopped by signal)
-  if (execResult.exitCode === 0 && execResult.reason !== 'stopped') {
-    const mergeResult = await runner.spawnMerge(ctx);
+    // Merge worktree into target branch (skip if stopped by signal or if workflow already has merge-worktree step)
+    const workflowHasMergeStep = result.workflow.steps.some(
+      (s) => s.type === 'spawn-agent' && s.task === 'merge-worktree',
+    );
+    if (execResult.exitCode === 0 && execResult.reason !== 'stopped' && !workflowHasMergeStep) {
+      const mergeResult = await runner.spawnMerge(ctx);
 
-    if (mergeResult.exitCode === 0 && result.resolvedRepoConfig) {
-      const { source_branch, target_branch, auto_merge } = result.resolvedRepoConfig;
-      if (auto_merge) {
-        try {
-          execSync(`git checkout "${source_branch}"`, { cwd: result.repoDir, stdio: 'pipe' });
-          execSync(`git merge "${target_branch}" --no-edit`, { cwd: result.repoDir, stdio: 'pipe' });
-          console.log(chalk.green(`\n  Auto-merged ${target_branch} -> ${source_branch}\n`));
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error(chalk.red(`\n  Auto-merge failed: ${msg}\n`));
+      if (mergeResult.exitCode === 0 && result.resolvedRepoConfig) {
+        const { source_branch, target_branch, auto_merge } = result.resolvedRepoConfig;
+        if (auto_merge) {
+          try {
+            execSync(`git checkout "${source_branch}"`, { cwd: result.repoDir, stdio: 'pipe' });
+            execSync(`git merge "${target_branch}" --no-edit`, { cwd: result.repoDir, stdio: 'pipe' });
+            console.log(chalk.green(`\n  Auto-merged ${target_branch} -> ${source_branch}\n`));
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error(chalk.red(`\n  Auto-merge failed: ${msg}\n`));
+          }
+        } else {
+          console.log(chalk.yellow(`\n  auto_merge=false. Create MR: ${target_branch} -> ${source_branch}\n`));
         }
-      } else {
-        console.log(chalk.yellow(`\n  auto_merge=false. Create MR: ${target_branch} -> ${source_branch}\n`));
       }
     }
+  } catch (postErr) {
+    // Log but don't crash — workflow execution result takes priority
+    const msg = postErr instanceof Error ? postErr.message : String(postErr);
+    logError('post-execute error (non-fatal)', postErr);
+    console.error(chalk.red(`\n  Post-execute error: ${msg}\n`));
   }
 
   // Cleanup resources before exit
