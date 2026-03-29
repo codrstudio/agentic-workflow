@@ -7,7 +7,7 @@ dist/
 
 # Temp
 .tmp/
-.tanstack/tmp/
+**/.tanstack/tmp/
 
 # OS files
 .DS_Store
