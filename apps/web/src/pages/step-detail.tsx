@@ -79,7 +79,9 @@ function formatDuration(ms?: number): string {
 function formatTime(iso?: string): string {
   if (!iso) return "—"
   const d = new Date(iso)
-  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  const date = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
+  const time = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  return `${date} ${time}`
 }
 
 /** Extract a human-readable summary from a raw log line. */

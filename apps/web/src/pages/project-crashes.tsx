@@ -6,6 +6,7 @@ import { useSSEContext } from "@/contexts/sse-context"
 
 interface CrashSummary {
   wave: number
+  file: string
   timestamp: string
   handler: string
   pid: number
@@ -14,6 +15,9 @@ interface CrashSummary {
   memory: { rss: string; heapUsed: string; heapTotal: string }
   hasWorkflowState: boolean
   engineLogLines: number
+  task?: string
+  agent?: string
+  inactivity?: string
 }
 
 interface CrashDetail extends CrashSummary {
@@ -40,6 +44,13 @@ function formatRelative(timestamp: string): string {
 }
 
 function HandlerBadge({ handler }: { handler: string }) {
+  if (handler === "agent-stagnation") {
+    return (
+      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+        Agent Stagnation
+      </span>
+    )
+  }
   const label = handler === "unhandledRejection" ? "Unhandled Rejection" : "Uncaught Exception"
   return (
     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
@@ -48,18 +59,19 @@ function HandlerBadge({ handler }: { handler: string }) {
   )
 }
 
-function CrashCardDetail({ slug, wave }: { slug: string; wave: number }) {
+function CrashCardDetail({ slug, wave, file }: { slug: string; wave: number; file: string }) {
   const [detail, setDetail] = useState<CrashDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<ActiveTab>("error")
 
   useEffect(() => {
-    apiFetch(`/api/v1/projects/${slug}/crashes/${wave}`)
+    const params = file !== "crash-report.log" ? `?file=${encodeURIComponent(file)}` : ""
+    apiFetch(`/api/v1/projects/${slug}/crashes/${wave}${params}`)
       .then((r) => r.json() as Promise<CrashDetail>)
       .then(setDetail)
       .catch(() => setDetail(null))
       .finally(() => setLoading(false))
-  }, [slug, wave])
+  }, [slug, wave, file])
 
   if (loading) {
     return <div className="h-32 animate-pulse bg-muted rounded" />
@@ -145,11 +157,12 @@ function CrashCardDetail({ slug, wave }: { slug: string; wave: number }) {
 
 function CrashCard({ crash, slug }: { crash: CrashSummary; slug: string }) {
   const [expanded, setExpanded] = useState(false)
+  const isStagnation = crash.handler === "agent-stagnation"
 
   return (
-    <div className="bg-card border border-border rounded-lg px-4 py-3">
+    <div className={`bg-card border rounded-lg px-4 py-3 ${isStagnation ? "border-amber-500/30" : "border-border"}`}>
       <div className="flex items-start gap-3">
-        <OctagonX className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+        <OctagonX className={`w-4 h-4 mt-0.5 shrink-0 ${isStagnation ? "text-amber-500" : "text-red-500"}`} />
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <Link
@@ -160,18 +173,30 @@ function CrashCard({ crash, slug }: { crash: CrashSummary; slug: string }) {
               Wave {crash.wave}
             </Link>
             <HandlerBadge handler={crash.handler} />
+            {crash.task && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                {crash.task}
+              </span>
+            )}
             <span
               className="text-xs text-muted-foreground"
               title={new Date(crash.timestamp).toLocaleString()}
             >
               {formatRelative(crash.timestamp)}
             </span>
-            <span className="text-xs text-muted-foreground ml-auto shrink-0">
-              uptime {crash.uptime}
-            </span>
+            {crash.inactivity && (
+              <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                inativo {crash.inactivity}
+              </span>
+            )}
+            {!crash.inactivity && (
+              <span className="text-xs text-muted-foreground ml-auto shrink-0">
+                uptime {crash.uptime}
+              </span>
+            )}
           </div>
 
-          <p className="text-xs text-red-500 font-mono truncate mb-2">
+          <p className={`text-xs font-mono truncate mb-2 ${isStagnation ? "text-amber-500" : "text-red-500"}`}>
             {crash.errorMessage || "Erro desconhecido"}
           </p>
 
@@ -198,7 +223,7 @@ function CrashCard({ crash, slug }: { crash: CrashSummary; slug: string }) {
         </button>
       </div>
 
-      {expanded && <CrashCardDetail slug={slug} wave={crash.wave} />}
+      {expanded && <CrashCardDetail slug={slug} wave={crash.wave} file={crash.file} />}
     </div>
   )
 }
@@ -253,7 +278,7 @@ export function ProjectCrashesPage() {
       <div className="col-span-1 md:col-span-2 xl:col-span-3 flex flex-col gap-3">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <h1 className="text-base font-semibold">Crash Reports</h1>
+          <h1 className="text-base font-semibold">Crashes & Incidents</h1>
           {crashes.length > 0 && (
             <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20">
               {crashes.length}
@@ -271,16 +296,16 @@ export function ProjectCrashesPage() {
         {crashes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
             <ShieldCheck className="w-10 h-10" />
-            <p className="text-sm font-medium">Nenhum crash registrado</p>
+            <p className="text-sm font-medium">Nenhum incidente registrado</p>
             <p className="text-xs text-center max-w-xs">
-              Quando a engine crashar, os relatórios aparecerão aqui.
+              Crashes e stagnations de agentes aparecerão aqui.
             </p>
           </div>
         )}
 
         {/* Crash list */}
         {crashes.map((crash) => (
-          <CrashCard key={crash.wave} crash={crash} slug={slug} />
+          <CrashCard key={`${crash.wave}-${crash.file}`} crash={crash} slug={slug} />
         ))}
       </div>
     </div>

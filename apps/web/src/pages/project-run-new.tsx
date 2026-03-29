@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useParams, useNavigate } from "@tanstack/react-router"
-import { Loader2, Play, X, ChevronRight, ChevronLeft, Link2 } from "lucide-react"
+import { Loader2, Play, X, ChevronRight, ChevronLeft, Link2, Clock } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 
 interface Workflow {
@@ -13,42 +13,56 @@ interface Workflow {
 
 interface Run {
   id: string
+  slug: string
   workflow: string
   status: "running" | "completed" | "failed"
+  startedAt?: string
 }
+
+interface QueuedRun {
+  id: string
+  slug: string
+  workflow: string
+  queuedAt: string
+  dependsOn?: RunDependency
+}
+
+type RunDependency =
+  | { type: "specific-run"; runId: string }
+  | { type: "project-completion"; sourceSlug: string }
 
 interface ProjectSummary {
   slug: string
   name: string
 }
 
-type TriggerMode = "immediate" | "after-project"
+type DependencyMode = "immediate" | "specific-run" | "project-completion"
 
 export function ProjectRunNewPage() {
   const { slug } = useParams({ from: "/_auth/projects/$slug/runs/new" })
   const navigate = useNavigate()
 
-  // Step state
   const [step, setStep] = useState<1 | 2>(1)
 
-  // Step 1 data
+  // Step 1
   const [workflows, setWorkflows] = useState<Workflow[]>([])
   const [activeRuns, setActiveRuns] = useState<Run[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedWf, setSelectedWf] = useState<string | null>(null)
 
-  // Step 2 data
-  const [triggerMode, setTriggerMode] = useState<TriggerMode>("immediate")
+  // Step 2
+  const [depMode, setDepMode] = useState<DependencyMode>("immediate")
   const [projects, setProjects] = useState<ProjectSummary[]>([])
+  const [allActiveRuns, setAllActiveRuns] = useState<Run[]>([])
+  const [allQueuedRuns, setAllQueuedRuns] = useState<QueuedRun[]>([])
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null)
   const [sourceSlug, setSourceSlug] = useState(slug)
-  const [sourceWorkflow, setSourceWorkflow] = useState("")
 
-  // Submit state
+  // Submit
   const [executing, setExecuting] = useState(false)
   const [executeError, setExecuteError] = useState<string | null>(null)
   const [queued, setQueued] = useState(false)
-  const [triggered, setTriggered] = useState(false)
 
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -64,7 +78,7 @@ export function ProjectRunNewPage() {
     return () => window.removeEventListener("keydown", onKey)
   }, [slug])
 
-  // Load workflows + active runs
+  // Load workflows + active runs for this project
   useEffect(() => {
     setLoading(true)
     setLoadError(null)
@@ -80,14 +94,32 @@ export function ProjectRunNewPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
-  // Load projects when entering step 2
+  // Load projects + all active/queued runs when entering step 2
   useEffect(() => {
-    if (step !== 2 || projects.length > 0) return
-    apiFetch("/api/v1/projects?limit=100")
-      .then((r) => r.json() as Promise<{ projects: ProjectSummary[] }>)
-      .then((data) => setProjects(data.projects))
-      .catch(() => {})
-  }, [step, projects.length])
+    if (step !== 2) return
+    Promise.all([
+      apiFetch("/api/v1/projects?limit=100")
+        .then((r) => r.json() as Promise<{ projects: ProjectSummary[] }>)
+        .then((data) => data.projects),
+      apiFetch("/api/v1/runs/all")
+        .then((r) => r.json() as Promise<Run[]>)
+        .then((runs) => runs.filter((r) => r.status === "running"))
+        .catch(() => [] as Run[]),
+    ]).then(([projs, runs]) => {
+      setProjects(projs)
+      setAllActiveRuns(runs)
+      // Load queued runs for all projects
+      Promise.all(
+        projs.map((p) =>
+          apiFetch(`/api/v1/projects/${p.slug}/runs/queue`)
+            .then((r) => r.ok ? r.json() as Promise<QueuedRun[]> : [])
+            .catch(() => [] as QueuedRun[])
+        )
+      ).then((queues) => {
+        setAllQueuedRuns(queues.flat())
+      }).catch(() => {})
+    }).catch(() => {})
+  }, [step])
 
   const handleConfirm = async () => {
     if (!selectedWf) return
@@ -95,32 +127,18 @@ export function ProjectRunNewPage() {
     setExecuteError(null)
 
     try {
-      if (triggerMode === "after-project") {
-        // Create a trigger
-        const res = await apiFetch("/api/v1/triggers", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            targetSlug: slug,
-            targetWorkflow: selectedWf,
-            sourceSlug,
-            sourceWorkflow: sourceWorkflow || undefined,
-          }),
-        })
-        if (!res.ok) {
-          const body = (await res.json()) as { error?: string }
-          throw new Error(body.error ?? "Failed to create trigger")
-        }
-        setTriggered(true)
-        setExecuting(false)
-        return
+      let dependsOn: RunDependency | undefined
+
+      if (depMode === "specific-run" && selectedRunId) {
+        dependsOn = { type: "specific-run", runId: selectedRunId }
+      } else if (depMode === "project-completion" && sourceSlug) {
+        dependsOn = { type: "project-completion", sourceSlug }
       }
 
-      // Immediate execution
       const res = await apiFetch(`/api/v1/projects/${slug}/runs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workflow: selectedWf }),
+        body: JSON.stringify({ workflow: selectedWf, dependsOn }),
       })
       if (!res.ok) {
         const body = (await res.json()) as { error?: string }
@@ -138,7 +156,25 @@ export function ProjectRunNewPage() {
     }
   }
 
-  const done = queued || triggered
+  // Runs available as dependency targets (active + queued, all projects)
+  const dependableRuns = [
+    ...allActiveRuns.map((r) => ({
+      id: r.id,
+      slug: r.slug,
+      workflow: r.workflow,
+      label: `${r.slug} — ${r.workflow}`,
+      kind: "running" as const,
+    })),
+    ...allQueuedRuns.map((q) => ({
+      id: q.id,
+      slug: q.slug,
+      workflow: q.workflow,
+      label: `${q.slug} — ${q.workflow}`,
+      kind: "queued" as const,
+    })),
+  ]
+
+  const done = queued
 
   return createPortal(
     <div
@@ -174,7 +210,7 @@ export function ProjectRunNewPage() {
           </span>
           <span className="text-muted-foreground">────</span>
           <span className={step === 2 ? "font-semibold text-foreground" : "text-muted-foreground"}>
-            {step === 2 ? "●" : "○"} Encadeamento
+            {step === 2 ? "●" : "○"} Dependência
           </span>
         </div>
 
@@ -240,18 +276,18 @@ export function ProjectRunNewPage() {
               {/* Immediate */}
               <label
                 className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
-                  triggerMode === "immediate" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
+                  depMode === "immediate" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
                 }`}
               >
                 <input
                   type="radio"
-                  name="trigger"
-                  checked={triggerMode === "immediate"}
-                  onChange={() => setTriggerMode("immediate")}
+                  name="dep"
+                  checked={depMode === "immediate"}
+                  onChange={() => setDepMode("immediate")}
                   className="mt-0.5"
                 />
                 <div>
-                  <p className="text-sm font-medium">Imediatamente</p>
+                  <p className="text-sm font-medium">Próxima na fila</p>
                   <p className="text-xs text-muted-foreground">
                     {activeRuns.length > 0
                       ? "Enfileira (já há execução ativa neste projeto)"
@@ -260,63 +296,111 @@ export function ProjectRunNewPage() {
                 </div>
               </label>
 
-              {/* After project */}
+              {/* After specific run */}
               <label
                 className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
-                  triggerMode === "after-project" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
+                  depMode === "specific-run" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
                 }`}
               >
                 <input
                   type="radio"
-                  name="trigger"
-                  checked={triggerMode === "after-project"}
-                  onChange={() => setTriggerMode("after-project")}
+                  name="dep"
+                  checked={depMode === "specific-run"}
+                  onChange={() => setDepMode("specific-run")}
                   className="mt-0.5"
                 />
                 <div className="flex-1">
                   <div className="flex items-center gap-1.5">
                     <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-sm font-medium">Após conclusão de outro projeto</p>
+                    <p className="text-sm font-medium">Após execução específica</p>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Inicia automaticamente quando o projeto fonte completar
+                  <p className="text-xs text-muted-foreground">
+                    Inicia quando uma execução em andamento ou enfileirada completar
                   </p>
                 </div>
               </label>
 
-              {triggerMode === "after-project" && (
-                <div className="pl-7 flex flex-col gap-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">Projeto fonte</label>
-                    <select
-                      value={sourceSlug}
-                      onChange={(e) => setSourceSlug(e.target.value)}
-                      className="w-full bg-background border rounded-md px-3 py-1.5 text-sm"
-                    >
-                      {projects.map((p) => (
-                        <option key={p.slug} value={p.slug}>
-                          {p.name} ({p.slug})
-                        </option>
+              {depMode === "specific-run" && (
+                <div className="pl-7 flex flex-col gap-2">
+                  {dependableRuns.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Nenhuma execução ativa ou enfileirada.</p>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                      {dependableRuns.map((r) => (
+                        <label
+                          key={r.id}
+                          className={`border rounded-md px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors text-sm ${
+                            selectedRunId === r.id
+                              ? "border-primary ring-1 ring-primary bg-primary/5"
+                              : "hover:border-muted-foreground/30"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="depRun"
+                            checked={selectedRunId === r.id}
+                            onChange={() => setSelectedRunId(r.id)}
+                          />
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            {r.kind === "running" ? (
+                              <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />
+                            ) : (
+                              <Clock className="w-3 h-3 text-amber-500 shrink-0" />
+                            )}
+                            <span className="truncate font-mono text-xs">{r.label}</span>
+                            <span className={`text-[10px] px-1 py-0.5 rounded shrink-0 ${
+                              r.kind === "running"
+                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                            }`}>
+                              {r.kind === "running" ? "executando" : "na fila"}
+                            </span>
+                          </div>
+                        </label>
                       ))}
-                    </select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* After any project completion */}
+              <label
+                className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
+                  depMode === "project-completion" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="dep"
+                  checked={depMode === "project-completion"}
+                  onChange={() => setDepMode("project-completion")}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-sm font-medium">Após conclusão de projeto</p>
                   </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1 block">
-                      Workflow fonte <span className="text-muted-foreground/60">(opcional)</span>
-                    </label>
-                    <select
-                      value={sourceWorkflow}
-                      onChange={(e) => setSourceWorkflow(e.target.value)}
-                      className="w-full bg-background border rounded-md px-3 py-1.5 text-sm"
-                    >
-                      <option value="">Qualquer workflow</option>
-                      {workflows.map((wf) => (
-                        <option key={wf.slug} value={wf.slug}>
-                          {wf.name ?? wf.slug}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Inicia quando qualquer execução do projeto fonte completar
+                  </p>
+                </div>
+              </label>
+
+              {depMode === "project-completion" && (
+                <div className="pl-7">
+                  <label className="text-xs text-muted-foreground mb-1 block">Projeto fonte</label>
+                  <select
+                    value={sourceSlug}
+                    onChange={(e) => setSourceSlug(e.target.value)}
+                    className="w-full bg-background border rounded-md px-3 py-1.5 text-sm"
+                  >
+                    {projects.map((p) => (
+                      <option key={p.slug} value={p.slug}>
+                        {p.name} ({p.slug})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
             </div>
@@ -330,12 +414,11 @@ export function ProjectRunNewPage() {
           )}
           {queued && (
             <p className="text-amber-600 dark:text-amber-400 text-xs">
-              Execução enfileirada. Será iniciada quando a execução atual terminar.
-            </p>
-          )}
-          {triggered && (
-            <p className="text-amber-600 dark:text-amber-400 text-xs">
-              Trigger criado. A execução será iniciada quando o projeto fonte completar.
+              {depMode === "immediate"
+                ? "Execução enfileirada. Será iniciada quando a execução atual terminar."
+                : depMode === "specific-run"
+                  ? "Execução enfileirada. Será iniciada quando a execução selecionada completar."
+                  : "Execução enfileirada. Será iniciada quando o projeto fonte completar."}
             </p>
           )}
           <div className="flex gap-2 justify-between">
@@ -374,18 +457,18 @@ export function ProjectRunNewPage() {
                 <button
                   type="button"
                   onClick={handleConfirm}
-                  disabled={executing}
+                  disabled={executing || (depMode === "specific-run" && !selectedRunId)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {executing ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : triggerMode === "after-project" ? (
+                  ) : depMode !== "immediate" ? (
                     <Link2 className="w-3.5 h-3.5" />
                   ) : (
                     <Play className="w-3.5 h-3.5" />
                   )}
-                  {triggerMode === "after-project"
-                    ? "Criar Trigger"
+                  {depMode !== "immediate"
+                    ? "Enfileirar"
                     : activeRuns.length > 0
                       ? "Enfileirar"
                       : "Executar"}
