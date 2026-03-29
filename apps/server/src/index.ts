@@ -9,6 +9,7 @@ import { workflows } from './routes/workflows.js';
 import { events } from './routes/events.js';
 import { engineEvents } from './routes/engine-events.js';
 import { pid, activeRuns } from './routes/pid.js';
+import { triggers } from './routes/triggers.js';
 import { authMiddleware } from './middleware/auth.js';
 import { resumeInterruptedWorkflows } from './lib/resume.js';
 import { monitorService } from './lib/monitor-service.js';
@@ -35,6 +36,7 @@ app.route('/events', events);
 app.route('/hub/engine-events', engineEvents);
 app.route('/pid', pid);
 app.route('/runs/active', activeRuns);
+app.route('/triggers', triggers);
 
 const PORT = parseInt(process.env['SERVER_PORT']!, 10);
 
