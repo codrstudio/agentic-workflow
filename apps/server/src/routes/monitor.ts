@@ -37,7 +37,7 @@ export interface MonitorData {
     name: string;
     slug: string;
     workflow: string;
-    sprint_number: number;
+    sprint_number: number | null;
     wave_count: number;
   };
   current_wave: {
@@ -392,7 +392,7 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
       name: (projectData['name'] as string) ?? slug,
       slug: (projectData['slug'] as string) ?? slug,
       workflow: (workspaceData['workflow'] as string) ?? '',
-      sprint_number: (workspaceData['sprint'] as number) ?? 1,
+      sprint_number: (workspaceData['sprint'] as number | undefined) ?? null,
       wave_count: waveCount,
     },
     current_wave: currentWave,

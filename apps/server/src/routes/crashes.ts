@@ -5,6 +5,7 @@ import { getAwRoot } from '../lib/paths.js';
 
 export interface CrashSummary {
   wave: number;
+  file: string;
   timestamp: string;
   handler: string;
   pid: number;
@@ -13,6 +14,9 @@ export interface CrashSummary {
   memory: { rss: string; heapUsed: string; heapTotal: string };
   hasWorkflowState: boolean;
   engineLogLines: number;
+  task?: string;
+  agent?: string;
+  inactivity?: string;
 }
 
 export interface CrashDetail extends CrashSummary {
@@ -24,7 +28,7 @@ export interface CrashDetail extends CrashSummary {
   engineLogTail: string[];
 }
 
-function parseCrashReport(content: string): Omit<CrashDetail, 'wave'> {
+function parseCrashReport(content: string): Omit<CrashDetail, 'wave' | 'file'> {
   const lines = content.split('\n');
 
   // Split into sections
@@ -113,20 +117,44 @@ function parseCrashReport(content: string): Omit<CrashDetail, 'wave'> {
     workflowState,
     engineLogLines: engineLogTail.length,
     engineLogTail,
+    task: header['task'],
+    agent: header['agent'],
+    inactivity: header['inactivity'],
   };
 }
 
-async function getCrashForWave(workspaceDir: string, wave: number): Promise<CrashDetail | null> {
-  const filePath = path.join(workspaceDir, `wave-${wave}`, 'crash-report.log');
-  let content: string;
+async function getReportsForWave(workspaceDir: string, wave: number): Promise<CrashDetail[]> {
+  const waveDir = path.join(workspaceDir, `wave-${wave}`);
+  const results: CrashDetail[] = [];
+
+  // Check crash-report.log
   try {
-    content = await fs.readFile(filePath, 'utf-8');
+    const content = await fs.readFile(path.join(waveDir, 'crash-report.log'), 'utf-8');
+    const parsed = parseCrashReport(content);
+    results.push({ wave, file: 'crash-report.log', ...parsed });
   } catch {
-    return null;
+    // no crash report
   }
 
-  const parsed = parseCrashReport(content);
-  return { wave, ...parsed };
+  // Scan for stagnation-report-*.log
+  try {
+    const entries = await fs.readdir(waveDir);
+    for (const entry of entries) {
+      if (entry.startsWith('stagnation-report-') && entry.endsWith('.log')) {
+        try {
+          const content = await fs.readFile(path.join(waveDir, entry), 'utf-8');
+          const parsed = parseCrashReport(content);
+          results.push({ wave, file: entry, ...parsed });
+        } catch {
+          // skip unreadable
+        }
+      }
+    }
+  } catch {
+    // wave dir unreadable
+  }
+
+  return results;
 }
 
 const app = new Hono();
@@ -153,10 +181,11 @@ app.get('/', async (c) => {
   const crashes: CrashSummary[] = [];
 
   for (const wave of waveNums) {
-    const detail = await getCrashForWave(workspaceDir, wave);
-    if (!detail) continue;
-    const { errorStack: _s, workflowState: _w, engineLogTail: _e, nodeVersion: _n, platform: _p, argv: _a, ...summary } = detail;
-    crashes.push(summary);
+    const reports = await getReportsForWave(workspaceDir, wave);
+    for (const detail of reports) {
+      const { errorStack: _s, workflowState: _w, engineLogTail: _e, nodeVersion: _n, platform: _p, argv: _a, ...summary } = detail;
+      crashes.push(summary);
+    }
   }
 
   // Sort by timestamp descending
@@ -165,19 +194,31 @@ app.get('/', async (c) => {
   return c.json(crashes);
 });
 
-// GET /api/v1/projects/:slug/crashes/:wave
+// GET /api/v1/projects/:slug/crashes/:wave?file=filename
 app.get('/:wave', async (c) => {
   const slug = c.req.param('slug') ?? '';
   const wave = parseInt(c.req.param('wave') ?? '', 10);
   if (isNaN(wave)) return c.json({ error: 'Invalid wave number' }, 400);
 
+  const file = c.req.query('file') ?? 'crash-report.log';
+
+  // Sanitize filename to prevent path traversal
+  const safeFile = path.basename(file);
+  if (!safeFile.endsWith('.log')) return c.json({ error: 'Invalid file' }, 400);
+
   const awRoot = getAwRoot();
   const workspaceDir = path.join(awRoot, 'context', 'workspaces', slug);
+  const filePath = path.join(workspaceDir, `wave-${wave}`, safeFile);
 
-  const detail = await getCrashForWave(workspaceDir, wave);
-  if (!detail) return c.json({ error: 'Crash report not found' }, 404);
+  let content: string;
+  try {
+    content = await fs.readFile(filePath, 'utf-8');
+  } catch {
+    return c.json({ error: 'Report not found' }, 404);
+  }
 
-  return c.json(detail);
+  const parsed = parseCrashReport(content);
+  return c.json({ wave, file: safeFile, ...parsed });
 });
 
 export { app as crashes };

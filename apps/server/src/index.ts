@@ -9,10 +9,10 @@ import { workflows } from './routes/workflows.js';
 import { events } from './routes/events.js';
 import { engineEvents } from './routes/engine-events.js';
 import { pid, activeRuns } from './routes/pid.js';
-import { triggers } from './routes/triggers.js';
 import { authMiddleware } from './middleware/auth.js';
 import { resumeInterruptedWorkflows } from './lib/resume.js';
 import { monitorService } from './lib/monitor-service.js';
+import { loadPersistedQueue, runsStore } from './routes/runs.js';
 
 const app = new Hono().basePath('/api/v1');
 
@@ -36,12 +36,17 @@ app.route('/events', events);
 app.route('/hub/engine-events', engineEvents);
 app.route('/pid', pid);
 app.route('/runs/active', activeRuns);
-app.route('/triggers', triggers);
+
+// Global: all in-memory runs (running/completed/failed)
+app.get('/runs/all', (c) => {
+  return c.json([...runsStore.values()]);
+});
 
 const PORT = parseInt(process.env['SERVER_PORT']!, 10);
 
 serve({ fetch: app.fetch, port: PORT }, (info) => {
   console.log(`Server listening on http://localhost:${info.port}`);
+  loadPersistedQueue();
   monitorService.start();
   resumeInterruptedWorkflows().catch((err) => {
     console.error('[resume] Unexpected error during startup resume:', err);

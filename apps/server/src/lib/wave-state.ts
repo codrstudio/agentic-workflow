@@ -31,7 +31,7 @@ export interface WorkflowStateStep {
 export interface WorkflowState {
   workflow: string;
   wave: number;
-  sprint: number;
+  sprint?: number | null;
   initialized_at: string;
   steps: WorkflowStateStep[];
 }
@@ -357,18 +357,29 @@ export function computeWaveTiming(steps: StepSummary[]): TimingResult | null {
 }
 
 export async function findLatestSprintDir(wavePath: string): Promise<{ sprintDir: string; sprintName: string } | null> {
-  const sprintsDir = path.join(wavePath, 'worktree', 'sprints');
-  let sprintDirs: string[];
+  // 1. Resolve sprint number from workflow-state.json
+  const wfState = await readWorkflowState(wavePath);
+  const sprintNumber = wfState?.sprint;
+  if (typeof sprintNumber !== 'number') return null;
+
+  const sprintName = `sprint-${sprintNumber}`;
+
+  // 2. Try worktree first (run ativo)
+  const worktreeSprint = path.join(wavePath, 'worktree', 'sprints', sprintName);
   try {
-    sprintDirs = await fs.readdir(sprintsDir);
+    await fs.access(worktreeSprint);
+    return { sprintDir: worktreeSprint, sprintName };
+  } catch { /* worktree não existe, fallback pro repo */ }
+
+  // 3. Fallback to repo (run concluído, worktree já mesclada)
+  const workspaceDir = path.dirname(wavePath);
+  const repoSprint = path.join(workspaceDir, 'repo', 'sprints', sprintName);
+  try {
+    await fs.access(repoSprint);
+    return { sprintDir: repoSprint, sprintName };
   } catch {
     return null;
   }
-  const latestSprint = sprintDirs
-    .filter((d) => /^sprint-\d+$/.test(d))
-    .sort((a, b) => parseInt(b.replace('sprint-', ''), 10) - parseInt(a.replace('sprint-', ''), 10))[0];
-  if (!latestSprint) return null;
-  return { sprintDir: path.join(sprintsDir, latestSprint), sprintName: latestSprint };
 }
 
 export function countFeaturesByStatus(features: Array<Record<string, unknown>>): {
@@ -406,12 +417,9 @@ export async function findActiveStepJsonl(waveDir: string): Promise<string | nul
           if (featureId) {
             let attempt = 1;
             try {
-              const entries = await fs.readdir(path.join(loopDir, '..', 'worktree', 'sprints'));
-              const latestSprint = entries
-                .filter((e) => /^sprint-\d+$/.test(e))
-                .sort((a, b) => parseInt(b.replace('sprint-', ''), 10) - parseInt(a.replace('sprint-', ''), 10))[0];
-              if (latestSprint) {
-                const features = await readJson(path.join(loopDir, '..', 'worktree', 'sprints', latestSprint, 'features.json')) as Array<Record<string, unknown>>;
+              const sprintResult = await findLatestSprintDir(waveDir);
+              if (sprintResult) {
+                const features = await readJson(path.join(sprintResult.sprintDir, 'features.json')) as Array<Record<string, unknown>>;
                 const feature = features.find((f) => f['id'] === featureId);
                 const retries = (feature?.['retries'] as number | undefined) ?? 0;
                 attempt = retries + 1;

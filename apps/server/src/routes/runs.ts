@@ -1,13 +1,12 @@
 import { Hono } from 'hono';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { promises as fs, writeFileSync, readFileSync, readdirSync } from 'node:fs';
+import { promises as fs, writeFileSync, readFileSync, readdirSync, existsSync, mkdirSync, renameSync } from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline';
 import { eventBus } from '../lib/event-bus.js';
 import { getAwRoot } from '../lib/paths.js';
 import { listWaveDirs } from '../lib/wave-state.js';
-import { fireTriggers } from './triggers.js';
 
 export type RunStatus = 'running' | 'completed' | 'failed';
 export type RunMode = 'spawn' | 'detached';
@@ -26,11 +25,17 @@ export interface Run {
   retryCount?: number;
 }
 
+// Dependency: wait for a specific run or any run of a project to complete
+export type RunDependency =
+  | { type: 'specific-run'; runId: string }
+  | { type: 'project-completion'; sourceSlug: string };
+
 export interface QueuedRun {
   id: string;
   slug: string;
   workflow: string;
   queuedAt: string;
+  dependsOn?: RunDependency;
 }
 
 export interface ServerRunMeta {
@@ -44,6 +49,55 @@ const MAX_RETRIES = 3;
 export const runsStore = new Map<string, Run>();
 export const pendingQueue = new Map<string, QueuedRun[]>();
 
+// ---------------------------------------------------------------------------
+// Persistence: context/.harness/run-queue.json
+// ---------------------------------------------------------------------------
+
+function getQueuePath(): string {
+  return path.join(getAwRoot(), 'context', '.harness', 'run-queue.json');
+}
+
+function persistQueue(): void {
+  const filePath = getQueuePath();
+  const dir = path.dirname(filePath);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+  const all: QueuedRun[] = [];
+  for (const items of pendingQueue.values()) {
+    all.push(...items);
+  }
+  const tmp = filePath + '.tmp';
+  writeFileSync(tmp, JSON.stringify(all, null, 2));
+  try {
+    renameSync(tmp, filePath);
+  } catch {
+    writeFileSync(filePath, JSON.stringify(all, null, 2));
+    try { writeFileSync(tmp, ''); } catch { /* ignore */ }
+  }
+}
+
+export function loadPersistedQueue(): void {
+  const filePath = getQueuePath();
+  if (!existsSync(filePath)) return;
+
+  try {
+    const raw = readFileSync(filePath, 'utf-8');
+    const items = JSON.parse(raw) as QueuedRun[];
+    pendingQueue.clear();
+    for (const item of items) {
+      const queue = pendingQueue.get(item.slug) ?? [];
+      queue.push(item);
+      pendingQueue.set(item.slug, queue);
+    }
+  } catch {
+    // Corrupted file — start fresh
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Queue helpers
+// ---------------------------------------------------------------------------
+
 function hasActiveRun(slug: string): boolean {
   for (const run of runsStore.values()) {
     if (run.slug === slug && run.status === 'running') return true;
@@ -51,48 +105,124 @@ function hasActiveRun(slug: string): boolean {
   return false;
 }
 
-function enqueueRun(slug: string, workflow: string): QueuedRun {
+function enqueueRun(slug: string, workflow: string, dependsOn?: RunDependency): QueuedRun {
   const item: QueuedRun = {
     id: randomUUID(),
     slug,
     workflow,
     queuedAt: new Date().toISOString(),
+    dependsOn,
   };
   const queue = pendingQueue.get(slug) ?? [];
   queue.push(item);
   pendingQueue.set(slug, queue);
+  persistQueue();
 
   eventBus.broadcast({
     type: 'run:queued',
-    data: { id: item.id, slug, workflow, position: queue.length },
+    data: { id: item.id, slug, workflow, position: queue.length, dependsOn: dependsOn ?? null },
     timestamp: new Date().toISOString(),
   });
 
   return item;
 }
 
+/**
+ * Promote the next queued run for this slug that has NO unmet dependency.
+ * If the first item has a dependency that isn't met, skip to the next eligible one.
+ */
 function promoteNextQueued(slug: string): void {
   const queue = pendingQueue.get(slug);
   if (!queue || queue.length === 0) return;
 
-  const next = queue.shift()!;
+  // Find first item with satisfied dependency
+  const idx = queue.findIndex((item) => isDependencySatisfied(item.dependsOn));
+  if (idx === -1) return; // all items have unmet deps
+
+  const [next] = queue.splice(idx, 1);
   if (queue.length === 0) pendingQueue.delete(slug);
+  persistQueue();
 
   eventBus.broadcast({
     type: 'run:dequeued',
-    data: { id: next.id, slug: next.slug, reason: 'promoted' },
+    data: { id: next!.id, slug: next!.slug, reason: 'promoted' },
     timestamp: new Date().toISOString(),
   });
 
-  startRun(next.slug, next.workflow).catch(() => {
-    // If promotion fails, don't lose the rest of the queue — just broadcast failure
+  startRun(next!.slug, next!.workflow).catch(() => {
     eventBus.broadcast({
       type: 'run:failed',
-      data: { runId: next.id, slug: next.slug, exitCode: null },
+      data: { runId: next!.id, slug: next!.slug, exitCode: null },
       timestamp: new Date().toISOString(),
     });
   });
 }
+
+/**
+ * After a run completes, check ALL queues for items whose dependency is now satisfied.
+ * This handles cross-project dependencies (project-completion and specific-run).
+ */
+function promoteDependentRuns(completedRunId: string, completedSlug: string): void {
+  // Check all projects — a queued run in project A might depend on project B
+  for (const slug of [...pendingQueue.keys()]) {
+    if (hasActiveRun(slug)) continue; // already running, can't promote
+    const queue = pendingQueue.get(slug);
+    if (!queue || queue.length === 0) continue;
+
+    const idx = queue.findIndex((item) => {
+      if (!item.dependsOn) return false;
+      if (item.dependsOn.type === 'specific-run') {
+        return item.dependsOn.runId === completedRunId;
+      }
+      if (item.dependsOn.type === 'project-completion') {
+        return item.dependsOn.sourceSlug === completedSlug;
+      }
+      return false;
+    });
+    if (idx === -1) continue;
+
+    const [next] = queue.splice(idx, 1);
+    if (queue.length === 0) pendingQueue.delete(slug);
+    persistQueue();
+
+    eventBus.broadcast({
+      type: 'run:dequeued',
+      data: { id: next!.id, slug: next!.slug, reason: 'promoted' },
+      timestamp: new Date().toISOString(),
+    });
+
+    startRun(next!.slug, next!.workflow).catch(() => {
+      eventBus.broadcast({
+        type: 'run:failed',
+        data: { runId: next!.id, slug: next!.slug, exitCode: null },
+        timestamp: new Date().toISOString(),
+      });
+    });
+  }
+}
+
+function isDependencySatisfied(dep?: RunDependency): boolean {
+  if (!dep) return true; // no dependency = always ready
+
+  if (dep.type === 'specific-run') {
+    const run = runsStore.get(dep.runId);
+    return run?.status === 'completed';
+  }
+
+  if (dep.type === 'project-completion') {
+    // Satisfied if there's at least one completed run for this slug
+    for (const run of runsStore.values()) {
+      if (run.slug === dep.sourceSlug && run.status === 'completed') return true;
+    }
+    return false;
+  }
+
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Workspace helpers
+// ---------------------------------------------------------------------------
 
 export async function readServerRunMeta(workspaceDir: string): Promise<ServerRunMeta | null> {
   try {
@@ -109,6 +239,10 @@ async function writeServerRunMeta(workspaceDir: string, meta: ServerRunMeta): Pr
   await fs.writeFile(tmp, JSON.stringify(meta, null, 2));
   await fs.rename(tmp, path.join(workspaceDir, 'server-run.json'));
 }
+
+// ---------------------------------------------------------------------------
+// Engine process spawning
+// ---------------------------------------------------------------------------
 
 function spawnEngineChild(
   awRoot: string,
@@ -199,10 +333,10 @@ export function attachEngineHandlers(
       timestamp: new Date().toISOString(),
     });
 
-    // Promote next queued run and fire cross-project triggers only on success
+    // On success: promote same-project queue + cross-project dependents
     if (code === 0) {
       promoteNextQueued(slug);
-      fireTriggers(slug, workflow);
+      promoteDependentRuns(runId, slug);
     }
   });
 }
@@ -297,6 +431,10 @@ async function writeServerCrashReport(
   writeFileSync(crashPath, lines.join('\n'), 'utf8');
 }
 
+// ---------------------------------------------------------------------------
+// HTTP Routes
+// ---------------------------------------------------------------------------
+
 const app = new Hono();
 
 export async function startRun(slug: string, workflow: string): Promise<{ runId: string; pid: number }> {
@@ -346,14 +484,20 @@ app.post('/', async (c) => {
     return c.json({ error: 'Project slug is required' }, 400);
   }
 
-  const body = await c.req.json<{ workflow: string }>();
-  const { workflow } = body;
+  const body = await c.req.json<{ workflow: string; dependsOn?: RunDependency }>();
+  const { workflow, dependsOn } = body;
 
   if (!workflow) {
     return c.json({ error: 'workflow is required' }, 400);
   }
 
-  // If there's already an active run for this project, enqueue instead
+  // If there's an explicit dependency, always enqueue (even if no active run)
+  if (dependsOn) {
+    const item = enqueueRun(slug, workflow, dependsOn);
+    return c.json({ queued: true, id: item.id, dependsOn }, 202);
+  }
+
+  // If there's already an active run for this project, enqueue without dependency
   if (hasActiveRun(slug)) {
     const item = enqueueRun(slug, workflow);
     const queue = pendingQueue.get(slug) ?? [];
@@ -409,6 +553,15 @@ app.get('/queue', (c) => {
   return c.json(queue);
 });
 
+// GET /api/v1/runs/queue/all — global queue (all projects)
+app.get('/queue/all', (c) => {
+  const all: QueuedRun[] = [];
+  for (const items of pendingQueue.values()) {
+    all.push(...items);
+  }
+  return c.json(all);
+});
+
 // DELETE /api/v1/projects/:slug/runs/queue/:queueId
 app.delete('/queue/:queueId', (c) => {
   const slug = c.req.param('slug')!;
@@ -427,6 +580,7 @@ app.delete('/queue/:queueId', (c) => {
   const removed = queue[idx]!;
   queue.splice(idx, 1);
   if (queue.length === 0) pendingQueue.delete(slug);
+  persistQueue();
 
   eventBus.broadcast({
     type: 'run:dequeued',
