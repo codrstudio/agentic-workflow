@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "@tanstack/react-router"
-import { CheckCircle2, XCircle, Loader2, Circle, AlertTriangle, Clock, X } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, Circle, AlertTriangle, Clock, X, Link2, ArrowRight, ExternalLink } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { useSSEContext } from "@/contexts/sse-context"
@@ -33,6 +33,26 @@ interface QueuedRun {
   queuedAt: string
 }
 
+interface Trigger {
+  id: string
+  targetSlug: string
+  targetWorkflow: string
+  sourceSlug: string
+  sourceWorkflow?: string
+  createdAt: string
+}
+
+interface SourceProjectInfo {
+  name: string
+  slug: string
+  status?: string
+  runStatus?: "idle" | "running" | "completed" | "failed"
+  stepsCompleted?: number
+  stepsTotal?: number
+  workflow?: string
+  startedAt?: string
+}
+
 function WaveStatusIcon({ status }: { status: WaveStatus }) {
   if (status === "completed") return <CheckCircle2 className="w-4 h-4 text-green-500" />
   if (status === "failed") return <XCircle className="w-4 h-4 text-red-500" />
@@ -57,10 +77,13 @@ export function ProjectWavesPage() {
   const [waves, setWaves] = useState<Wave[]>([])
   const [runs, setRuns] = useState<Run[]>([])
   const [queue, setQueue] = useState<QueuedRun[]>([])
+  const [triggers, setTriggers] = useState<Trigger[]>([])
+  const [sourceProjects, setSourceProjects] = useState<Map<string, SourceProjectInfo>>(new Map())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set())
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set())
+  const [removingTriggerIds, setRemovingTriggerIds] = useState<Set<string>>(new Set())
 
   const { subscribe } = useSSEContext()
 
@@ -77,15 +100,63 @@ export function ProjectWavesPage() {
       apiFetch(`/api/v1/projects/${slug}/runs/queue`)
         .then((r) => (r.ok ? (r.json() as Promise<QueuedRun[]>) : Promise.resolve([])))
         .catch(() => [] as QueuedRun[]),
+      apiFetch(`/api/v1/triggers?target=${slug}`)
+        .then((r) => (r.ok ? (r.json() as Promise<Trigger[]>) : Promise.resolve([])))
+        .catch(() => [] as Trigger[]),
     ])
-      .then(([w, r, q]) => {
+      .then(([w, r, q, t]) => {
         setWaves(w)
         setRuns(r)
         setQueue(q)
+        setTriggers(t)
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }, [slug])
+
+  // Fetch source project info for triggers
+  const fetchSourceInfo = useCallback(async (sourceSlugs: string[]) => {
+    const unique = [...new Set(sourceSlugs)]
+    const entries = await Promise.all(
+      unique.map(async (s) => {
+        try {
+          const [projRes, runsRes] = await Promise.all([
+            apiFetch(`/api/v1/projects/${s}`).then((r) => r.json() as Promise<{ name: string; slug: string; status?: string }>),
+            apiFetch(`/api/v1/projects/${s}/runs`).then((r) => r.json() as Promise<Run[]>),
+          ])
+          const activeRun = runsRes.find((r: Run) => r.status === "running")
+          const info: SourceProjectInfo = {
+            name: projRes.name,
+            slug: projRes.slug,
+            status: projRes.status,
+            runStatus: activeRun ? "running" : "idle",
+            workflow: activeRun?.workflow,
+            startedAt: activeRun?.startedAt,
+          }
+          // If running, fetch wave progress
+          if (activeRun) {
+            try {
+              const wavesRes = await apiFetch(`/api/v1/projects/${s}/waves`).then((r) => r.json() as Promise<Wave[]>)
+              const runningWave = wavesRes.find((w: Wave) => w.status === "running")
+              if (runningWave) {
+                info.stepsCompleted = runningWave.steps_completed
+                info.stepsTotal = runningWave.steps_total
+              }
+            } catch { /* ignore */ }
+          }
+          return [s, info] as const
+        } catch {
+          return [s, { name: s, slug: s, runStatus: "idle" as const }] as const
+        }
+      }),
+    )
+    setSourceProjects(new Map(entries))
+  }, [])
+
+  useEffect(() => {
+    if (triggers.length === 0) return
+    fetchSourceInfo(triggers.map((t) => t.sourceSlug)).catch(() => {})
+  }, [triggers, fetchSourceInfo])
 
   // SSE: react to queue changes
   useEffect(() => {
@@ -111,8 +182,65 @@ export function ProjectWavesPage() {
     const unsub3 = subscribe("run:started", refreshRuns)
     const unsub4 = subscribe("run:completed", refreshRuns)
     const unsub5 = subscribe("run:failed", refreshRuns)
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5() }
-  }, [slug, subscribe])
+    const unsub6 = subscribe("run:trigger:created", (event) => {
+      const data = event.data as { id: string; targetSlug: string; targetWorkflow: string; sourceSlug: string; sourceWorkflow?: string }
+      if (data.targetSlug !== slug) return
+      setTriggers((prev) => [...prev, { ...data, createdAt: new Date().toISOString() }])
+    })
+    const unsub7 = subscribe("run:trigger:removed", (event) => {
+      const data = event.data as { id: string }
+      setTriggers((prev) => prev.filter((t) => t.id !== data.id))
+    })
+    const unsub8 = subscribe("run:triggered", (event) => {
+      const data = event.data as { triggerId: string }
+      setTriggers((prev) => prev.filter((t) => t.id !== data.triggerId))
+    })
+    // Update source project progress from monitor snapshots
+    const unsub9 = subscribe("monitor:snapshot", (event) => {
+      const data = event.data as { project_slug?: string; data?: { current_wave?: { number: number; status: string; steps: Array<{ status: string }> } } }
+      if (!data.project_slug || !data.data?.current_wave) return
+      setSourceProjects((prev) => {
+        const existing = prev.get(data.project_slug!)
+        if (!existing) return prev
+        const wave = data.data!.current_wave!
+        const stepsTotal = wave.steps.length
+        const stepsCompleted = wave.steps.filter((s) => s.status === "completed").length
+        const next = new Map(prev)
+        next.set(data.project_slug!, { ...existing, runStatus: "running", stepsCompleted, stepsTotal })
+        return next
+      })
+    })
+    // Update source status on run events from other projects
+    const updateSourceOnRunEvent = (event: { data: unknown }) => {
+      const data = event.data as { slug?: string }
+      if (!data.slug) return
+      setSourceProjects((prev) => {
+        const existing = prev.get(data.slug!)
+        if (!existing) return prev
+        // Refetch to get accurate state
+        fetchSourceInfo([data.slug!]).catch(() => {})
+        return prev
+      })
+    }
+    const unsub10 = subscribe("run:started", updateSourceOnRunEvent)
+    const unsub11 = subscribe("run:completed", updateSourceOnRunEvent)
+    const unsub12 = subscribe("run:failed", updateSourceOnRunEvent)
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12() }
+  }, [slug, subscribe, fetchSourceInfo])
+
+  const handleRemoveTrigger = async (triggerId: string) => {
+    setRemovingTriggerIds((prev) => new Set(prev).add(triggerId))
+    try {
+      await apiFetch(`/api/v1/triggers/${triggerId}`, { method: "DELETE" })
+      setTriggers((prev) => prev.filter((t) => t.id !== triggerId))
+    } finally {
+      setRemovingTriggerIds((prev) => {
+        const next = new Set(prev)
+        next.delete(triggerId)
+        return next
+      })
+    }
+  }
 
   const handleRemoveFromQueue = async (queueId: string) => {
     setRemovingIds((prev) => new Set(prev).add(queueId))
@@ -241,6 +369,106 @@ export function ProjectWavesPage() {
                 </button>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Triggers */}
+      {triggers.length > 0 && (
+        <section className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4">
+          <h2 className="text-sm font-semibold mb-3 text-purple-700 dark:text-purple-400 flex items-center gap-2">
+            <Link2 className="w-4 h-4" />
+            Triggers
+            <span className="ml-1 text-xs font-normal">({triggers.length})</span>
+          </h2>
+          <div className="flex flex-col gap-2">
+            {triggers.map((t) => {
+              const source = sourceProjects.get(t.sourceSlug)
+              const sourceName = source?.name ?? t.sourceSlug
+              const isSourceRunning = source?.runStatus === "running"
+              const stepsProgress = source?.stepsTotal
+                ? Math.round((source.stepsCompleted ?? 0) / source.stepsTotal * 100)
+                : 0
+
+              return (
+                <div
+                  key={t.id}
+                  className="bg-card border border-border rounded-lg px-4 py-3 flex flex-col gap-2.5"
+                >
+                  {/* Chain visualization */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {/* Source project */}
+                      <Link
+                        to="/projects/$slug/info"
+                        params={{ slug: t.sourceSlug }}
+                        className="inline-flex items-center gap-1 text-sm font-medium hover:text-purple-600 dark:hover:text-purple-400 transition-colors truncate"
+                      >
+                        {sourceName}
+                        <ExternalLink className="w-3 h-3 shrink-0 opacity-50" />
+                      </Link>
+
+                      {t.sourceWorkflow && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                          {t.sourceWorkflow}
+                        </span>
+                      )}
+
+                      <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+
+                      {/* Target workflow */}
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-purple-400 shrink-0">
+                        {t.targetWorkflow}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTrigger(t.id)}
+                      disabled={removingTriggerIds.has(t.id)}
+                      className="shrink-0 p-1.5 rounded hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-muted-foreground"
+                      aria-label="Remover trigger"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  {/* Source project status */}
+                  <div className="flex items-center gap-2">
+                    {isSourceRunning ? (
+                      <>
+                        <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />
+                        <span className="text-xs text-blue-600 dark:text-blue-400">
+                          Em execução
+                          {source?.workflow && <span className="text-muted-foreground"> · {source.workflow}</span>}
+                          {source?.startedAt && <span className="text-muted-foreground"> · {formatDuration(source.startedAt)}</span>}
+                        </span>
+                        {source?.stepsTotal && source.stepsTotal > 0 && (
+                          <>
+                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden max-w-[120px]">
+                              <div
+                                className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                                style={{ width: `${stepsProgress}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-muted-foreground shrink-0">
+                              {source.stepsCompleted}/{source.stepsTotal}
+                            </span>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <Circle className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                        <span className="text-xs text-muted-foreground">
+                          Aguardando execução de {sourceName}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </section>
       )}
