@@ -53,6 +53,15 @@ app.get('/', async (c) => {
       const failed = steps.filter((s) => s.status === 'failed').length;
       const waveStatus = deriveWaveStatus(steps);
 
+      const sprint = await findLatestSprintDir(wavePath);
+      let hasSprint = false;
+      if (sprint) {
+        try {
+          await fs.access(path.join(sprint.sprintDir, 'features.json'));
+          hasSprint = true;
+        } catch { /* no features.json — not a real sprint */ }
+      }
+
       return {
         wave_number: waveNumber,
         status: waveStatus,
@@ -60,6 +69,8 @@ app.get('/', async (c) => {
         steps_completed: completed,
         steps_failed: failed,
         steps: steps,
+        has_sprint: hasSprint,
+        sprint_name: hasSprint ? sprint!.sprintName : null,
       };
     })
   );
@@ -225,21 +236,39 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
       duration_ms = new Date(loop.updated_at).getTime() - new Date(loop.started_at).getTime();
     }
 
-    // List feature attempt directories (at the step root level)
-    const attemptDirs: string[] = [];
+    // List feature attempt directories inside each attempt-N/ subdir
+    // Structure: step-dir/attempt-N/F-XXX-attempt-M/spawn.json
+    const iterationDirs: string[] = [];
     try {
-      const entries = await fs.readdir(stepDir, { withFileTypes: true });
-      for (const e of entries) {
-        if (e.isDirectory() && /^F-\d+-attempt-\d+$/.test(e.name)) {
-          attemptDirs.push(e.name);
+      const topEntries = await fs.readdir(stepDir, { withFileTypes: true });
+      for (const e of topEntries) {
+        if (e.isDirectory() && /^attempt-\d+$/.test(e.name)) {
+          iterationDirs.push(e.name);
         }
       }
-      attemptDirs.sort();
+      iterationDirs.sort((a, b) =>
+        parseInt(a.replace('attempt-', ''), 10) - parseInt(b.replace('attempt-', ''), 10)
+      );
     } catch {
       // ignore
     }
 
-    // Read spawn.json for each attempt
+    // Collect F-XXX-attempt-N dirs from all iteration dirs
+    const attemptEntries: { iterationDir: string; featureDir: string }[] = [];
+    for (const itDir of iterationDirs) {
+      try {
+        const entries = await fs.readdir(path.join(stepDir, itDir), { withFileTypes: true });
+        for (const e of entries) {
+          if (e.isDirectory() && /^F-\d+-attempt-\d+$/.test(e.name)) {
+            attemptEntries.push({ iterationDir: itDir, featureDir: e.name });
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // Read spawn.json for each feature attempt
     const attempts: Array<{
       dir: string;
       feature: string;
@@ -255,8 +284,10 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
       status: StepStatus;
       duration_ms?: number;
     }> = [];
-    for (const aDir of attemptDirs) {
-      const aSpawnFile = path.join(stepDir, aDir, 'spawn.json');
+    for (const { iterationDir, featureDir } of attemptEntries) {
+      const aSpawnFile = path.join(stepDir, iterationDir, featureDir, 'spawn.json');
+      // dir sent to frontend uses "iterationDir/featureDir" so log endpoint can resolve it
+      const compositeDir = `${iterationDir}/${featureDir}`;
       try {
         const aSpawn = await readJson(aSpawnFile) as SpawnJson & { feature?: string; attempt?: number };
         const aStatus = deriveStatus(aSpawn, true);
@@ -265,8 +296,8 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
           aDuration = new Date(aSpawn.finished_at).getTime() - new Date(aSpawn.started_at).getTime();
         }
         attempts.push({
-          dir: aDir,
-          feature: aSpawn.feature ?? aDir.replace(/-attempt-\d+$/, ''),
+          dir: compositeDir,
+          feature: aSpawn.feature ?? featureDir.replace(/-attempt-\d+$/, ''),
           attempt: aSpawn.attempt ?? 1,
           task: aSpawn.task,
           agent: aSpawn.agent,
@@ -282,9 +313,9 @@ app.get('/:waveNumber/steps/:stepIndex', async (c) => {
       } catch {
         // spawn.json not available yet for this attempt
         attempts.push({
-          dir: aDir,
-          feature: aDir.replace(/-attempt-\d+$/, ''),
-          attempt: parseInt(aDir.match(/-attempt-(\d+)$/)?.[1] ?? '1', 10),
+          dir: compositeDir,
+          feature: featureDir.replace(/-attempt-\d+$/, ''),
+          attempt: parseInt(featureDir.match(/-attempt-(\d+)$/)?.[1] ?? '1', 10),
           status: 'running',
         });
       }
@@ -443,14 +474,15 @@ app.get('/:waveNumber/steps/:stepIndex/log', async (c) => {
 
   const attemptQuery = c.req.query('attempt');
 
-  // For loop steps, a specific attempt dir (F-XXX-attempt-N) must be provided
+  // For loop steps, a specific attempt dir must be provided
+  // Format: "attempt-N/F-XXX-attempt-M" (composite) or legacy "F-XXX-attempt-N" (flat)
   if (parsed?.isLoop) {
     if (!attemptQuery) {
       // No attempt specified — return empty (frontend shows attempts list instead)
       return c.json({ total: 0, offset: 0, limit, lines: [] });
     }
-    // Validate attempt dir name to prevent path traversal (loop feature attempts)
-    if (!/^F-\d+-attempt-\d+$/.test(attemptQuery)) {
+    // Validate: composite "attempt-N/F-XXX-attempt-M" or flat "F-XXX-attempt-N"
+    if (!/^(attempt-\d+\/)?F-\d+-attempt-\d+$/.test(attemptQuery)) {
       return c.json({ error: 'Invalid attempt directory' }, 400);
     }
     const jsonlFile = path.join(stepDir, attemptQuery, 'spawn.jsonl');
@@ -531,6 +563,24 @@ app.get('/:waveNumber/sprint/files', async (c) => {
   return c.json({ sprint: sprint.sprintName, specs, prps });
 });
 
+// GET /api/v1/projects/:slug/waves/:waveNumber/sprint/task
+app.get('/:waveNumber/sprint/task', async (c) => {
+  const slug = c.req.param('slug');
+  if (!slug) return c.json({ error: 'Project slug required' }, 400);
+  const waveNumber = c.req.param('waveNumber') ?? '';
+  if (!/^\d+$/.test(waveNumber)) return c.json({ error: 'Invalid wave number' }, 400);
+
+  const sprint = await findLatestSprintDir(path.join(getAwRoot(), 'context', 'workspaces', slug, `wave-${waveNumber}`));
+  if (!sprint) return c.json({ error: 'Sprint not found' }, 404);
+
+  try {
+    const content = await fs.readFile(path.join(sprint.sprintDir, 'TASK.md'), 'utf-8');
+    return c.json({ content });
+  } catch {
+    return c.json({ error: 'TASK.md not found' }, 404);
+  }
+});
+
 // GET /api/v1/projects/:slug/waves/:waveNumber/sprint/files/:filename
 app.get('/:waveNumber/sprint/files/:filename', async (c) => {
   const slug = c.req.param('slug');
@@ -541,7 +591,7 @@ app.get('/:waveNumber/sprint/files/:filename', async (c) => {
   const filename = c.req.param('filename') ?? '';
 
   // Validate filename format
-  if (!/^(S|PRP)-\d{3}[a-zA-Z0-9_-]*\.md$/.test(filename)) {
+  if (!/^(S|PRP)-\d{2,3}[a-zA-Z0-9_-]*\.md$/.test(filename)) {
     return c.json({ error: 'Invalid filename format' }, 400);
   }
 

@@ -8,6 +8,7 @@ import { waves } from './waves.js';
 import { messages } from './messages.js';
 import { monitor } from './monitor.js';
 import { crashes } from './crashes.js';
+import { stats } from './stats.js';
 import { getAwRoot } from '../lib/paths.js';
 
 const app = new Hono();
@@ -322,10 +323,44 @@ app.post('/:slug/test-git', async (c) => {
   return c.json({ ok });
 });
 
+// GET /api/v1/projects/:slug/repo-path — return resolved repo folder path
+app.get('/:slug/repo-path', async (c) => {
+  const slug = c.req.param('slug');
+  const awRoot = getAwRoot();
+  const repoDir = path.resolve(path.join(awRoot, 'context', 'workspaces', slug, 'repo'));
+
+  try {
+    await fs.access(repoDir);
+    return c.json({ path: repoDir });
+  } catch {
+    return c.json({ error: 'Repo folder not found' }, 404);
+  }
+});
+
+// POST /api/v1/projects/:slug/open-repo — open repo folder in OS file manager
+app.post('/:slug/open-repo', async (c) => {
+  const slug = c.req.param('slug');
+  const awRoot = getAwRoot();
+  const repoDir = path.join(awRoot, 'context', 'workspaces', slug, 'repo');
+
+  try {
+    await fs.access(repoDir);
+  } catch {
+    return c.json({ ok: false, error: 'Repo folder not found', path: repoDir }, 404);
+  }
+
+  const normalized = path.resolve(repoDir);
+  const proc = spawn('explorer.exe', [normalized], { detached: true, stdio: 'ignore' });
+  proc.unref();
+
+  return c.json({ ok: true, path: normalized });
+});
+
 app.route('/:slug/runs', runs);
 app.route('/:slug/waves', waves);
 app.route('/:slug/messages', messages);
 app.route('/:slug/monitor', monitor);
 app.route('/:slug/crashes', crashes);
+app.route('/:slug/stats', stats);
 
 export { app as projects };
