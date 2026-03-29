@@ -59,6 +59,8 @@ export function ProjectRunNewPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
+  const [queued, setQueued] = useState(false)
+
   const handleExecute = async () => {
     if (!selectedWf) return
     setExecuting(true)
@@ -72,6 +74,11 @@ export function ProjectRunNewPage() {
       if (!res.ok) {
         const body = (await res.json()) as { error?: string }
         throw new Error(body.error ?? "Failed to start run")
+      }
+      if (res.status === 202) {
+        setQueued(true)
+        setExecuting(false)
+        return
       }
       void navigate({ to: "/projects/$slug/waves", params: { slug } })
     } catch (e: unknown) {
@@ -94,7 +101,7 @@ export function ProjectRunNewPage() {
         role="dialog"
         aria-modal="true"
         aria-label="Nova Execução"
-        className="relative w-full max-w-lg mx-4 bg-card border rounded-xl shadow-2xl flex flex-col"
+        className="relative w-full max-w-lg mx-4 my-8 max-h-[calc(100vh-4rem)] bg-card border rounded-xl shadow-2xl flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b">
@@ -110,7 +117,7 @@ export function ProjectRunNewPage() {
         </div>
 
         {/* Body */}
-        <div className="px-5 py-4 flex flex-col gap-3 min-h-[120px]">
+        <div className="px-5 py-4 flex flex-col gap-3 min-h-[120px] overflow-y-auto">
           {loading ? (
             <>
               <div className="h-14 bg-muted rounded-lg animate-pulse" />
@@ -167,23 +174,30 @@ export function ProjectRunNewPage() {
           {executeError && (
             <p className="text-destructive text-xs" role="alert">{executeError}</p>
           )}
+          {queued && (
+            <p className="text-amber-600 dark:text-amber-400 text-xs">
+              Execução enfileirada. Será iniciada quando a execução atual terminar.
+            </p>
+          )}
           <div className="flex gap-2 justify-end">
             <button
               type="button"
               onClick={handleClose}
               className="px-3 py-1.5 rounded-md text-sm border hover:bg-muted transition-colors"
             >
-              Cancelar
+              {queued ? "Fechar" : "Cancelar"}
             </button>
-            <button
-              type="button"
-              onClick={handleExecute}
-              disabled={!selectedWf || executing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {executing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
-              Executar
-            </button>
+            {!queued && (
+              <button
+                type="button"
+                onClick={handleExecute}
+                disabled={!selectedWf || executing}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {executing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                {activeRuns.length > 0 ? "Enfileirar" : "Executar"}
+              </button>
+            )}
           </div>
         </div>
       </div>

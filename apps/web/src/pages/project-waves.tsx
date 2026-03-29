@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
 import { useParams, Link } from "@tanstack/react-router"
-import { CheckCircle2, XCircle, Loader2, Circle, AlertTriangle } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, Circle, AlertTriangle, Clock, X } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { useSSEContext } from "@/contexts/sse-context"
 
 type WaveStatus = "pending" | "running" | "completed" | "failed" | "interrupted"
 
@@ -23,6 +24,13 @@ interface Run {
   mode: "spawn" | "detached"
   startedAt: string
   completedAt?: string
+}
+
+interface QueuedRun {
+  id: string
+  slug: string
+  workflow: string
+  queuedAt: string
 }
 
 function WaveStatusIcon({ status }: { status: WaveStatus }) {
@@ -48,9 +56,13 @@ export function ProjectWavesPage() {
 
   const [waves, setWaves] = useState<Wave[]>([])
   const [runs, setRuns] = useState<Run[]>([])
+  const [queue, setQueue] = useState<QueuedRun[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [stoppingIds, setStoppingIds] = useState<Set<string>>(new Set())
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set())
+
+  const { subscribe } = useSSEContext()
 
   useEffect(() => {
     setLoading(true)
@@ -62,14 +74,59 @@ export function ProjectWavesPage() {
       apiFetch(`/api/v1/projects/${slug}/runs`)
         .then((r) => r.json() as Promise<Run[]>)
         .catch(() => [] as Run[]),
+      apiFetch(`/api/v1/projects/${slug}/runs/queue`)
+        .then((r) => (r.ok ? (r.json() as Promise<QueuedRun[]>) : Promise.resolve([])))
+        .catch(() => [] as QueuedRun[]),
     ])
-      .then(([w, r]) => {
+      .then(([w, r, q]) => {
         setWaves(w)
         setRuns(r)
+        setQueue(q)
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }, [slug])
+
+  // SSE: react to queue changes
+  useEffect(() => {
+    const unsub1 = subscribe("run:queued", (event) => {
+      const data = event.data as { id: string; slug: string; workflow: string }
+      if (data.slug !== slug) return
+      setQueue((prev) => [...prev, { id: data.id, slug: data.slug, workflow: data.workflow, queuedAt: new Date().toISOString() }])
+    })
+    const unsub2 = subscribe("run:dequeued", (event) => {
+      const data = event.data as { id: string; slug: string }
+      if (data.slug !== slug) return
+      setQueue((prev) => prev.filter((item) => item.id !== data.id))
+    })
+    // Refresh runs on run:started / run:completed / run:failed
+    const refreshRuns = (event: { data: unknown }) => {
+      const data = event.data as { slug?: string }
+      if (data.slug !== slug) return
+      apiFetch(`/api/v1/projects/${slug}/runs`)
+        .then((r) => r.json() as Promise<Run[]>)
+        .then(setRuns)
+        .catch(() => {})
+    }
+    const unsub3 = subscribe("run:started", refreshRuns)
+    const unsub4 = subscribe("run:completed", refreshRuns)
+    const unsub5 = subscribe("run:failed", refreshRuns)
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5() }
+  }, [slug, subscribe])
+
+  const handleRemoveFromQueue = async (queueId: string) => {
+    setRemovingIds((prev) => new Set(prev).add(queueId))
+    try {
+      await apiFetch(`/api/v1/projects/${slug}/runs/queue/${queueId}`, { method: "DELETE" })
+      setQueue((prev) => prev.filter((item) => item.id !== queueId))
+    } finally {
+      setRemovingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(queueId)
+        return next
+      })
+    }
+  }
 
   const handleStop = async (runId: string) => {
     setStoppingIds((prev) => new Set(prev).add(runId))
@@ -148,6 +205,39 @@ export function ProjectWavesPage() {
                   className="shrink-0 px-3 py-1.5 rounded border text-xs font-medium hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {stoppingIds.has(run.id) ? "Parando..." : "Parar"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Queued runs */}
+      {queue.length > 0 && (
+        <section className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+          <h2 className="text-sm font-semibold mb-3 text-amber-700 dark:text-amber-400 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Fila
+            <span className="ml-1 text-xs font-normal">({queue.length})</span>
+          </h2>
+          <div className="flex flex-col gap-2">
+            {queue.map((item, idx) => (
+              <div
+                key={item.id}
+                className="bg-card border border-border rounded-lg px-4 py-3 flex items-center justify-between gap-4"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xs font-mono text-muted-foreground w-5 text-right shrink-0">{idx + 1}.</span>
+                  <span className="text-sm font-mono truncate">{item.workflow}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveFromQueue(item.id)}
+                  disabled={removingIds.has(item.id)}
+                  className="shrink-0 p-1.5 rounded hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-muted-foreground"
+                  aria-label="Remover da fila"
+                >
+                  <X className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}

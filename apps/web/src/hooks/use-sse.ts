@@ -34,6 +34,8 @@ const KNOWN_EVENT_TYPES = [
   "agent:action:start",
   "agent:action:end",
   "monitor:snapshot",
+  "run:queued",
+  "run:dequeued",
 ]
 
 export function useSSE(options: SSEOptions = {}): UseSSEReturn {
