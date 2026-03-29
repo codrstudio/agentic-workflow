@@ -259,8 +259,8 @@ export async function detectResumableWave(
       return null;
     }
 
-    const hasIncomplete = ws.steps.some((s: WorkflowStepState) => s.status !== 'completed');
-    if (!hasIncomplete) return null; // wave is complete → nothing to resume
+    const hasIncomplete = ws.steps.some((s: WorkflowStepState) => s.status !== 'completed' && s.status !== 'skipped');
+    if (!hasIncomplete) return null; // all steps completed or skipped → nothing to resume
 
     return { waveNumber: n, workflowState: ws };
   }

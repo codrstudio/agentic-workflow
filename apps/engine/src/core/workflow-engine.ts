@@ -172,9 +172,9 @@ export class WorkflowRunner {
         const stepIndex = i + 1;
         const stepName = step.name ?? this.stepSlug(step);
 
-        // Skip completed steps (resume support)
+        // Skip completed/skipped steps (resume support)
         const stepState = workflowState?.steps?.[i];
-        if (stepState?.status === 'completed') {
+        if (stepState?.status === 'completed' || stepState?.status === 'skipped') {
           this.emitEvent('workflow:resume', {
             step: stepName,
             index: stepIndex,
@@ -257,7 +257,8 @@ export class WorkflowRunner {
           for (let j = i + 1; j < workflow.steps.length; j++) {
             await this.updateStepState(statePath, j, { status: 'skipped' });
           }
-          await this.updateWorkflowStatus(statePath, 'stopped', `decide:stop at ${stepName}`);
+          // decide:stop is a planned/successful completion — use 'completed' so it's not treated as resumable
+          await this.updateWorkflowStatus(statePath, 'completed', `decide:stop at ${stepName}`);
           this.emitEvent('workflow:end', { reason: 'decide:stop', stopped_at_step: stepName });
           return { exitCode: 0, reason: 'decide:stop' };
         }
