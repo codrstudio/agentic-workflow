@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, Link } from "@tanstack/react-router"
 import { apiFetch } from "@/lib/api"
 import { useSSEContext } from "@/contexts/sse-context"
-import { StatusBadge } from "@/components/ui/status-badge"
+import { StatusBadge, type StatusContext } from "@workspace/ui/components/status-badge"
 import { Square, Play, Brain, MessageSquare, Wrench, CheckCircle2, XCircle, AlertTriangle, DollarSign } from "lucide-react"
 
 type StepStatus = "pending" | "running" | "completed" | "failed" | "interrupted"
@@ -330,6 +330,8 @@ export function ProjectMonitorPage() {
     )
   }
 
+  const engineCtx: StatusContext = { engineOn: !!data.activity.engine_pid }
+
   const isStuck =
     data.activity.last_output_age_ms !== null && data.activity.last_output_age_ms > 5 * 60_000
 
@@ -351,7 +353,7 @@ export function ProjectMonitorPage() {
         <div className="flex items-center gap-2 flex-shrink-0">
           {data.current_wave && (
             <>
-              <StatusBadge status={data.current_wave.status} />
+              <StatusBadge status={data.current_wave.status} context={engineCtx} />
               {data.current_wave.timing && (
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {fmtDuration(data.current_wave.timing.elapsed_ms)}
@@ -411,7 +413,7 @@ export function ProjectMonitorPage() {
                       <span className="text-muted-foreground tabular-nums w-5 text-right flex-shrink-0">
                         {step.index}
                       </span>
-                      <StatusBadge status={step.status} />
+                      <StatusBadge status={step.status} context={engineCtx} />
                       <span className={`font-mono truncate flex-1 ${step.status === "running" ? "text-blue-600 dark:text-blue-400" : step.status === "failed" ? "text-red-600 dark:text-red-400" : step.status === "pending" ? "text-muted-foreground/50" : ""}`}>
                         {step.task}
                       </span>
@@ -462,7 +464,7 @@ export function ProjectMonitorPage() {
                       <span className={`font-mono w-14 flex-shrink-0 tabular-nums font-medium ${featureStatusColor(f.status)}`}>
                         {f.id}
                       </span>
-                      <StatusBadge status={f.status} />
+                      <StatusBadge status={f.status} context={engineCtx} />
                       <span className={`truncate ${f.status === "passing" ? "text-muted-foreground/60" : f.status === "skipped" ? "text-muted-foreground/40 line-through" : "text-foreground/80"}`}>
                         {f.name}
                       </span>

@@ -11,7 +11,7 @@ import {
   FileText,
 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { StatusBadge } from "@/components/ui/status-badge"
+import { StatusBadge } from "@workspace/ui/components/status-badge"
 
 interface Project {
   name: string

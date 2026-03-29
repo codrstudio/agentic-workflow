@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { ChevronDown, ChevronRight, Loader2 } from "lucide-react"
-import { StatusBadge } from "@/components/ui/status-badge"
+import { StatusBadge } from "@workspace/ui/components/status-badge"
 
 export interface AgentAction {
   id: string

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useParams, Link, useNavigate } from "@tanstack/react-router"
 import { Pencil, Folder, File, ChevronLeft, Plus, X, Loader2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
-import { StatusBadge } from "@/components/ui/status-badge"
+import { StatusBadge } from "@workspace/ui/components/status-badge"
 import { MarkdownViewer } from "@/components/ui/markdown-viewer"
 
 interface Project {
