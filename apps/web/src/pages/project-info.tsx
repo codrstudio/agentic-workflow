@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams, Link, useNavigate } from "@tanstack/react-router"
-import { Pencil, Play, Folder, File, ChevronLeft, Plus, X, Loader2 } from "lucide-react"
+import { Pencil, Folder, File, ChevronLeft, Plus, X, Loader2 } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { MarkdownViewer } from "@/components/ui/markdown-viewer"
@@ -261,14 +261,6 @@ export function ProjectInfoPage() {
                   <p className="text-sm text-muted-foreground">{project.description}</p>
                 )}
               </div>
-              <Link
-                to="/projects/$slug/runs/new"
-                params={{ slug }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
-              >
-                <Play className="w-3.5 h-3.5" />
-                Executar Workflow
-              </Link>
             </div>
           </section>
 
