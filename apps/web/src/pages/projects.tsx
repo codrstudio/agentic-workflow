@@ -75,7 +75,7 @@ function ProjectCard({
 
   return (
     <Link
-      to="/projects/$slug"
+      to="/projects/$slug/info"
       params={{ slug: project.slug }}
       className="block bg-card border rounded-lg p-5 hover:border-foreground/30 hover:shadow-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
