@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readFile, mkdir, access, readdir, rm } from 'node:fs/promises';
+import { readFile, mkdir, access, readdir, rm, copyFile } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 import { WorkflowSchema, type Workflow } from '../schemas/workflow.js';
@@ -275,6 +275,7 @@ export async function setupWave(
   sprintNumber: number,
   workflow: Workflow,
   targetBranch?: string,
+  projectTaskPath?: string,
 ): Promise<{ waveDir: string; worktreeInfo: WorktreeInfo; sprintDir: string }> {
   const waveDir = join(workspaceDir, `wave-${waveNumber}`);
   await mkdir(waveDir, { recursive: true });
@@ -290,6 +291,13 @@ export async function setupWave(
   await mkdir(join(sprintDir, '1-brainstorming'), { recursive: true });
   await mkdir(join(sprintDir, '2-specs'), { recursive: true });
   await mkdir(join(sprintDir, '3-prps'), { recursive: true });
+
+  // Snapshot TASK.md into sprint for historical reference
+  if (projectTaskPath) {
+    try {
+      await copyFile(projectTaskPath, join(sprintDir, 'TASK.md'));
+    } catch { /* TASK.md may not exist — skip silently */ }
+  }
 
   // Create workflow-state.json deterministically from workflow steps
   const workflowState: WorkflowState = {
@@ -412,6 +420,7 @@ export async function bootstrap(
   const waveNumber = await detectNextWave(workspaceDir);
   const sprintNumber = await resolveSprintForWave(workspaceDir, repoDir, waveNumber);
 
+  const projectTaskPath = join(contextDir, 'projects', projectSlug, 'TASK.md');
   const { waveDir, worktreeInfo, sprintDir } = await setupWave(
     workspaceDir,
     repoDir,
@@ -419,6 +428,7 @@ export async function bootstrap(
     sprintNumber,
     workflow,
     resolvedRepoConfig?.target_branch,
+    projectTaskPath,
   );
 
   return {

@@ -1155,6 +1155,7 @@ export class WorkflowRunner {
     // Bootstrap new wave (awaited — wave must exist on disk before returning so monitor sees it)
     const newWaveNumber = await detectNextWave(ctx.workspaceDir);
     const newSprintNumber = await resolveSprintForWave(ctx.workspaceDir, ctx.repoDir, newWaveNumber);
+    const projectTaskPath = join(ctx.projectDir, '..', 'TASK.md');
     const { waveDir, worktreeInfo, sprintDir } = await setupWave(
       ctx.workspaceDir,
       ctx.repoDir,
@@ -1162,6 +1163,7 @@ export class WorkflowRunner {
       newSprintNumber,
       result.data,
       ctx.targetBranch,
+      projectTaskPath,
     );
 
     // Fire-and-forget: child runs in isolated runner so stopRequested/backgroundPromises don't collide
