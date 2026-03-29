@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Offline — Coletivos</title>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:ui-sans-serif,system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100svh;padding:1.5rem;background:#faf9f5;color:#2b2718}
+      .c{text-align:center;max-width:20rem}
+      h1{font-size:1.125rem;font-weight:600;margin-bottom:.5rem}
+      p{font-size:.875rem;color:#8a8578;margin-bottom:1.5rem}
+      button{background:#c96442;color:#fff;border:none;padding:.5rem 1rem;border-radius:.5rem;font-size:.875rem;cursor:pointer}
+      button:active{opacity:.8}
+      @media(prefers-color-scheme:dark){body{background:#262624;color:#ccc5ab}p{color:#afa993}button{background:#d07550;color:#fff}}
+    </style>
+  </head>
+  <body>
+    <div class="c">
+      <h1>Sem conexão</h1>
+      <p>Verifique sua internet e tente novamente.</p>
+      <button onclick="location.reload()">Tentar novamente</button>
+    </div>
+  </body>
+</html>
