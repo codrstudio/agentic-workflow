@@ -21,6 +21,7 @@ export interface FeatureLoopContext {
   worktreeDir: string;
   sprintDir: string;
   stepDir: string;
+  waveDir: string;
   agentsDir: string;
   tasksDir: string;
   plan: Plan;
@@ -203,14 +204,15 @@ export class FeatureLoop {
           feature_id: feature.id,
         });
 
-        // Compose prompt: agent body + task body with feature context + ACR section
+        // Compose prompt: agent body + task body with feature context + TASK.md + ACR section
         const agentPrompt = this.renderer.render(agentBody, ctx.templateContext);
         const taskPrompt = this.renderer.render(task.body, ctx.templateContext);
         const featureContext = `\n\n## Feature: ${feature.id} — ${feature.name}\n\n${feature.description}\n\nTests:\n${(feature.tests ?? []).map((t) => `- ${t}`).join('\n')}`;
+        const taskMdSection = await this.readTaskMd(ctx.sprintDir);
         const acrSection = ctx.projectSlug && this.acrInjector
           ? await this.acrInjector.buildSection(ctx.projectSlug)
           : '';
-        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${acrSection}`;
+        const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${featureContext}${taskMdSection}${acrSection}`;
 
         // Resolve model/effort from plan with escalation support
         const resolved = this.resolveSpawnModelEffort(taskSlug, task.frontmatter, agentFrontmatter, ctx.plan, attempt);
@@ -251,6 +253,14 @@ export class FeatureLoop {
             effort: resolved.effort,
           },
           timeoutMs: timeoutMs > 0 ? timeoutMs : undefined,
+          stagnationContext: {
+            waveDir: ctx.waveDir,
+            task: taskSlug,
+            agent: agentName,
+            step: 0,
+            feature: feature.id,
+            attempt,
+          },
           onSpawn: (pid) => {
             meta.pid = pid;
             this.spawner.writeSpawnMeta(attemptDir, meta);
@@ -437,6 +447,15 @@ export class FeatureLoop {
 
   stop(): void {
     this.stopRequested = true;
+  }
+
+  private async readTaskMd(sprintDir: string): Promise<string> {
+    try {
+      const content = await readFile(join(sprintDir, 'TASK.md'), 'utf-8');
+      return `\n\n---\n\n# TASK.md (Sprint Goal)\n\n${content.trim()}`;
+    } catch {
+      return '';
+    }
   }
 
   private resolveSpawnModelEffort(

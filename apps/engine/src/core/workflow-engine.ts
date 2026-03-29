@@ -33,9 +33,9 @@ export interface WorkflowRunnerContext {
   repoDir: string;
   waveDir: string;
   worktreeDir: string;
-  sprintDir: string;
+  sprintDir: string | null;
   waveNumber: number;
-  sprintNumber: number;
+  sprintNumber: number | null;
   agentsDir: string;
   tasksDir: string;
   workflowsDir: string;
@@ -118,9 +118,10 @@ export class WorkflowRunner {
     // Sanitize stale fields from steps that didn't finish cleanly
     if (workflowState) {
       let dirty = false;
+      const wasStoppedOrFailed = workflowState.status === 'stopped' || workflowState.status === 'failed';
 
       // Clear workflow-level stopped/failed status on resume
-      if (workflowState.status === 'stopped' || workflowState.status === 'failed') {
+      if (wasStoppedOrFailed) {
         workflowState.status = 'running' as WorkflowState['status'];
         (workflowState as Record<string, unknown>)['stopped_reason'] = undefined;
         dirty = true;
@@ -134,10 +135,15 @@ export class WorkflowRunner {
             step.exit_code = null;
             dirty = true;
           }
-          // Reset running/interrupted steps to pending so they're cleanly re-executed
-          if (step.status === 'running' || step.status === 'interrupted') {
+          // Reset running/interrupted/failed steps to pending so they're cleanly re-executed
+          if (step.status === 'running' || step.status === 'interrupted' || step.status === 'failed') {
             step.status = 'pending';
             step.started_at = null;
+            dirty = true;
+          }
+          // On resume of stopped/failed wave, reset skipped steps to pending so they run
+          if (wasStoppedOrFailed && step.status === 'skipped') {
+            step.status = 'pending';
             dirty = true;
           }
         }
@@ -416,6 +422,7 @@ export class WorkflowRunner {
         effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      stagnationContext: { waveDir: ctx.waveDir, task: 'merge-worktree', agent: agentName, step: 0 },
       onSpawn: (pid) => {
         meta.pid = pid;
         this.spawner.writeSpawnMeta(mergeDir, meta);
@@ -498,6 +505,7 @@ export class WorkflowRunner {
         effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      stagnationContext: { waveDir: ctx.waveDir, task: 'merge-worktree', agent: agentName, step: 0 },
       onSpawn: (pid) => {
         meta.pid = pid;
         this.spawner.writeSpawnMeta(mergeDir, meta);
@@ -602,11 +610,16 @@ export class WorkflowRunner {
       project: ctx.projectDir,
       repo: ctx.repoDir,
       worktree: ctx.worktreeDir,
-      sprint: ctx.sprintDir,
       wave_dir: ctx.waveDir,
       wave_number: String(ctx.waveNumber),
-      sprint_number: String(ctx.sprintNumber),
     };
+
+    if (ctx.sprintDir != null) {
+      templateContext.sprint = ctx.sprintDir;
+    }
+    if (ctx.sprintNumber != null) {
+      templateContext.sprint_number = String(ctx.sprintNumber);
+    }
 
     if (ctx.sourceBranch) templateContext.source_branch = ctx.sourceBranch;
     if (ctx.targetBranch) templateContext.target_branch = ctx.targetBranch;
@@ -621,11 +634,31 @@ export class WorkflowRunner {
     return templateContext;
   }
 
+  private validateTaskNeeds(
+    taskSlug: string,
+    needs: import('../schemas/task.js').TaskFrontmatter['needs'],
+    ctx: WorkflowRunnerContext,
+  ): void {
+    if (!needs?.length) return;
+    const missing: string[] = [];
+    for (const need of needs) {
+      if (need === 'sprint' && ctx.sprintDir == null) {
+        missing.push('sprint');
+      }
+    }
+    if (missing.length > 0) {
+      throw new Error(
+        `Task "${taskSlug}" requires [${missing.join(', ')}] but workflow "${ctx.workflow.name}" does not provide it. Add "sprint: true" to the workflow YAML.`,
+      );
+    }
+  }
+
   private async composePrompt(
     taskSlug: string,
     ctx: WorkflowRunnerContext,
   ): Promise<{ prompt: string; agentName: string; frontmatter: Record<string, unknown>; taskFrontmatter: import('../schemas/task.js').TaskFrontmatter }> {
     const task = await this.spawner.resolveTask(taskSlug, ctx.tasksDir);
+    this.validateTaskNeeds(taskSlug, task.frontmatter.needs, ctx);
     const agentName = task.frontmatter.agent;
     const { frontmatter, body: agentBody } = await this.spawner.resolveAgentProfile(agentName, ctx.agentsDir);
 
@@ -633,9 +666,20 @@ export class WorkflowRunner {
     const agentPrompt = this.renderer.render(agentBody, templateContext);
     const taskPrompt = this.renderer.render(task.body, templateContext);
     const acrSection = await this.acrInjector.buildSection(ctx.projectSlug);
-    const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${acrSection}`;
+    const taskMdSection = await this.readTaskMd(ctx.sprintDir);
+    const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${taskMdSection}${acrSection}`;
 
     return { prompt, agentName, frontmatter, taskFrontmatter: task.frontmatter };
+  }
+
+  private async readTaskMd(sprintDir: string | null): Promise<string> {
+    if (!sprintDir) return '';
+    try {
+      const content = await readFile(join(sprintDir, 'TASK.md'), 'utf-8');
+      return `\n\n---\n\n# TASK.md (Sprint Goal)\n\n${content.trim()}`;
+    } catch {
+      return '';
+    }
   }
 
   private async executeStep(
@@ -720,6 +764,7 @@ export class WorkflowRunner {
         effort: resolved.effort,
       },
       timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+      stagnationContext: { waveDir: ctx.waveDir, task: taskSlug, agent: agentName, step: stepIndex },
       jsonSchema: mergeStatusSchema(customSchema),
       onSpawn: (pid) => {
         meta.pid = pid;
@@ -867,6 +912,7 @@ export class WorkflowRunner {
           model: resolved.model,
           effort: resolved.effort,
         },
+        stagnationContext: { waveDir: ctx.waveDir, task: 'resolve-pull-conflicts', agent: agentName, step: 0 },
         jsonSchema: mergeStatusSchema(),
         onSpawn: (pid) => {
           meta.pid = pid;
@@ -1036,6 +1082,13 @@ export class WorkflowRunner {
     ctx: WorkflowRunnerContext,
     featuresFile?: string,
   ): Promise<{ exitCode: number; reason: string }> {
+    // Feature loop always needs sprint (features.json lives in sprint dir)
+    if (ctx.sprintDir == null) {
+      throw new Error(
+        `ralph-wiggum-loop for task "${taskSlug}" requires sprint but workflow "${ctx.workflow.name}" does not provide it. Add "sprint: true" to the workflow YAML.`,
+      );
+    }
+
     const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'ralph-wiggum-loop', task: taskSlug }));
     await mkdir(stepDir, { recursive: true });
 
@@ -1066,13 +1119,14 @@ export class WorkflowRunner {
     const loop = new FeatureLoop(this.notifier, this.acrInjector, this.tokenReporter);
     return loop.execute(taskSlug, {
       worktreeDir: ctx.worktreeDir,
-      sprintDir: ctx.sprintDir,
+      sprintDir: ctx.sprintDir!,
       stepDir: loopDir,
+      waveDir: ctx.waveDir,
       agentsDir: ctx.agentsDir,
       tasksDir: ctx.tasksDir,
       plan: ctx.plan,
       waveNumber: ctx.waveNumber,
-      sprintNumber: ctx.sprintNumber,
+      sprintNumber: ctx.sprintNumber!,
       templateContext: this.buildTemplateContext(ctx),
       project: ctx.projectName,
       projectSlug: ctx.projectSlug,
@@ -1155,7 +1209,10 @@ export class WorkflowRunner {
 
     // Bootstrap new wave (awaited — wave must exist on disk before returning so monitor sees it)
     const newWaveNumber = await detectNextWave(ctx.workspaceDir);
-    const newSprintNumber = await resolveSprintForWave(ctx.workspaceDir, ctx.repoDir, newWaveNumber);
+    const childNeedsSprint = result.data.sprint === true;
+    const newSprintNumber = childNeedsSprint
+      ? await resolveSprintForWave(ctx.workspaceDir, ctx.repoDir, newWaveNumber)
+      : null;
     const projectTaskPath = join(ctx.projectDir, '..', 'TASK.md');
     const { waveDir, worktreeInfo, sprintDir } = await setupWave(
       ctx.workspaceDir,

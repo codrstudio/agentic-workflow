@@ -421,10 +421,11 @@ function printActivitySummary(activity: ActivityInfo, loop?: LoopState | null): 
 
 // ── Print functions ──
 
-function printHeader(projectName: string, projectSlug: string, workflowSlug: string, sprintNumber: number, waveCount: number): void {
+function printHeader(projectName: string, projectSlug: string, workflowSlug: string, sprintNumber: number | null, waveCount: number): void {
   console.log('');
   console.log(`  ${chalk.bold(projectSlug)} — ${projectName}`);
-  console.log(`  workflow: ${workflowSlug} | sprint: ${sprintNumber} | waves: ${waveCount}`);
+  const sprintPart = sprintNumber != null ? ` | sprint: ${sprintNumber}` : '';
+  console.log(`  workflow: ${workflowSlug}${sprintPart} | waves: ${waveCount}`);
 }
 
 function stepBadge(step: StepInfo): string {
@@ -511,9 +512,10 @@ async function printWaveDetail(waveNum: number, steps: StepInfo[], features?: Fe
   }
 }
 
-function printFeatures(features: Feature[], sprintNumber: number): void {
+function printFeatures(features: Feature[], sprintNumber: number | null): void {
   console.log('');
-  console.log(`  ${chalk.gray(`features (sprint-${sprintNumber})`)}`);
+  const label = sprintNumber != null ? `features (sprint-${sprintNumber})` : 'features';
+  console.log(`  ${chalk.gray(label)}`);
 
   for (const f of features) {
     const id = f.id;
@@ -655,7 +657,7 @@ async function main(): Promise<void> {
   const waves = await listWaves(workspaceDir);
 
   // Read sprint from current wave's workflow-state.json
-  let sprintNumber = 1;
+  let sprintNumber: number | null = null;
   if (waves.length > 0) {
     const currentWaveNum = waves[waves.length - 1]!;
     const waveStatePath = join(workspaceDir, `wave-${currentWaveNum}`, 'workflow-state.json');
@@ -686,12 +688,14 @@ async function main(): Promise<void> {
   const currentWaveDir = join(workspaceDir, `wave-${currentWave}`);
 
   // ── Load features (source of truth for metrics) ──
-  const worktreeFeatures = join(currentWaveDir, 'worktree', 'sprints', `sprint-${sprintNumber}`, 'features.json');
-  const repoFeatures = join(repoDir, 'sprints', `sprint-${sprintNumber}`, 'features.json');
   let features: Feature[] | null = null;
-  const rawFeatures = await state.readJson<Feature[]>(worktreeFeatures) ?? await state.readJson<Feature[]>(repoFeatures);
-  if (rawFeatures && Array.isArray(rawFeatures) && rawFeatures.length > 0) {
-    features = rawFeatures;
+  if (sprintNumber != null) {
+    const worktreeFeatures = join(currentWaveDir, 'worktree', 'sprints', `sprint-${sprintNumber}`, 'features.json');
+    const repoFeatures = join(repoDir, 'sprints', `sprint-${sprintNumber}`, 'features.json');
+    const rawFeatures = await state.readJson<Feature[]>(worktreeFeatures) ?? await state.readJson<Feature[]>(repoFeatures);
+    if (rawFeatures && Array.isArray(rawFeatures) && rawFeatures.length > 0) {
+      features = rawFeatures;
+    }
   }
 
   // ── Section 2: Current wave detail ──

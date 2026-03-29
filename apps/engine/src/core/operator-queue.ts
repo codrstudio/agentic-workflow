@@ -11,12 +11,12 @@ import type { EngineEvent, EngineEventType } from '../schemas/event.js';
 
 export interface OperatorQueueDrainConfig {
   worktreeDir: string;
-  sprintDir: string;
+  sprintDir: string | null;
   waveDir: string;
   agentsDir: string;
   tasksDir: string;
   waveNumber: number;
-  sprintNumber: number;
+  sprintNumber: number | null;
   templateContext: Record<string, string>;
   project?: string;
   projectSlug?: string;
@@ -126,6 +126,7 @@ export class OperatorQueue {
           model: frontmatter.model as string | undefined,
         },
         timeoutMs: frontmatter.timeout_minutes ? Number(frontmatter.timeout_minutes) * 60_000 : undefined,
+        stagnationContext: { waveDir: config.waveDir, task: 'operator-message', agent: agentName, step: 0 },
         onSpawn: (pid) => {
           meta.pid = pid;
           this.spawner.writeSpawnMeta(outputDir, meta);

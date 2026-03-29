@@ -4,11 +4,23 @@ import { readFile, access, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { TemplateRenderer } from './template-renderer.js';
 import { now } from './state-manager.js';
+import { writeStagnationReport } from './engine-logger.js';
 import type { TaskFrontmatter } from '../schemas/task.js';
+
+const DEFAULT_INACTIVITY_TIMEOUT_MS = 30 * 60_000; // 30 minutes
 
 export interface ResolvedTask {
   frontmatter: TaskFrontmatter;
   body: string;
+}
+
+export interface StagnationContext {
+  waveDir: string;
+  task: string;
+  agent: string;
+  step: number;
+  feature?: string;
+  attempt?: number;
 }
 
 export interface SpawnAgentParams {
@@ -25,6 +37,7 @@ export interface SpawnAgentParams {
   jsonSchema?: Record<string, unknown>;
   onSpawn?: (pid: number) => void;
   onChunkWritten?: () => void;
+  stagnationContext?: StagnationContext;
 }
 
 export interface SpawnAgentResult {
@@ -58,6 +71,12 @@ export class AgentSpawner {
     const taskPath = join(tasksDir, `${taskSlug}.md`);
     const content = await readFile(taskPath, 'utf-8');
     const { frontmatter, body } = this.renderer.parseFrontmatter(content);
+    // Parse needs (comma-separated string in frontmatter → array)
+    let needs: TaskFrontmatter['needs'];
+    if (frontmatter.needs) {
+      needs = (frontmatter.needs as string).split(',').map((s) => s.trim()) as TaskFrontmatter['needs'];
+    }
+
     return {
       frontmatter: {
         agent: (frontmatter.agent as 'coder' | 'researcher' | 'general') ?? 'coder',
@@ -65,6 +84,7 @@ export class AgentSpawner {
         model: frontmatter.model as TaskFrontmatter['model'],
         effort: frontmatter.effort as TaskFrontmatter['effort'],
         tier: frontmatter.tier as TaskFrontmatter['tier'],
+        needs,
       },
       body,
     };
@@ -145,16 +165,29 @@ export class AgentSpawner {
       let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
       let timedOut = false;
 
+      const effectiveTimeout = timeoutMs ?? (Number(process.env.AGENT_INACTIVITY_TIMEOUT_MS) || DEFAULT_INACTIVITY_TIMEOUT_MS);
+
       const resetTimer = () => {
         if (inactivityTimer) clearTimeout(inactivityTimer);
-        if (timeoutMs && timeoutMs > 0) {
+        if (effectiveTimeout > 0) {
           inactivityTimer = setTimeout(() => {
             timedOut = true;
+
+            // Write stagnation report before killing
+            if (params.stagnationContext) {
+              writeStagnationReport({
+                ...params.stagnationContext,
+                pid,
+                inactivityMs: effectiveTimeout,
+                outputDir: outputDir,
+              });
+            }
+
             proc.kill('SIGTERM');
             setTimeout(() => {
               if (!proc.killed) proc.kill('SIGKILL');
             }, 10_000);
-          }, timeoutMs);
+          }, effectiveTimeout);
         }
       };
 

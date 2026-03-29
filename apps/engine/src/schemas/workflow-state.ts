@@ -31,7 +31,7 @@ export const WorkflowStatusSchema = z.enum([
 export const WorkflowStateSchema = z.object({
   workflow: z.string(),
   wave: z.number(),
-  sprint: z.number(),
+  sprint: z.number().nullable().optional(),
   initialized_at: z.string(),
   status: WorkflowStatusSchema.optional(),
   stopped_reason: z.string().optional(),

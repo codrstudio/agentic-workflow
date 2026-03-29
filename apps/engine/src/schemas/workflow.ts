@@ -44,6 +44,7 @@ export const WorkflowStepSchema = z.discriminatedUnion('type', [
 export const WorkflowSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
+  sprint: z.boolean().optional(),
   steps: z.array(WorkflowStepSchema).min(1),
 });
 

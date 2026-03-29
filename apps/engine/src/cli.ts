@@ -177,7 +177,7 @@ async function main(): Promise<void> {
   console.log(`  repo:      ${result.repoDir}`);
   console.log(`  worktree:  ${result.worktreeInfo.path}`);
   console.log(`  wave:      ${result.waveNumber}${result.resumed ? chalk.yellow(' (resuming)') : ''}`);
-  console.log(`  sprint:    ${result.sprintNumber}`);
+  if (result.sprintNumber != null) console.log(`  sprint:    ${result.sprintNumber}`);
   console.log(`  plan:      ${result.plan.slug} (${result.plan.name})\n`);
 
   // Build context

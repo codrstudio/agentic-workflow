@@ -27,8 +27,8 @@ export interface BootstrapResult {
   worktreeInfo: WorktreeInfo;
   waveNumber: number;
   waveDir: string;
-  sprintNumber: number;
-  sprintDir: string;
+  sprintNumber: number | null;
+  sprintDir: string | null;
   resumed: boolean;
   resolvedRepoConfig: ResolvedRepoConfig | null;
 }
@@ -253,14 +253,21 @@ export async function detectResumableWave(
     const ws = await state.readJson<WorkflowState>(statePath);
     if (!ws || !ws.steps) continue;
 
-    // If workflow ended (completed or failed), don't resume.
-    // 'stopped' is intentional pause — still resumable when user clicks "Retomar".
-    if (ws.status === 'completed' || ws.status === 'failed') {
+    // If workflow completed successfully, don't resume — start a new wave.
+    if (ws.status === 'completed') {
       return null;
     }
 
+    // 'stopped' is intentional pause — still resumable when user clicks "Retomar".
+    // 'failed' is also resumable — retry failed steps instead of skipping to a new wave.
+    // For stopped/failed waves, skipped steps will be reset to pending on resume.
     const hasIncomplete = ws.steps.some((s: WorkflowStepState) => s.status !== 'completed' && s.status !== 'skipped');
-    if (!hasIncomplete) return null; // all steps completed or skipped → nothing to resume
+    const hasSkipped = ws.steps.some((s: WorkflowStepState) => s.status === 'skipped');
+    const isStoppedOrFailed = ws.status === 'stopped' || ws.status === 'failed';
+
+    if (!hasIncomplete && !(isStoppedOrFailed && hasSkipped)) {
+      return null; // all steps truly done and not a stopped/failed wave with skipped work
+    }
 
     return { waveNumber: n, workflowState: ws };
   }
@@ -272,11 +279,11 @@ export async function setupWave(
   workspaceDir: string,
   repoDir: string,
   waveNumber: number,
-  sprintNumber: number,
+  sprintNumber: number | null,
   workflow: Workflow,
   targetBranch?: string,
   projectTaskPath?: string,
-): Promise<{ waveDir: string; worktreeInfo: WorktreeInfo; sprintDir: string }> {
+): Promise<{ waveDir: string; worktreeInfo: WorktreeInfo; sprintDir: string | null }> {
   const waveDir = join(workspaceDir, `wave-${waveNumber}`);
   await mkdir(waveDir, { recursive: true });
 
@@ -286,24 +293,27 @@ export async function setupWave(
   const wtm = new WorktreeManager(repoDir);
   const worktreeInfo = wtm.create(worktreePath, branchName, targetBranch);
 
-  // Ensure sprint scaffolding in worktree
-  const sprintDir = join(worktreeInfo.path, 'sprints', `sprint-${sprintNumber}`);
-  await mkdir(join(sprintDir, '1-brainstorming'), { recursive: true });
-  await mkdir(join(sprintDir, '2-specs'), { recursive: true });
-  await mkdir(join(sprintDir, '3-prps'), { recursive: true });
+  // Ensure sprint scaffolding in worktree (only if workflow uses sprint)
+  let sprintDir: string | null = null;
+  if (sprintNumber != null) {
+    sprintDir = join(worktreeInfo.path, 'sprints', `sprint-${sprintNumber}`);
+    await mkdir(join(sprintDir, '1-brainstorming'), { recursive: true });
+    await mkdir(join(sprintDir, '2-specs'), { recursive: true });
+    await mkdir(join(sprintDir, '3-prps'), { recursive: true });
 
-  // Snapshot TASK.md into sprint for historical reference
-  if (projectTaskPath) {
-    try {
-      await copyFile(projectTaskPath, join(sprintDir, 'TASK.md'));
-    } catch { /* TASK.md may not exist — skip silently */ }
+    // Snapshot TASK.md into sprint for historical reference
+    if (projectTaskPath) {
+      try {
+        await copyFile(projectTaskPath, join(sprintDir, 'TASK.md'));
+      } catch { /* TASK.md may not exist — skip silently */ }
+    }
   }
 
   // Create workflow-state.json deterministically from workflow steps
   const workflowState: WorkflowState = {
     workflow: workflow.name,
     wave: waveNumber,
-    sprint: sprintNumber,
+    sprint: sprintNumber ?? null,
     initialized_at: now(),
     steps: workflow.steps.map((step, i) => ({
       index: i + 1,
@@ -378,17 +388,27 @@ export async function bootstrap(
 
   const projectDir = resolveProjectDir(contextDir, projectConfig);
 
+  const needsSprint = workflow.sprint === true;
+
   // Check for resumable wave before creating a new one
   const resumable = await detectResumableWave(workspaceDir);
   if (resumable) {
     const waveDir = join(workspaceDir, `wave-${resumable.waveNumber}`);
     const worktreePath = join(waveDir, 'worktree');
     const branchName = `harness/wave-${resumable.waveNumber}`;
-    const sprintDir = join(
-      worktreePath,
-      'sprints',
-      `sprint-${resumable.workflowState.sprint}`,
-    );
+
+    // If worktree doesn't exist (engine died during setupWave), recreate it
+    if (!(await dirExists(worktreePath))) {
+      const wtm = new WorktreeManager(repoDir);
+      wtm.create(worktreePath, branchName, resolvedRepoConfig?.target_branch);
+    }
+
+    const resumedSprint = resumable.workflowState.sprint ?? null;
+    let sprintDir: string | null = null;
+    if (resumedSprint != null) {
+      sprintDir = join(worktreePath, 'sprints', `sprint-${resumedSprint}`);
+      await mkdir(sprintDir, { recursive: true });
+    }
 
     // Read HEAD from existing worktree
     let head = '';
@@ -410,7 +430,7 @@ export async function bootstrap(
       worktreeInfo: { path: worktreePath, branch: branchName, head, bare: false },
       waveNumber: resumable.waveNumber,
       waveDir,
-      sprintNumber: resumable.workflowState.sprint,
+      sprintNumber: resumedSprint,
       sprintDir,
       resumed: true,
       resolvedRepoConfig,
@@ -418,7 +438,9 @@ export async function bootstrap(
   }
 
   const waveNumber = await detectNextWave(workspaceDir);
-  const sprintNumber = await resolveSprintForWave(workspaceDir, repoDir, waveNumber);
+  const sprintNumber = needsSprint
+    ? await resolveSprintForWave(workspaceDir, repoDir, waveNumber)
+    : null;
 
   const projectTaskPath = join(contextDir, 'projects', projectSlug, 'TASK.md');
   const { waveDir, worktreeInfo, sprintDir } = await setupWave(
