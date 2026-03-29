@@ -24,6 +24,14 @@ import { readServerRunMeta, isRunActive, type RunMode } from '../routes/runs.js'
 
 const app = new Hono();
 
+export type ActivityEntry =
+  | { kind: 'thinking'; text: string }
+  | { kind: 'text'; text: string }
+  | { kind: 'tool_call'; name: string; summary: string }
+  | { kind: 'tool_result'; name: string; success: boolean; snippet: string }
+  | { kind: 'result'; is_error: boolean; cost_usd: number; duration_ms: number; num_turns: number; input_tokens: number; output_tokens: number; cache_read_tokens: number; result_text: string; stop_reason: string }
+  | { kind: 'rate_limit'; utilization: number; status: string; resets_at: number };
+
 export interface MonitorData {
   project: {
     name: string;
@@ -42,6 +50,7 @@ export interface MonitorData {
   feature_counters: { passing: number; failing: number; skipped: number; pending: number; in_progress: number; blocked: number };
   features: unknown[];
   last_output: string[];
+  activity_feed: ActivityEntry[];
   activity: { last_output_age_ms: number | null; step_elapsed_ms: number | null; engine_pid: number | null; engine_alive: boolean; agent_pid: number | null; agent_alive: boolean; run_mode: 'spawn' | 'detached'; run_id: string | null; run_active: boolean };
   resumable: boolean;
   wave_history: Array<{ number: number; status: StepStatus; steps_total: number; steps_done: number; duration_ms: number | null }>;
@@ -72,6 +81,118 @@ async function formatLastOutput(jsonlPath: string): Promise<string[]> {
   return readable.slice(-5);
 }
 
+
+function summarizeToolInput(name: string, input: Record<string, unknown>): string {
+  switch (name) {
+    case 'Read': return String(input['file_path'] ?? '');
+    case 'Write': return String(input['file_path'] ?? '');
+    case 'Edit': return String(input['file_path'] ?? '');
+    case 'Glob': return String(input['pattern'] ?? '');
+    case 'Grep': return String(input['pattern'] ?? '');
+    case 'Bash': {
+      const cmd = String(input['command'] ?? '');
+      return cmd.length > 120 ? cmd.slice(0, 117) + '…' : cmd;
+    }
+    case 'TodoWrite':
+    case 'TaskCreate': return String(input['subject'] ?? input['description'] ?? '').slice(0, 80);
+    case 'Agent': return String(input['description'] ?? input['prompt'] ?? '').slice(0, 80);
+    default: {
+      const keys = Object.keys(input);
+      if (keys.length === 0) return '';
+      const first = input[keys[0]!];
+      return typeof first === 'string' ? first.slice(0, 80) : '';
+    }
+  }
+}
+
+function extractToolResultSnippet(content: Array<Record<string, unknown>>): string {
+  for (const block of content) {
+    if (block['type'] === 'tool_result') {
+      const inner = block['content'];
+      if (typeof inner === 'string') return inner.slice(0, 200);
+      if (Array.isArray(inner)) {
+        for (const part of inner as Array<Record<string, unknown>>) {
+          if (part['type'] === 'text' && typeof part['text'] === 'string') {
+            return (part['text'] as string).slice(0, 200);
+          }
+        }
+      }
+    }
+  }
+  return '';
+}
+
+async function formatActivityFeed(jsonlPath: string): Promise<ActivityEntry[]> {
+  const lines = await parseSpawnJsonl(jsonlPath);
+  const feed: ActivityEntry[] = [];
+  // Track tool_use_id → tool name for correlating results
+  const toolNameById = new Map<string, string>();
+
+  for (const line of lines) {
+    const raw = line.raw as Record<string, unknown>;
+    const msg = raw['message'] as Record<string, unknown> | undefined;
+    const content = Array.isArray(msg?.['content']) ? (msg!['content'] as Array<Record<string, unknown>>) : [];
+
+    if (raw['type'] === 'assistant') {
+      for (const block of content) {
+        if (block['type'] === 'thinking' && typeof block['thinking'] === 'string') {
+          const text = (block['thinking'] as string).trim();
+          if (text) {
+            feed.push({ kind: 'thinking', text: text.length > 300 ? text.slice(0, 297) + '…' : text });
+          }
+        } else if (block['type'] === 'text' && typeof block['text'] === 'string') {
+          const text = (block['text'] as string).trim();
+          if (text) {
+            feed.push({ kind: 'text', text: text.length > 500 ? text.slice(0, 497) + '…' : text });
+          }
+        } else if (block['type'] === 'tool_use' && typeof block['name'] === 'string') {
+          const name = block['name'] as string;
+          const input = (block['input'] as Record<string, unknown>) ?? {};
+          const id = block['id'] as string | undefined;
+          if (id) toolNameById.set(id, name);
+          feed.push({ kind: 'tool_call', name, summary: summarizeToolInput(name, input) });
+        }
+      }
+    } else if (raw['type'] === 'user') {
+      for (const block of content) {
+        if (block['type'] === 'tool_result') {
+          const toolUseId = block['tool_use_id'] as string | undefined;
+          const toolName = (toolUseId && toolNameById.get(toolUseId)) ?? '?';
+          const isError = block['is_error'] === true;
+          const snippet = extractToolResultSnippet([block]);
+          feed.push({ kind: 'tool_result', name: toolName, success: !isError, snippet });
+        }
+      }
+    } else if (raw['type'] === 'result') {
+      const usage = raw['usage'] as Record<string, unknown> | undefined;
+      feed.push({
+        kind: 'result',
+        is_error: raw['is_error'] === true,
+        cost_usd: (raw['total_cost_usd'] as number) ?? 0,
+        duration_ms: (raw['duration_ms'] as number) ?? 0,
+        num_turns: (raw['num_turns'] as number) ?? 0,
+        input_tokens: (usage?.['input_tokens'] as number) ?? 0,
+        output_tokens: (usage?.['output_tokens'] as number) ?? 0,
+        cache_read_tokens: (usage?.['cache_read_input_tokens'] as number) ?? 0,
+        result_text: typeof raw['result'] === 'string' ? (raw['result'] as string).slice(0, 500) : '',
+        stop_reason: (raw['stop_reason'] as string) ?? '',
+      });
+    } else if (raw['type'] === 'rate_limit_event') {
+      const info = raw['rate_limit_info'] as Record<string, unknown> | undefined;
+      if (info) {
+        feed.push({
+          kind: 'rate_limit',
+          utilization: (info['utilization'] as number) ?? 0,
+          status: (info['status'] as string) ?? 'unknown',
+          resets_at: (info['resetsAt'] as number) ?? 0,
+        });
+      }
+    }
+  }
+
+  // Return last 20 entries (richer than old 5-line limit)
+  return feed.slice(-20);
+}
 
 async function getLastOutputAge(jsonlPath: string): Promise<number | null> {
   try {
@@ -130,6 +251,7 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
   let featureCounters = { passing: 0, failing: 0, skipped: 0, pending: 0, in_progress: 0, blocked: 0 };
   let features: unknown[] = [];
   let lastOutput: string[] = [];
+  let activityFeed: ActivityEntry[] = [];
   const runMeta = await readServerRunMeta(workspaceDir);
   const runMode: RunMode = runMeta?.run_mode ?? 'detached';
 
@@ -199,6 +321,7 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
     const activeJsonlPath = await findActiveStepJsonl(wavePath);
     if (activeJsonlPath) {
       lastOutput = await formatLastOutput(activeJsonlPath);
+      activityFeed = await formatActivityFeed(activeJsonlPath);
       activity.last_output_age_ms = await getLastOutputAge(activeJsonlPath);
     }
 
@@ -277,6 +400,7 @@ export async function buildMonitorSnapshot(slug: string): Promise<MonitorData | 
     feature_counters: featureCounters,
     features,
     last_output: lastOutput,
+    activity_feed: activityFeed,
     activity,
     resumable,
     wave_history: waveHistory,

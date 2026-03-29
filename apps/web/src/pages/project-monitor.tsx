@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, Link } from "@tanstack/react-router"
 import { apiFetch } from "@/lib/api"
 import { useSSEContext } from "@/contexts/sse-context"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { Square, Play } from "lucide-react"
+import { Square, Play, Brain, MessageSquare, Wrench, CheckCircle2, XCircle, AlertTriangle, DollarSign } from "lucide-react"
 
 type StepStatus = "pending" | "running" | "completed" | "failed" | "interrupted"
 
@@ -71,6 +71,14 @@ interface WaveHistoryEntry {
   duration_ms: number | null
 }
 
+type ActivityEntry =
+  | { kind: "thinking"; text: string }
+  | { kind: "text"; text: string }
+  | { kind: "tool_call"; name: string; summary: string }
+  | { kind: "tool_result"; name: string; success: boolean; snippet: string }
+  | { kind: "result"; is_error: boolean; cost_usd: number; duration_ms: number; num_turns: number; input_tokens: number; output_tokens: number; cache_read_tokens: number; result_text: string; stop_reason: string }
+  | { kind: "rate_limit"; utilization: number; status: string; resets_at: number }
+
 interface MonitorData {
   project: {
     name: string
@@ -84,6 +92,7 @@ interface MonitorData {
   feature_counters: FeatureCounters
   features: Feature[]
   last_output: string[]
+  activity_feed: ActivityEntry[]
   activity: ActivityInfo
   resumable: boolean
   wave_history: WaveHistoryEntry[]
@@ -154,12 +163,129 @@ function fmtAge(ms: number | null): string {
   return `${m}m atrás`
 }
 
+function fmtTokens(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
+  return String(n)
+}
+
+function ActivityFeedItem({ entry }: { entry: ActivityEntry }) {
+  switch (entry.kind) {
+    case "thinking":
+      return (
+        <div className="flex gap-1.5 items-start text-xs">
+          <Brain className="w-3.5 h-3.5 text-purple-500 shrink-0 mt-0.5" />
+          <span className="text-purple-400/70 italic line-clamp-2">{entry.text}</span>
+        </div>
+      )
+    case "text":
+      return (
+        <div className="flex gap-1.5 items-start text-xs">
+          <MessageSquare className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+          <span className="text-foreground/80 line-clamp-3 break-words">{entry.text}</span>
+        </div>
+      )
+    case "tool_call":
+      return (
+        <div className="flex gap-1.5 items-start text-xs">
+          <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <span className="font-semibold text-amber-500">{entry.name}</span>
+            {entry.summary && (
+              <span className="ml-1.5 text-muted-foreground font-mono truncate block">{entry.summary}</span>
+            )}
+          </div>
+        </div>
+      )
+    case "tool_result":
+      return (
+        <div className="flex gap-1.5 items-start text-xs pl-5">
+          {entry.success ? (
+            <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0 mt-0.5" />
+          ) : (
+            <XCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+          )}
+          <div className="min-w-0">
+            <span className={`text-[10px] font-mono ${entry.success ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+              {entry.name} {entry.success ? "ok" : "erro"}
+            </span>
+            {entry.snippet && (
+              <p className="text-muted-foreground font-mono text-[10px] line-clamp-2 break-all mt-0.5">{entry.snippet}</p>
+            )}
+          </div>
+        </div>
+      )
+    case "result":
+      return (
+        <div className={`rounded border p-2 text-xs ${entry.is_error ? "border-red-500/30 bg-red-500/5" : "border-green-500/30 bg-green-500/5"}`}>
+          <div className="flex items-center gap-2 mb-1.5">
+            {entry.is_error ? (
+              <XCircle className="w-3.5 h-3.5 text-red-500" />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+            )}
+            <span className={`font-semibold ${entry.is_error ? "text-red-500" : "text-green-500"}`}>
+              {entry.is_error ? "Falhou" : "Concluído"}
+            </span>
+            <span className="text-muted-foreground">{fmtDuration(entry.duration_ms)}</span>
+            <span className="text-muted-foreground">{entry.num_turns} turns</span>
+          </div>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground font-mono">
+            <span><DollarSign className="w-2.5 h-2.5 inline" /> ${entry.cost_usd.toFixed(2)}</span>
+            <span>in {fmtTokens(entry.input_tokens)}</span>
+            <span>out {fmtTokens(entry.output_tokens)}</span>
+            {entry.cache_read_tokens > 0 && <span className="col-span-3">cache {fmtTokens(entry.cache_read_tokens)}</span>}
+          </div>
+          {entry.result_text && (
+            <p className="mt-1.5 text-foreground/70 line-clamp-3 break-words">{entry.result_text}</p>
+          )}
+        </div>
+      )
+    case "rate_limit": {
+      const pct = Math.round(entry.utilization * 100)
+      const isWarning = entry.status === "allowed_warning" || entry.status === "denied"
+      return (
+        <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${isWarning ? "bg-amber-500/10" : "bg-muted/50"}`}>
+          <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${isWarning ? "text-amber-500" : "text-muted-foreground"}`} />
+          <div className="flex-1 min-w-0">
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${pct > 80 ? "bg-red-500" : pct > 50 ? "bg-amber-500" : "bg-green-500"}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+          <span className={`text-[10px] font-mono tabular-nums ${isWarning ? "text-amber-500" : "text-muted-foreground"}`}>
+            {pct}%
+          </span>
+        </div>
+      )
+    }
+  }
+}
+
 export function ProjectMonitorPage() {
   const { slug } = useParams({ from: "/_auth/projects/$slug/monitor" })
   const { subscribe } = useSSEContext()
   const [data, setData] = useState<MonitorData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
+
+  const activityFeedRef = useRef<HTMLDivElement>(null)
+  const activityAutoScroll = useRef(true)
+
+  const handleActivityScroll = useCallback(() => {
+    const el = activityFeedRef.current
+    if (!el) return
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+    activityAutoScroll.current = atBottom
+  }, [])
+
+  useEffect(() => {
+    const el = activityFeedRef.current
+    if (!el || !activityAutoScroll.current) return
+    el.scrollTop = el.scrollHeight
+  }, [data?.activity_feed])
 
   const fetchData = useCallback(() => {
     apiFetch(`/api/v1/projects/${slug}/monitor`)
@@ -460,27 +586,26 @@ export function ProjectMonitorPage() {
             )
           })()}
 
-          {/* Card: Last Agent Output */}
+          {/* Card: Activity Feed */}
           <div className="bg-card border rounded-lg p-3 flex-shrink-0">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Última Saída do Agente
-            </p>
-            <div className="overflow-y-auto h-[200px]">
-              {data.last_output.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">Sem saída disponível</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                Atividade do Agente
+              </p>
+              {data.activity.agent_alive && (
+                <span className="flex items-center gap-1 text-[10px] text-green-500">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  ao vivo
+                </span>
+              )}
+            </div>
+            <div ref={activityFeedRef} onScroll={handleActivityScroll} className="overflow-y-auto h-[240px]">
+              {data.activity_feed.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">Sem atividade</p>
               ) : (
-                <div className="flex flex-col gap-1">
-                  {data.last_output.map((line, i) => (
-                    <p
-                      key={i}
-                      className={`text-xs font-mono break-words leading-relaxed ${
-                        line.startsWith("→ tool:")
-                          ? "text-amber-600 dark:text-amber-400"
-                          : "text-foreground/80"
-                      }`}
-                    >
-                      {line}
-                    </p>
+                <div className="flex flex-col gap-1.5">
+                  {data.activity_feed.map((entry, i) => (
+                    <ActivityFeedItem key={i} entry={entry} />
                   ))}
                 </div>
               )}
