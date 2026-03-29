@@ -31,6 +31,7 @@ Desktop.ini
 context/workspaces/*/**
 context/projects/*/**
 context/*/x-*
+context/.x-*
 sprints/
 !.gitkeep
 
