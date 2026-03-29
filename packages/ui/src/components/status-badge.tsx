@@ -20,7 +20,6 @@ const STATUS_COLORS: Record<string, string> = {
   running: COLOR.active,
   in_progress: COLOR.active,
   resuming: COLOR.active,
-  initializing: COLOR.active,
   // error
   failed: COLOR.error,
   failing: COLOR.error,
@@ -29,6 +28,8 @@ const STATUS_COLORS: Record<string, string> = {
   blocked: COLOR.warning,
   // mild warning
   skipped: COLOR.mild,
+  // neutral
+  pending: COLOR.neutral,
 }
 
 // ── Display status derivation ────────────────────────────────────────
@@ -47,7 +48,6 @@ export function deriveDisplayStatus(
   if (!ctx.engineOn) return raw
 
   if (raw === "interrupted") return "resuming"
-  if (raw === "pending") return "initializing"
   return raw
 }
 
