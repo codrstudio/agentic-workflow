@@ -446,6 +446,18 @@ export function ProjectMonitorPage() {
                       <span className={`truncate ${f.status === "passing" ? "text-muted-foreground/60" : f.status === "skipped" ? "text-muted-foreground/40 line-through" : "text-foreground/80"}`}>
                         {f.name}
                       </span>
+                      <span className="ml-auto flex items-center gap-2 flex-shrink-0">
+                        {f.status === "blocked" && f.dependencies.length > 0 && (
+                          <span className="text-[10px] text-red-400/80 font-mono">
+                            ← {f.dependencies.filter(dep => data.features.find(df => df.id === dep && df.status !== "passing")).map(dep => dep).join(", ")}
+                          </span>
+                        )}
+                        {f.priority != null && (
+                          <span className="text-[10px] text-muted-foreground/60 font-mono tabular-nums">
+                            P{f.priority}
+                          </span>
+                        )}
+                      </span>
                     </div>
                   ))}
                 </div>
