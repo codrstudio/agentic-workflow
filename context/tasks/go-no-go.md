@@ -1,6 +1,7 @@
 ---
 agent: general
 description: Avalia viabilidade do Value Map e decide GO/STOP
+needs: sprint
 ---
 
 # Go / No-Go Decision

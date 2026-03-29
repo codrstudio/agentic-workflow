@@ -1,5 +1,6 @@
 name: x-vibe-game
 description: Workflow de produto para jogos — playtesting com agentes em vez de pesquisa web
+sprint: true
 
 steps:
   - type: spawn-agent

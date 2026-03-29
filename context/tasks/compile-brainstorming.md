@@ -1,6 +1,7 @@
 ---
 agent: general
 description: Sintetiza materiais do projeto em brainstorming e ranking para a wave
+needs: sprint
 ---
 
 # Compile Brainstorming

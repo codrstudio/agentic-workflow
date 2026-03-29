@@ -1,6 +1,7 @@
 ---
 agent: coder
 description: Implementa uma feature de codigo completamente numa sessao
+needs: sprint
 ---
 
 # Vibe Code

@@ -1,5 +1,6 @@
 name: vibe-app
-description: Workflow completo de produto — da análise à implementação
+description: Brainstorming → specs → PRPs → implementação (wave única)
+sprint: true
 
 steps:
   - type: spawn-agent

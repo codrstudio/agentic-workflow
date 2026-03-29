@@ -1,6 +1,7 @@
 ---
 agent: general
 description: Deriva specs tecnicas a partir do brainstorming e ranking da wave
+needs: sprint
 ---
 
 # Derive Specs

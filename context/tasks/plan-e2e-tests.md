@@ -1,6 +1,7 @@
 ---
 agent: general
 description: Planeja test cases E2E a partir das features implementadas
+needs: sprint
 ---
 
 # Plan E2E Tests

@@ -1,6 +1,7 @@
 ---
 agent: general
 description: Deriva PRPs a partir das specs da wave
+needs: sprint
 ---
 
 # Derive PRPs

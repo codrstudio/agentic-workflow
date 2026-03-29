@@ -1,6 +1,7 @@
 ---
 agent: coder
 description: Executa um test case E2E via Playwright, corrige erros encontrados
+needs: sprint
 ---
 
 # E2E Test

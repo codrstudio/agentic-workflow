@@ -1,5 +1,6 @@
 name: vibe-full-app
-description: Workflow completo de produto — da análise à implementação
+description: Pain-gain analysis → go/no-go → specs → implementação em waves
+sprint: true
 
 steps:
   - type: spawn-agent

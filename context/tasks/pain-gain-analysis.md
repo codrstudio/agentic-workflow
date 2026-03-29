@@ -1,6 +1,7 @@
 ---
 agent: researcher
 description: Pesquisa de mercado e analise de dores/ganhos — produz Value Map
+needs: sprint
 ---
 
 # Pain-Gain Analysis

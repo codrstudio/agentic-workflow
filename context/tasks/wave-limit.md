@@ -1,6 +1,7 @@
 ---
 agent: general
 description: Avalia se deve continuar encadeando waves
+needs: sprint
 ---
 
 # Wave Limit

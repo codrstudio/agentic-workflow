@@ -1,6 +1,7 @@
 ---
 agent: coder
 description: Roda testes, diagnostica falhas e corrige codigo ate tudo passar
+needs: sprint
 ---
 
 # Test & Fix

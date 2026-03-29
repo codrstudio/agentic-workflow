@@ -1,6 +1,7 @@
 ---
 agent: general
 description: Planeja features e gera/amplia features.json a partir dos PRPs
+needs: sprint
 ---
 
 # Plan Features
