@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams } from "@tanstack/react-router"
 import {
   CheckCircle2,
@@ -7,28 +7,21 @@ import {
   ArrowDown,
   Search,
   Clock,
-  User,
-  Bot,
+  Brain,
+  MessageSquare,
   Wrench,
-  Terminal,
-  AlertCircle,
+  AlertTriangle,
+  DollarSign,
 } from "lucide-react"
-import { List, useListRef } from "react-window"
 import { apiFetch } from "@/lib/api"
+import { fmtDuration, fmtTokens } from "@/lib/format"
+import { type LogLine, type LogLineType, type ParsedLine, type ContentBlock, parseAllLines } from "@/lib/jsonl"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type LogLineType = "system" | "assistant" | "tool_use" | "tool_result" | "user"
-
-interface LogLine {
-  index: number
-  type: LogLineType
-  raw: unknown
-}
-
 interface AttemptMeta {
   dir: string
-  feature?: string  // only for loop step attempts (F-XXX)
+  feature?: string
   attempt: number
   task?: string
   agent?: string
@@ -54,7 +47,6 @@ interface StepMeta {
   model_used?: string
   status: "pending" | "running" | "completed" | "failed"
   duration_ms?: number
-  // loop-specific
   type?: string
   iteration?: number
   total?: number
@@ -67,15 +59,6 @@ interface StepMeta {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatDuration(ms?: number): string {
-  if (ms == null) return ""
-  const seconds = Math.floor(ms / 1000)
-  if (seconds < 60) return `${seconds}s`
-  const minutes = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`
-}
-
 function formatTime(iso?: string): string {
   if (!iso) return "—"
   const d = new Date(iso)
@@ -84,172 +67,155 @@ function formatTime(iso?: string): string {
   return `${date} ${time}`
 }
 
-/** Extract a human-readable summary from a raw log line. */
-function extractText(line: LogLine): string {
-  const raw = line.raw as Record<string, unknown>
+const TYPE_FILTERS: { type: LogLineType; label: string; activeClass: string }[] = [
+  { type: "assistant", label: "assistant", activeClass: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-400/40" },
+  { type: "tool_use", label: "tool_use", activeClass: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-400/40" },
+  { type: "tool_result", label: "tool_result", activeClass: "bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-400/40" },
+  { type: "system", label: "system", activeClass: "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-400/40" },
+  { type: "user", label: "user", activeClass: "bg-green-500/15 text-green-600 dark:text-green-400 border-green-400/40" },
+]
 
-  if (line.type === "system") {
-    // system lines usually have { type: "system", subtype: "init", ... }
-    const subtype = raw["subtype"] as string | undefined
-    if (subtype === "init") return "[system init]"
-    return JSON.stringify(raw).slice(0, 200)
-  }
+// ─── ContentBlockView (monitor-style rendering) ─────────────────────────────
 
-  if (line.type === "assistant" || line.type === "tool_use") {
-    const msg = raw["message"] as Record<string, unknown> | undefined
-    const content = Array.isArray(msg?.["content"])
-      ? (msg!["content"] as Array<Record<string, unknown>>)
-      : []
-    const parts: string[] = []
-    for (const c of content) {
-      if (c["type"] === "text") {
-        parts.push((c["text"] as string) ?? "")
-      } else if (c["type"] === "tool_use") {
-        const input = c["input"] ? JSON.stringify(c["input"]).slice(0, 120) : ""
-        parts.push(`[tool: ${c["name"] ?? "unknown"}] ${input}`)
-      }
+function ContentBlockView({ block }: { block: ContentBlock }) {
+  switch (block.kind) {
+    case "thinking":
+      return (
+        <div className="flex gap-1.5 items-start text-xs">
+          <Brain className="w-3.5 h-3.5 text-purple-500 shrink-0 mt-0.5" />
+          <span className="text-purple-400/70 italic line-clamp-2">{block.text}</span>
+        </div>
+      )
+    case "text":
+      return (
+        <div className="flex gap-1.5 items-start text-xs">
+          <MessageSquare className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+          <span className="text-foreground/80 line-clamp-3 break-words">{block.text}</span>
+        </div>
+      )
+    case "tool_call":
+      return (
+        <div className="flex gap-1.5 items-start text-xs">
+          <Wrench className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <span className="font-semibold text-amber-500">{block.name}</span>
+            {block.summary && (
+              <span className="ml-1.5 text-muted-foreground font-mono truncate block">{block.summary}</span>
+            )}
+          </div>
+        </div>
+      )
+    case "tool_result":
+      return (
+        <div className="flex gap-1.5 items-start text-xs pl-5">
+          {block.success ? (
+            <CheckCircle2 className="w-3 h-3 text-green-500 shrink-0 mt-0.5" />
+          ) : (
+            <XCircle className="w-3 h-3 text-red-500 shrink-0 mt-0.5" />
+          )}
+          <div className="min-w-0">
+            <span className={`text-[10px] font-mono ${block.success ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+              {block.name} {block.success ? "ok" : "erro"}
+            </span>
+            {block.snippet && (
+              <p className="text-muted-foreground font-mono text-[10px] line-clamp-2 break-all mt-0.5">{block.snippet}</p>
+            )}
+          </div>
+        </div>
+      )
+    case "result":
+      return (
+        <div className={`rounded border p-2 text-xs ${block.is_error ? "border-red-500/30 bg-red-500/5" : "border-green-500/30 bg-green-500/5"}`}>
+          <div className="flex items-center gap-2 mb-1.5">
+            {block.is_error ? (
+              <XCircle className="w-3.5 h-3.5 text-red-500" />
+            ) : (
+              <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+            )}
+            <span className={`font-semibold ${block.is_error ? "text-red-500" : "text-green-500"}`}>
+              {block.is_error ? "Falhou" : "Concluído"}
+            </span>
+            <span className="text-muted-foreground">{fmtDuration(block.duration_ms)}</span>
+            <span className="text-muted-foreground">{block.num_turns} turns</span>
+          </div>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground font-mono">
+            <span><DollarSign className="w-2.5 h-2.5 inline" /> ${block.cost_usd.toFixed(2)}</span>
+            <span>in {fmtTokens(block.input_tokens)}</span>
+            <span>out {fmtTokens(block.output_tokens)}</span>
+            {block.cache_read_tokens > 0 && <span className="col-span-3">cache {fmtTokens(block.cache_read_tokens)}</span>}
+          </div>
+          {block.result_text && (
+            <p className="mt-1.5 text-foreground/70 line-clamp-3 break-words">{block.result_text}</p>
+          )}
+        </div>
+      )
+    case "rate_limit": {
+      const pct = Math.round(block.utilization * 100)
+      const isWarning = block.status === "allowed_warning" || block.status === "denied"
+      return (
+        <div className={`flex items-center gap-2 text-xs rounded px-2 py-1 ${isWarning ? "bg-amber-500/10" : "bg-muted/50"}`}>
+          <AlertTriangle className={`w-3.5 h-3.5 shrink-0 ${isWarning ? "text-amber-500" : "text-muted-foreground"}`} />
+          <div className="flex-1 min-w-0 max-w-[120px]">
+            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${pct > 80 ? "bg-red-500" : pct > 50 ? "bg-amber-500" : "bg-green-500"}`}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+          <span className={`text-[10px] font-mono tabular-nums ${isWarning ? "text-amber-500" : "text-muted-foreground"}`}>
+            {pct}%
+          </span>
+        </div>
+      )
     }
-    return parts.join(" ").trim() || JSON.stringify(raw).slice(0, 200)
+    case "raw":
+      return (
+        <div className="text-xs text-muted-foreground font-mono truncate">{block.text}</div>
+      )
   }
-
-  if (line.type === "tool_result" || line.type === "user") {
-    const msg = raw["message"] as Record<string, unknown> | undefined
-    const content = Array.isArray(msg?.["content"])
-      ? (msg!["content"] as Array<Record<string, unknown>>)
-      : []
-    const parts: string[] = []
-    for (const c of content) {
-      if (c["type"] === "tool_result") {
-        const inner = Array.isArray(c["content"]) ? (c["content"] as Array<Record<string, unknown>>) : []
-        for (const ic of inner) {
-          if (ic["type"] === "text") parts.push((ic["text"] as string) ?? "")
-        }
-        if (!parts.length && typeof c["content"] === "string") {
-          parts.push(c["content"] as string)
-        }
-      } else if (c["type"] === "text") {
-        parts.push((c["text"] as string) ?? "")
-      }
-    }
-    return parts.join(" ").trim() || JSON.stringify(raw).slice(0, 200)
-  }
-
-  return JSON.stringify(raw).slice(0, 200)
 }
 
-// ─── Color / Icon config by type ─────────────────────────────────────────────
+// ─── FeedItem (one parsed line → rendered as flowing entry) ─────────────────
 
-const TYPE_CONFIG: Record<
-  LogLineType,
-  { label: string; textClass: string; borderClass: string; bgClass: string; Icon: React.FC<{ className?: string }> }
-> = {
-  assistant: {
-    label: "assistant",
-    textClass: "text-blue-600 dark:text-blue-400",
-    borderClass: "border-blue-400/40",
-    bgClass: "bg-blue-500/5",
-    Icon: ({ className }) => <Bot className={className} />,
-  },
-  tool_use: {
-    label: "tool_use",
-    textClass: "text-purple-600 dark:text-purple-400",
-    borderClass: "border-purple-400/40",
-    bgClass: "bg-purple-500/5",
-    Icon: ({ className }) => <Wrench className={className} />,
-  },
-  tool_result: {
-    label: "tool_result",
-    textClass: "text-slate-500 dark:text-slate-400",
-    borderClass: "border-slate-400/30",
-    bgClass: "bg-slate-500/5",
-    Icon: ({ className }) => <Terminal className={className} />,
-  },
-  system: {
-    label: "system",
-    textClass: "text-yellow-600 dark:text-yellow-400",
-    borderClass: "border-yellow-400/40",
-    bgClass: "bg-yellow-500/5",
-    Icon: ({ className }) => <AlertCircle className={className} />,
-  },
-  user: {
-    label: "user",
-    textClass: "text-green-600 dark:text-green-400",
-    borderClass: "border-green-400/40",
-    bgClass: "bg-green-500/5",
-    Icon: ({ className }) => <User className={className} />,
-  },
-}
-
-// ─── LogRow (rendered by react-window v2 List) ───────────────────────────────
-
-const ROW_HEIGHT = 56
-
-interface RowProps {
-  index: number
-  style: React.CSSProperties
-  ariaAttributes: Record<string, unknown>
-  lines: LogLine[]
-}
-
-function LogRow({ index, style, lines }: RowProps) {
-  const line = lines[index]
-  if (!line) return null
-  const cfg = TYPE_CONFIG[line.type]
-  const text = extractText(line)
+function FeedItem({ line }: { line: ParsedLine }) {
   return (
-    <div
-      style={style}
-      className={`flex items-start gap-2 px-3 py-2 border-l-2 ${cfg.borderClass} ${cfg.bgClass} border-b border-border/30`}
-    >
-      <cfg.Icon className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${cfg.textClass}`} />
-      <div className="flex items-start gap-2 min-w-0 flex-1 overflow-hidden">
-        <span className={`text-[10px] font-mono shrink-0 mt-0.5 w-16 ${cfg.textClass}`}>
-          [{String(line.index).padStart(4, "0")}]
-        </span>
-        <span className={`text-[10px] font-mono shrink-0 mt-0.5 w-14 ${cfg.textClass}`}>
-          {cfg.label}
-        </span>
-        <span className="text-xs text-foreground font-mono leading-tight whitespace-pre-wrap break-words min-w-0 line-clamp-2">
-          {text}
-        </span>
-      </div>
+    <div className="flex flex-col gap-1">
+      {line.blocks.map((block, i) => (
+        <ContentBlockView key={i} block={block} />
+      ))}
     </div>
   )
 }
 
-// ─── LogViewer ───────────────────────────────────────────────────────────────
+// ─── LogFeed (replaces LogViewer — flowing feed, not data table) ────────────
 
-function LogViewer({ lines }: { lines: LogLine[] }) {
-  const listRef = useListRef()
+function LogFeed({ parsedLines }: { parsedLines: ParsedLine[] }) {
+  const feedRef = useRef<HTMLDivElement>(null)
   const [showScrollBtn, setShowScrollBtn] = useState(false)
 
-  // Track scroll position to show/hide scroll-to-bottom button
-  useEffect(() => {
-    const el = listRef.current?.element
+  const handleScroll = useCallback(() => {
+    const el = feedRef.current
     if (!el) return
-    const handleScroll = () => {
-      const totalHeight = lines.length * ROW_HEIGHT
-      const distFromBottom = totalHeight - el.scrollTop - el.clientHeight
-      setShowScrollBtn(distFromBottom > 200)
-    }
-    el.addEventListener("scroll", handleScroll)
-    return () => el.removeEventListener("scroll", handleScroll)
-  }, [lines.length, listRef])
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    setShowScrollBtn(distFromBottom > 200)
+  }, [])
 
   const scrollToBottom = useCallback(() => {
-    listRef.current?.scrollToRow({ index: lines.length - 1, align: "end" })
-  }, [lines.length, listRef])
+    feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: "smooth" })
+  }, [])
 
   return (
     <div className="relative">
-      <List
-        listRef={listRef}
-        rowComponent={LogRow}
-        rowCount={lines.length}
-        rowHeight={ROW_HEIGHT}
-        rowProps={{ lines }}
-        style={{ height: 600, fontFamily: "monospace" }}
-      />
+      <div
+        ref={feedRef}
+        onScroll={handleScroll}
+        className="overflow-y-auto max-h-[600px] flex flex-col gap-1.5 py-2 px-3"
+      >
+        {parsedLines.map((line) => (
+          <FeedItem key={line.index} line={line} />
+        ))}
+      </div>
 
       {showScrollBtn && (
         <button
@@ -279,6 +245,7 @@ function AttemptLogPanel({
 }) {
   const [allLines, setAllLines] = useState<LogLine[]>([])
   const [search, setSearch] = useState("")
+  const [hiddenTypes, setHiddenTypes] = useState<Set<LogLineType>>(new Set())
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -310,9 +277,28 @@ function AttemptLogPanel({
     return () => { cancelled = true }
   }, [slug, waveNumber, stepIndex, attempt.dir])
 
-  const filteredLines = search.trim()
-    ? allLines.filter((line) => extractText(line).toLowerCase().includes(search.toLowerCase()))
-    : allLines
+  const parsedLines = useMemo(() => parseAllLines(allLines), [allLines])
+
+  const filteredLines = useMemo(() => {
+    let lines = parsedLines
+    if (hiddenTypes.size > 0) {
+      lines = lines.filter((line) => !hiddenTypes.has(line.type))
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      lines = lines.filter((line) => line.searchText.includes(q))
+    }
+    return lines
+  }, [parsedLines, search, hiddenTypes])
+
+  const toggleType = (type: LogLineType) => {
+    setHiddenTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) next.delete(type)
+      else next.add(type)
+      return next
+    })
+  }
 
   if (loading) {
     return <div className="h-32 bg-muted rounded animate-pulse m-2" />
@@ -322,7 +308,7 @@ function AttemptLogPanel({
     <div className="flex flex-col gap-2 p-3 border-t border-border bg-muted/30">
       <div className="flex items-center gap-3 justify-between flex-wrap">
         <span className="text-xs text-muted-foreground">
-          {search.trim()
+          {search.trim() || hiddenTypes.size > 0
             ? `${filteredLines.length} / ${allLines.length} linhas`
             : `${allLines.length} linhas`}
         </span>
@@ -337,20 +323,31 @@ function AttemptLogPanel({
           />
         </div>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {(Object.entries(TYPE_CONFIG) as [LogLineType, (typeof TYPE_CONFIG)[LogLineType]][]).map(([type, cfg]) => (
-          <span key={type} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${cfg.bgClass} border ${cfg.borderClass} ${cfg.textClass}`}>
-            {cfg.label}
-          </span>
-        ))}
+      <div className="flex flex-wrap gap-1.5">
+        {TYPE_FILTERS.map(({ type, label, activeClass }) => {
+          const isActive = !hiddenTypes.has(type)
+          return (
+            <button
+              key={type}
+              onClick={() => toggleType(type)}
+              className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
+                isActive
+                  ? activeClass
+                  : "bg-muted/30 text-muted-foreground/40 border-border line-through"
+              }`}
+            >
+              {label}
+            </button>
+          )
+        })}
       </div>
       {filteredLines.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center">
           {allLines.length === 0 ? "Log ainda não disponível." : "Nenhuma linha encontrada."}
         </p>
       ) : (
-        <div className="rounded-lg border border-border overflow-hidden">
-          <LogViewer lines={filteredLines} />
+        <div className="rounded-lg border border-border overflow-hidden bg-card">
+          <LogFeed parsedLines={filteredLines} />
         </div>
       )}
     </div>
@@ -369,7 +366,6 @@ export function StepDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [expandedAttempt, setExpandedAttempt] = useState<string | null>(null)
 
-  // Fetch step metadata
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -384,7 +380,6 @@ export function StepDetailPage() {
       if (cancelled) return
       setMeta(metaData)
 
-      // Auto-expand: if there's exactly one attempt, expand it immediately
       if (metaData.attempts?.length === 1 && metaData.attempts[0]) {
         setExpandedAttempt(metaData.attempts[0].dir)
       }
@@ -426,7 +421,6 @@ export function StepDetailPage() {
     <div className="flex flex-col p-6 gap-5 max-w-5xl">
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
-        {/* Title row */}
         <div className="flex items-start gap-3 justify-between flex-wrap">
           <div className="flex items-center gap-2">
             {isRunning ? (
@@ -441,7 +435,6 @@ export function StepDetailPage() {
             </h1>
           </div>
 
-          {/* Success/failure badge */}
           {!isRunning && (
             <span
               className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold shrink-0 ${
@@ -460,7 +453,6 @@ export function StepDetailPage() {
           )}
         </div>
 
-        {/* Meta grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
           <div className="rounded-md bg-muted/50 px-3 py-2">
             <p className="text-muted-foreground mb-0.5">Task</p>
@@ -482,7 +474,7 @@ export function StepDetailPage() {
             <p className="text-muted-foreground mb-0.5 flex items-center gap-1">
               <Clock className="w-3 h-3" /> Duração
             </p>
-            <p className="font-mono">{meta.duration_ms != null ? formatDuration(meta.duration_ms) : isRunning ? "em execução" : "—"}</p>
+            <p className="font-mono">{meta.duration_ms != null ? fmtDuration(meta.duration_ms) : isRunning ? "em execução" : "—"}</p>
           </div>
           {isLoop && (
             <>
@@ -505,7 +497,7 @@ export function StepDetailPage() {
         </div>
       </div>
 
-      {/* ── Attempts section (all step types) ────────────────────────── */}
+      {/* ── Attempts ────────────────────────────────────────────────────── */}
       {hasAttempts && meta.attempts && (
         <div className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold">
@@ -539,7 +531,7 @@ export function StepDetailPage() {
                     )}
                     {a.agent && <span className="text-xs text-muted-foreground ml-auto hidden sm:inline">{a.agent}</span>}
                     {a.duration_ms != null && (
-                      <span className="text-xs text-muted-foreground ml-2">{formatDuration(a.duration_ms)}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{fmtDuration(a.duration_ms)}</span>
                     )}
                     <span className="text-xs text-muted-foreground">{isExpanded ? "▲" : "▼"}</span>
                   </button>
@@ -558,7 +550,6 @@ export function StepDetailPage() {
         </div>
       )}
 
-      {/* ── Empty state when no attempts yet ─────────────────────────── */}
       {!hasAttempts && (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground py-8 text-center">

@@ -11,6 +11,8 @@ interface Wave {
   steps_total: number
   steps_completed: number
   steps_failed: number
+  has_sprint: boolean
+  sprint_name: string | null
 }
 
 function WaveStatusIcon({ status }: { status: WaveStatus }) {
@@ -54,23 +56,23 @@ export function ProjectSprintsPickerPage() {
         <p className="text-sm text-muted-foreground mt-1">Selecione uma wave para ver as feature lists.</p>
       </div>
 
-      {waves.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhuma wave encontrada.</p>
+      {waves.filter((w) => w.has_sprint).length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhum sprint encontrado.</p>
       ) : (
         <div className="grid gap-3">
-          {waves.map((wave) => (
+          {waves.filter((w) => w.has_sprint).map((wave) => (
             <Link
               key={wave.wave_number}
-              to="/projects/$slug/waves/$waveNumber/sprints"
+              to="/projects/$slug/sprints/$waveNumber"
               params={{ slug, waveNumber: String(wave.wave_number) }}
               className="bg-card border rounded-lg p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors"
             >
               <WaveStatusIcon status={wave.status} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-sm font-medium">Wave {wave.wave_number}</span>
+                  <span className="text-sm font-medium capitalize">{wave.sprint_name?.replace('-', ' ')}</span>
                   <span className="text-xs text-muted-foreground">
-                    {wave.steps_completed}/{wave.steps_total} steps
+                    Wave {wave.wave_number} · {wave.steps_completed}/{wave.steps_total} steps
                   </span>
                 </div>
                 {wave.steps_failed > 0 && (

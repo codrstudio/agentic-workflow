@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useParams, Link } from "@tanstack/react-router"
 import { apiFetch } from "@/lib/api"
+import { fmtDuration, fmtTokens } from "@/lib/format"
 import { useSSEContext } from "@/contexts/sse-context"
 import { StatusBadge, type StatusContext } from "@workspace/ui/components/status-badge"
 import { Square, Play, Brain, MessageSquare, Wrench, CheckCircle2, XCircle, AlertTriangle, DollarSign } from "lucide-react"
@@ -63,14 +64,6 @@ interface ActivityInfo {
   run_active: boolean
 }
 
-interface WaveHistoryEntry {
-  number: number
-  status: StepStatus
-  steps_total: number
-  steps_done: number
-  duration_ms: number | null
-}
-
 type ActivityEntry =
   | { kind: "thinking"; text: string }
   | { kind: "text"; text: string }
@@ -95,7 +88,6 @@ interface MonitorData {
   activity_feed: ActivityEntry[]
   activity: ActivityInfo
   resumable: boolean
-  wave_history: WaveHistoryEntry[]
 }
 
 function ProgressRing({ percent }: { percent: number }) {
@@ -148,25 +140,11 @@ function stepRowClass(status: StepStatus): string {
   return ""
 }
 
-function fmtDuration(ms: number | null | undefined): string {
-  if (!ms) return "—"
-  if (ms < 60_000) return `${Math.round(ms / 1000)}s`
-  const m = Math.floor(ms / 60_000)
-  const s = Math.round((ms % 60_000) / 1000)
-  return s > 0 ? `${m}m ${s}s` : `${m}m`
-}
-
 function fmtAge(ms: number | null): string {
   if (ms === null) return "—"
   if (ms < 60_000) return `${Math.round(ms / 1000)}s atrás`
   const m = Math.floor(ms / 60_000)
   return `${m}m atrás`
-}
-
-function fmtTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`
-  return String(n)
 }
 
 function ActivityFeedItem({ entry }: { entry: ActivityEntry }) {
@@ -330,7 +308,7 @@ export function ProjectMonitorPage() {
     )
   }
 
-  const engineCtx: StatusContext = { engineOn: !!data.activity.engine_pid }
+  const engineCtx: StatusContext = { engineOn: data.activity.engine_alive }
 
   const isStuck =
     data.activity.last_output_age_ms !== null && data.activity.last_output_age_ms > 5 * 60_000
@@ -589,7 +567,7 @@ export function ProjectMonitorPage() {
           })()}
 
           {/* Card: Activity Feed */}
-          <div className="bg-card border rounded-lg p-3 flex-shrink-0">
+          <div className="bg-card border rounded-lg p-3 flex flex-col flex-1 overflow-hidden min-h-0">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Atividade do Agente
@@ -601,7 +579,7 @@ export function ProjectMonitorPage() {
                 </span>
               )}
             </div>
-            <div ref={activityFeedRef} onScroll={handleActivityScroll} className="overflow-y-auto h-[240px]">
+            <div ref={activityFeedRef} onScroll={handleActivityScroll} className="overflow-y-auto flex-1">
               {data.activity_feed.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic">Sem atividade</p>
               ) : (
@@ -610,55 +588,6 @@ export function ProjectMonitorPage() {
                     <ActivityFeedItem key={i} entry={entry} />
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Card: Wave History */}
-          <div className="bg-card border rounded-lg p-3 flex flex-col flex-1 overflow-hidden min-h-0">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-              Histórico de Waves
-            </p>
-            <div className="overflow-y-auto flex-1">
-              {data.wave_history.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">Nenhuma wave</p>
-              ) : (
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-muted-foreground">
-                      <th className="text-left font-normal pb-1 pr-2">Wave</th>
-                      <th className="text-left font-normal pb-1 pr-2">Status</th>
-                      <th className="text-right font-normal pb-1 pr-2">Steps</th>
-                      <th className="text-right font-normal pb-1">Duração</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.wave_history.map((w) => (
-                      <tr key={w.number} className="border-t border-border/50 hover:bg-muted/30 transition-colors">
-                        <td className="py-0.5 pr-2 tabular-nums">
-                          <Link
-                            to="/projects/$slug/waves/$waveNumber"
-                            params={{ slug, waveNumber: String(w.number) }}
-                            className="text-foreground hover:underline"
-                          >
-                            #{w.number}
-                          </Link>
-                        </td>
-                        <td className="py-0.5 pr-2">
-                          <Link to="/projects/$slug/waves/$waveNumber" params={{ slug, waveNumber: String(w.number) }}>
-                            <StatusBadge status={w.status} />
-                          </Link>
-                        </td>
-                        <td className="py-0.5 pr-2 text-right tabular-nums text-muted-foreground">
-                          {w.steps_done}/{w.steps_total}
-                        </td>
-                        <td className="py-0.5 text-right tabular-nums text-muted-foreground">
-                          {fmtDuration(w.duration_ms)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               )}
             </div>
           </div>

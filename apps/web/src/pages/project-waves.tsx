@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, Link } from "@tanstack/react-router"
-import { CheckCircle2, XCircle, Loader2, Circle, AlertTriangle, Clock, X, Link2 } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, Circle, AlertTriangle, Clock, X, Link2, Activity, Play } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@workspace/ui/components/status-badge"
 import { useSSEContext } from "@/contexts/sse-context"
@@ -265,6 +265,19 @@ export function ProjectWavesPage() {
 
   return (
     <div className="flex flex-col p-6 gap-8 max-w-3xl">
+      {/* Page header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Waves</h1>
+        <Link
+          to="/projects/$slug/runs/new"
+          params={{ slug }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          <Play className="w-3.5 h-3.5" />
+          Executar Workflow
+        </Link>
+      </div>
+
       {/* Active runs */}
       {activeRuns.length > 0 && (
         <section className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
@@ -294,14 +307,25 @@ export function ProjectWavesPage() {
                   </div>
                   <span className="text-xs font-mono truncate">{run.workflow}</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleStop(run.id)}
-                  disabled={stoppingIds.has(run.id)}
-                  className="shrink-0 px-3 py-1.5 rounded border text-xs font-medium hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {stoppingIds.has(run.id) ? "Parando..." : "Parar"}
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    to="/projects/$slug/monitor"
+                    params={{ slug }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-blue-500/30 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                    Monitor
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleStop(run.id)}
+                    disabled={stoppingIds.has(run.id)}
+                    className="px-3 py-1.5 rounded border text-xs font-medium hover:bg-destructive hover:text-destructive-foreground hover:border-destructive disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {stoppingIds.has(run.id) ? "Parando..." : "Parar"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { useParams, Link, useNavigate } from "@tanstack/react-router"
-import { Pencil, Folder, File, ChevronLeft, Plus, X, Loader2 } from "lucide-react"
+import { Pencil, Folder, FolderOpen, File, ChevronLeft, Plus, X, Loader2, Copy, Check } from "lucide-react"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@workspace/ui/components/status-badge"
 import { MarkdownViewer } from "@/components/ui/markdown-viewer"
@@ -14,6 +14,7 @@ interface Project {
   source_folder?: string
   target_folder?: string
   repo?: { url: string; source_branch: string; target_branch?: string }
+  workspace?: { project: string; workflow: string; created_at: string } | null
 }
 
 interface WaveStep {
@@ -86,6 +87,54 @@ function projectToMetaEdit(project: Project): MetaEdit {
   }
 }
 
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  const timer = useRef<ReturnType<typeof setTimeout>>()
+
+  const copy = () => {
+    void navigator.clipboard.writeText(value)
+    setCopied(true)
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button
+      onClick={copy}
+      className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/row:opacity-100"
+      title="Copiar"
+    >
+      {copied
+        ? <Check className="w-3 h-3 text-green-500" />
+        : <Copy className="w-3 h-3" />}
+    </button>
+  )
+}
+
+function truncateMiddle(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text
+  const keep = Math.floor((maxLen - 3) / 2)
+  return text.slice(0, keep) + "..." + text.slice(-keep)
+}
+
+function InfoRow({ label, value, truncate: maxLen, actions }: {
+  label: string
+  value: string
+  truncate?: number
+  actions?: React.ReactNode
+}) {
+  const display = maxLen ? truncateMiddle(value, maxLen) : value
+  return (
+    <div className="group/row flex items-center gap-3 py-1.5 min-w-0" title={display !== value ? value : undefined}>
+      <dt className="text-muted-foreground text-xs shrink-0 w-24">{label}</dt>
+      <dd className="font-mono text-xs truncate flex-1 min-w-0">{display}</dd>
+      <div className="flex items-center gap-0.5 shrink-0">
+        {actions ?? <CopyButton value={value} />}
+      </div>
+    </div>
+  )
+}
+
 export function ProjectInfoPage() {
   const { slug } = useParams({ from: "/_auth/projects/$slug/info" })
   const navigate = useNavigate()
@@ -101,6 +150,8 @@ export function ProjectInfoPage() {
   const [artifacts, setArtifacts] = useState<ArtifactItem[]>([])
   const [artifactsLoading, setArtifactsLoading] = useState(true)
   const [artifactsPath, setArtifactsPath] = useState("")
+
+  const [repoPath, setRepoPath] = useState("")
 
   const [editingMeta, setEditingMeta] = useState(false)
   const [metaEdit, setMetaEdit] = useState<MetaEdit | null>(null)
@@ -139,6 +190,17 @@ export function ProjectInfoPage() {
       .then(setArtifacts)
       .catch(() => setArtifacts([]))
       .finally(() => setArtifactsLoading(false))
+  }, [slug])
+
+  useEffect(() => {
+    apiFetch(`/api/v1/projects/${slug}/repo-path`)
+      .then(r => r.ok ? r.json() as Promise<{ path: string }> : null)
+      .then(data => { if (data) setRepoPath(data.path) })
+      .catch(() => { /* workspace may not exist */ })
+  }, [slug])
+
+  const openRepoFolder = useCallback(() => {
+    void apiFetch(`/api/v1/projects/${slug}/open-repo`, { method: "POST" })
   }, [slug])
 
   const enterEditMode = () => {
@@ -265,24 +327,12 @@ export function ProjectInfoPage() {
           </section>
 
           {/* Card: Metadata + Git */}
-          <section className="bg-card border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Metadata &amp; Git
-              </h2>
-              {!editingMeta && (
-                <button
-                  onClick={enterEditMode}
-                  className="p-1 rounded hover:bg-muted text-muted-foreground"
-                  title="Editar"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
+          <section className="bg-card border rounded-lg">
             {editingMeta && metaEdit ? (
-              <div className="flex flex-col gap-3">
+              <div className="p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Editar</h2>
+                </div>
                 {metaError && (
                   <p className="text-destructive text-xs p-2 bg-destructive/10 rounded">{metaError}</p>
                 )}
@@ -295,30 +345,72 @@ export function ProjectInfoPage() {
                     className="border rounded px-2 py-1 text-xs bg-background focus:outline-none focus:ring-1 focus:ring-ring"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+
+                <div className="flex flex-col gap-2 border-t pt-3">
+                  <label className="text-xs text-muted-foreground font-medium">Git</label>
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground">Source folder</label>
+                    <label className="text-xs text-muted-foreground">URL do repositório</label>
                     <input
                       type="text"
-                      value={metaEdit.source_folder}
-                      onChange={e => setMetaEdit(m => m ? { ...m, source_folder: e.target.value } : m)}
+                      value={metaEdit.repoUrl}
+                      onChange={e => { setMetaEdit(m => m ? { ...m, repoUrl: e.target.value } : m); setGitTestStatus('idle'); }}
                       className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="https://github.com/org/repo.git"
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground">Target folder</label>
-                    <input
-                      type="text"
-                      value={metaEdit.target_folder}
-                      onChange={e => setMetaEdit(m => m ? { ...m, target_folder: e.target.value } : m)}
-                      className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                    />
+                  {metaEdit.repoUrl && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-muted-foreground">Source branch</label>
+                        <input
+                          type="text"
+                          value={metaEdit.repoSourceBranch}
+                          onChange={e => setMetaEdit(m => m ? { ...m, repoSourceBranch: e.target.value } : m)}
+                          className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                          placeholder="main"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-muted-foreground">Target branch</label>
+                        <input
+                          type="text"
+                          value={metaEdit.repoTargetBranch}
+                          onChange={e => setMetaEdit(m => m ? { ...m, repoTargetBranch: e.target.value } : m)}
+                          className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                          placeholder="feature/..."
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2 border-t pt-3">
+                  <label className="text-xs text-muted-foreground font-medium">Pastas</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-muted-foreground">Source folder</label>
+                      <input
+                        type="text"
+                        value={metaEdit.source_folder}
+                        onChange={e => setMetaEdit(m => m ? { ...m, source_folder: e.target.value } : m)}
+                        className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-muted-foreground">Target folder</label>
+                      <input
+                        type="text"
+                        value={metaEdit.target_folder}
+                        onChange={e => setMetaEdit(m => m ? { ...m, target_folder: e.target.value } : m)}
+                        className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 border-t pt-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-muted-foreground">Params</label>
+                    <label className="text-xs text-muted-foreground font-medium">Parâmetros</label>
                     <button
                       type="button"
                       onClick={() => setMetaEdit(m => m ? { ...m, params: [...m.params, ["", ""]] } : m)}
@@ -364,44 +456,6 @@ export function ProjectInfoPage() {
                   ))}
                 </div>
 
-                <div className="flex flex-col gap-2 border-t pt-3">
-                  <label className="text-xs text-muted-foreground font-medium">Git</label>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-muted-foreground">URL do repositório</label>
-                    <input
-                      type="text"
-                      value={metaEdit.repoUrl}
-                      onChange={e => { setMetaEdit(m => m ? { ...m, repoUrl: e.target.value } : m); setGitTestStatus('idle'); }}
-                      className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                      placeholder="https://github.com/org/repo.git"
-                    />
-                  </div>
-                  {metaEdit.repoUrl && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-muted-foreground">Source branch</label>
-                        <input
-                          type="text"
-                          value={metaEdit.repoSourceBranch}
-                          onChange={e => setMetaEdit(m => m ? { ...m, repoSourceBranch: e.target.value } : m)}
-                          className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                          placeholder="main"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-muted-foreground">Target branch</label>
-                        <input
-                          type="text"
-                          value={metaEdit.repoTargetBranch}
-                          onChange={e => setMetaEdit(m => m ? { ...m, repoTargetBranch: e.target.value } : m)}
-                          className="border rounded px-2 py-1 text-xs font-mono bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                          placeholder="feature/..."
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     type="button"
@@ -413,8 +467,8 @@ export function ProjectInfoPage() {
                       ? <><Loader2 className="w-3 h-3 animate-spin" /> Testando...</>
                       : 'Testar acesso'}
                   </button>
-                  {gitTestStatus === 'ok' && <span className="text-xs text-green-600 dark:text-green-400">✓ Acessível</span>}
-                  {gitTestStatus === 'error' && <span className="text-xs text-destructive">✗ Sem acesso</span>}
+                  {gitTestStatus === 'ok' && <span className="text-xs text-green-600 dark:text-green-400">Acessível</span>}
+                  {gitTestStatus === 'error' && <span className="text-xs text-destructive">Sem acesso</span>}
                   <div className="flex-1" />
                   <button
                     type="button"
@@ -436,43 +490,101 @@ export function ProjectInfoPage() {
                 </div>
               </div>
             ) : (
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-                {project.source_folder && (
-                  <>
-                    <dt className="text-muted-foreground">Source</dt>
-                    <dd className="font-mono text-xs">{project.source_folder}</dd>
-                  </>
-                )}
-                {project.target_folder && (
-                  <>
-                    <dt className="text-muted-foreground">Target</dt>
-                    <dd className="font-mono text-xs">{project.target_folder}</dd>
-                  </>
-                )}
-                {project.params && Object.entries(project.params).map(([k, v]) => (
-                  <div key={k} className="contents">
-                    <dt className="text-muted-foreground">{k}</dt>
-                    <dd className="font-mono text-xs">{v}</dd>
-                  </div>
-                ))}
+              <>
+                {/* Seção: Repositório */}
                 {project.repo && (
-                  <>
-                    <dt className="text-muted-foreground">Repo</dt>
-                    <dd className="font-mono text-xs truncate">{project.repo.url}</dd>
-                    <dt className="text-muted-foreground">Source branch</dt>
-                    <dd className="font-mono text-xs">{project.repo.source_branch}</dd>
-                    {project.repo.target_branch && (
-                      <>
-                        <dt className="text-muted-foreground">Target branch</dt>
-                        <dd className="font-mono text-xs">{project.repo.target_branch}</dd>
-                      </>
-                    )}
-                  </>
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Repositório
+                      </h2>
+                      <button
+                        onClick={enterEditMode}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground"
+                        title="Editar"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <dl>
+                      <InfoRow label="URL" value={project.repo.url} truncate={40} />
+                      <InfoRow label="Branch" value={project.repo.source_branch} />
+                      {project.repo.target_branch && (
+                        <InfoRow label="Target branch" value={project.repo.target_branch} />
+                      )}
+                      {repoPath && (
+                        <InfoRow
+                          label="Pasta"
+                          value={repoPath}
+                          truncate={40}
+                          actions={
+                            <div className="flex items-center gap-0.5">
+                              <CopyButton value={repoPath} />
+                              <button
+                                onClick={openRepoFolder}
+                                className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/row:opacity-100"
+                                title="Abrir no Explorer"
+                              >
+                                <FolderOpen className="w-3 h-3" />
+                              </button>
+                            </div>
+                          }
+                        />
+                      )}
+                    </dl>
+                  </div>
                 )}
-                {!project.source_folder && !project.target_folder && !project.params && !project.repo && (
-                  <dt className="text-muted-foreground text-xs col-span-2">Nenhum metadado configurado.</dt>
+
+                {/* Seção: Pastas & Parâmetros */}
+                {(project.source_folder || project.target_folder || (project.params && Object.keys(project.params).length > 0)) && (
+                  <div className={`p-4 ${project.repo ? "border-t" : ""}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Pastas &amp; Parâmetros
+                      </h2>
+                      {!project.repo && (
+                        <button
+                          onClick={enterEditMode}
+                          className="p-1 rounded hover:bg-muted text-muted-foreground"
+                          title="Editar"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <dl>
+                      {project.source_folder && (
+                        <InfoRow label="Source" value={project.source_folder} truncate={40} />
+                      )}
+                      {project.target_folder && (
+                        <InfoRow label="Target" value={project.target_folder} truncate={40} />
+                      )}
+                      {project.params && Object.entries(project.params).map(([k, v]) => (
+                        <InfoRow key={k} label={k} value={v} />
+                      ))}
+                    </dl>
+                  </div>
                 )}
-              </dl>
+
+                {/* Nenhum dado */}
+                {!project.repo && !project.source_folder && !project.target_folder && (!project.params || Object.keys(project.params).length === 0) && (
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Configuração
+                      </h2>
+                      <button
+                        onClick={enterEditMode}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground"
+                        title="Editar"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <p className="text-muted-foreground text-xs">Nenhum metadado configurado.</p>
+                  </div>
+                )}
+              </>
             )}
           </section>
 

@@ -14,7 +14,6 @@ import { ProjectWavesPage } from "@/pages/project-waves"
 import { ProjectConsolePickerPage } from "@/pages/project-console-picker"
 import { ProjectSprintsPickerPage } from "@/pages/project-sprints-picker"
 import { WaveDetailPage } from "@/pages/wave-detail"
-import { WaveConsolePage } from "@/pages/wave-console"
 import { WaveSprintsPage } from "@/pages/wave-sprints"
 import { StepDetailPage } from "@/pages/step-detail"
 import { ProjectMonitorPage } from "@/pages/project-monitor"
@@ -117,16 +116,13 @@ const waveDetailRoute = createRoute({
   component: WaveDetailPage,
 })
 
-const waveConsoleRoute = createRoute({
-  getParentRoute: () => authRoute,
-  path: "/projects/$slug/waves/$waveNumber/console",
-  component: WaveConsolePage,
-})
-
 const waveSprintsRoute = createRoute({
   getParentRoute: () => authRoute,
-  path: "/projects/$slug/waves/$waveNumber/sprints",
+  path: "/projects/$slug/sprints/$waveNumber",
   component: WaveSprintsPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: (search.tab as string) || undefined,
+  }),
 })
 
 const stepDetailRoute = createRoute({
@@ -172,7 +168,6 @@ const routeTree = rootRoute.addChildren([
     projectConsoleRoute,
     projectSprintsRoute,
     waveDetailRoute,
-    waveConsoleRoute,
     waveSprintsRoute,
     stepDetailRoute,
     projectMonitorRoute,

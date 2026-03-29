@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react"
-import { useParams } from "@tanstack/react-router"
+import { useParams, useSearch, useNavigate } from "@tanstack/react-router"
 import {
   CheckCircle2,
   XCircle,
@@ -61,7 +61,7 @@ interface SprintFiles {
   prps: SprintFile[]
 }
 
-type TabId = "features" | "specs" | "prps"
+type TabId = "features" | "specs" | "prps" | "task"
 
 function FeatureStatusIcon({ status }: { status: Feature["status"] }) {
   if (status === "passing") return <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
@@ -92,7 +92,7 @@ function FeatureCard({
   const [prpContent, setPrpContent] = useState<string | null>(null)
   const [prpLoading, setPrpLoading] = useState(false)
   const { slug, waveNumber } = useParams({
-    from: "/_auth/projects/$slug/waves/$waveNumber/sprints",
+    from: "/_auth/projects/$slug/sprints/$waveNumber",
   })
 
   const deps = feature.depends_on ?? feature.dependencies ?? []
@@ -309,14 +309,24 @@ function FileAccordion({
 
 export function WaveSprintsPage() {
   const { slug, waveNumber } = useParams({
-    from: "/_auth/projects/$slug/waves/$waveNumber/sprints",
+    from: "/_auth/projects/$slug/sprints/$waveNumber",
   })
+
+  const { tab } = useSearch({ from: "/_auth/projects/$slug/sprints/$waveNumber" })
+  const navigate = useNavigate()
+  const activeTab: TabId = (["features", "specs", "prps", "task"].includes(tab ?? "") ? tab as TabId : "features")
+  const setActiveTab = (id: TabId) => {
+    navigate({ search: { tab: id === "features" ? undefined : id }, replace: true })
+  }
 
   const [data, setData] = useState<LoopData | null>(null)
   const [sprintFiles, setSprintFiles] = useState<SprintFiles | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<TabId>("features")
+  const [taskContent, setTaskContent] = useState<string | null>(null)
+  const [taskNotFound, setTaskNotFound] = useState(false)
+  const [taskLoading, setTaskLoading] = useState(false)
+  const taskFetched = useRef(false)
   const featuresRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -325,20 +335,44 @@ export function WaveSprintsPage() {
     Promise.all([
       apiFetch(`/api/v1/projects/${slug}/waves/${waveNumber}/loop`)
         .then((r) => {
-          if (!r.ok) throw new Error(r.status === 404 ? "Nenhum loop encontrado nesta wave." : `Error ${r.status}`)
+          if (!r.ok) return null
           return r.json() as Promise<LoopData>
-        }),
+        })
+        .catch(() => null),
       apiFetch(`/api/v1/projects/${slug}/waves/${waveNumber}/sprint/files`)
         .then((r) => (r.ok ? (r.json() as Promise<SprintFiles>) : null))
         .catch(() => null),
     ])
       .then(([loopData, filesData]) => {
-        setData(loopData)
+        if (!loopData && !filesData) {
+          setError("Nenhum sprint ou loop encontrado nesta wave.")
+          return
+        }
+        setData(loopData ?? { loop: null, features: [], counters: { passing: 0, failing: 0, skipped: 0, pending: 0, blocked: 0, in_progress: 0 } })
         setSprintFiles(filesData)
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }, [slug, waveNumber])
+
+  const loadTask = useCallback(() => {
+    if (taskFetched.current) return
+    taskFetched.current = true
+    setTaskLoading(true)
+    apiFetch(`/api/v1/projects/${slug}/waves/${waveNumber}/sprint/task`)
+      .then((r) => {
+        if (r.status === 404) { setTaskNotFound(true); return null }
+        if (!r.ok) throw new Error("Failed")
+        return r.json() as Promise<{ content: string }>
+      })
+      .then((data) => { if (data) setTaskContent(data.content) })
+      .catch(() => setTaskNotFound(true))
+      .finally(() => setTaskLoading(false))
+  }, [slug, waveNumber])
+
+  useEffect(() => {
+    if (activeTab === "task") loadTask()
+  }, [activeTab, loadTask])
 
   const scrollToFeature = useCallback((id: string) => {
     const el = document.getElementById(`feature-${id}`)
@@ -377,19 +411,26 @@ export function WaveSprintsPage() {
     { id: "features", label: "Features", count: total },
     { id: "specs", label: "Specs", count: sprintFiles?.specs.length ?? 0 },
     { id: "prps", label: "PRPs", count: sprintFiles?.prps.length ?? 0 },
+    { id: "task", label: "Task" },
   ]
 
   return (
     <div className="flex flex-col p-6 gap-6 max-w-3xl">
       <div>
-        <h1 className="text-xl font-semibold">Sprints — Wave {waveNumber}</h1>
-        {loop && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {loop.status === "exited"
-              ? `Loop finalizado — ${loop.exit_reason ?? "concluído"}`
-              : `Iteração ${loop.iteration ?? "?"} · ${loop.done ?? 0} features concluídas`}
-          </p>
-        )}
+        <h1 className="text-xl font-semibold capitalize">
+          {sprintFiles?.sprint ? sprintFiles.sprint.replace('-', ' ') : `Sprint`}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Wave {waveNumber}
+          {loop && (
+            <span>
+              {" · "}
+              {loop.status === "exited"
+                ? `Loop finalizado — ${loop.exit_reason ?? "concluído"}`
+                : `Iteração ${loop.iteration ?? "?"} · ${loop.done ?? 0} features concluídas`}
+            </span>
+          )}
+        </p>
       </div>
 
       {/* Counter badges */}
@@ -481,6 +522,24 @@ export function WaveSprintsPage() {
           slug={slug}
           waveNumber={waveNumber}
         />
+      )}
+
+      {activeTab === "task" && (
+        taskLoading ? (
+          <div className="flex items-center gap-2 py-4">
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Carregando...</span>
+          </div>
+        ) : taskNotFound ? (
+          <div className="rounded-lg border border-border p-6 text-center">
+            <FileText className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">TASK.md não encontrado neste sprint.</p>
+          </div>
+        ) : taskContent ? (
+          <div className="rounded-lg border border-border p-4 bg-card">
+            <MarkdownViewer content={taskContent} />
+          </div>
+        ) : null
       )}
 
       {(activeTab === "specs" || activeTab === "prps") && !sprintFiles && (

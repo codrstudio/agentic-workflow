@@ -45,8 +45,20 @@ function useBreadcrumbs(): BreadcrumbItem[] {
   const subRoute = segments[2]
 
   // /projects/:slug/info, /projects/:slug/console (picker), /projects/:slug/sprints (picker)
-  if (subRoute && subRoute !== "waves" && segments.length === 3) {
+  if (subRoute && subRoute !== "waves" && subRoute !== "sprints" && segments.length === 3) {
     crumbs.push({ label: SUB_ROUTE_LABELS[subRoute] ?? subRoute })
+    return crumbs
+  }
+
+  // /projects/:slug/sprints (picker) and /projects/:slug/sprints/:waveNumber (detail)
+  if (subRoute === "sprints") {
+    if (segments.length === 3) {
+      crumbs.push({ label: "Sprints" })
+      return crumbs
+    }
+    const waveNumber = segments[3]!
+    crumbs.push({ label: "Sprints", href: `/projects/${slug}/sprints` })
+    crumbs.push({ label: `Wave ${waveNumber}` })
     return crumbs
   }
 
@@ -80,13 +92,7 @@ function useBreadcrumbs(): BreadcrumbItem[] {
       return crumbs
     }
 
-    // /projects/:slug/waves/:n/console
-    if (waveSubRoute === "console") {
-      crumbs.push({ label: "Console" })
-      return crumbs
-    }
-
-    // /projects/:slug/waves/:n/sprints
+    // /projects/:slug/waves/:n/sprints (legacy — now at /projects/:slug/sprints/:n)
     if (waveSubRoute === "sprints") {
       crumbs.push({ label: "Sprints" })
       return crumbs

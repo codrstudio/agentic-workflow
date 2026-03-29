@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Send, Filter, ChevronDown, ArrowDown } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useParams } from "@tanstack/react-router"
+
 import { apiFetch } from "@/lib/api"
 import { useSSEContext, type SSEEvent } from "@/contexts/sse-context"
 
@@ -99,10 +99,7 @@ function getEngineEventSummary(entry: ConversationEntry): string {
   return event
 }
 
-export function WaveConsolePage() {
-  const { slug, waveNumber } = useParams({
-    from: "/_auth/projects/$slug/waves/$waveNumber/console",
-  })
+export function WaveConsole({ slug, waveNumber }: { slug: string; waveNumber: string }) {
   const { subscribe } = useSSEContext()
 
   const [conversation, setConversation] = useState<ConversationEntry[]>([])
