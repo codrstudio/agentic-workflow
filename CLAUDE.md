@@ -6,10 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **agentic-workflow** is a deterministic orchestrator that drives AI agents (Claude Code CLI) through multi-step product workflows. It reads YAML workflow definitions, spawns Claude Code processes for each step, and manages feature-level iteration with retry/rollback logic.
 
-The monorepo has three apps:
+The monorepo has four apps and one shared package:
 - **apps/engine** — The CLI orchestrator (spawns agents, manages state)
 - **apps/server** — Hono HTTP server (bridges engine events to the web frontend)
 - **apps/web** — React SPA (monitoring, project management, run control)
+- **apps/chat** — React SPA for chat (socket.io, PWA-enabled, uses `@workspace/ui`)
+- **packages/ui** — Shared UI component library (Radix UI + CVA + Tailwind, exported via `@workspace/ui`)
 
 ## Commands
 
@@ -39,9 +41,17 @@ npm run typecheck      # tsc --noEmit
 npm run dev            # vite dev server
 npm run build          # tsc -b && vite build
 npm run typecheck      # tsc --noEmit
+
+# apps/chat
+npm run dev            # vite dev server
+npm run build          # vite build
+npm run typecheck      # tsc --noEmit
+
+# packages/ui
+npm run typecheck      # tsc --noEmit
 ```
 
-There are no test scripts configured. No linter is configured.
+There are no test scripts configured. No linter is configured for engine/server/web (chat and ui have eslint).
 
 ## Project Hygiene
 
@@ -90,7 +100,7 @@ Regras obrigatórias ao mexer em `workflow-engine.ts`, `feature-loop.ts` ou `ope
 
 ### Monorepo Structure
 
-- **Root**: npm workspaces with `apps/*`
+- **Root**: npm workspaces with `apps/*` and `packages/*`
 - **context/**: Markdown/YAML definitions consumed at runtime (not compiled):
   - `agents/` — Agent profiles (`coder.md`, `researcher.md`, `general.md`, `x-playtester.md`) with frontmatter config (allowedTools, max_turns, rollback, timeout)
   - `tasks/` — Task definitions with frontmatter specifying which agent to use
