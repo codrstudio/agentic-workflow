@@ -1,0 +1,2 @@
+[2026-04-02 05:01:03] Workflow initialized. 1 steps planned for wave 1.
+[2026-04-02 05:01:03] bootstrap-repo: Repositório criado do zero (git init -b main). Branch dnc-companion-harness criada a partir de main. Worktree criado em wave-1/worktree na branch harness/wave-1. HEAD: 1b83d0d7b65311ee8e3c081fee50395e1235cc55.
