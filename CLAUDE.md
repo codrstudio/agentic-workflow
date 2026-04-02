@@ -108,6 +108,12 @@ Regras obrigatórias ao mexer em `workflow-engine.ts`, `feature-loop.ts` ou `ope
   - `projects/{slug}/` — Project definitions (project.json + sources + artifacts)
   - `workspaces/{slug}/` — Workspace instances (created automatically by engine)
 
+### WorScaffolds Layout
+
+```
+context/scaffolds/{slug}/       # scaffold project to be copied over
+```
+
 ### Workspace Layout
 
 A workspace is created automatically by the engine from (project, workflow) parameters:
