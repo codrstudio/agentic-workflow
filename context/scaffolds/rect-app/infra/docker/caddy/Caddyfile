@@ -1,0 +1,20 @@
+:{$PUBLIC_PORT} {
+	# Backend API routes
+	handle /api/v1/* {
+		reverse_proxy {$BACKEND_HOST}:{$BACKEND_PORT}
+	}
+
+	handle /health {
+		reverse_proxy {$BACKEND_HOST}:{$BACKEND_PORT}
+	}
+
+	# Frontend (under /app)
+	handle /app/* {
+		reverse_proxy {$FRONTEND_HOST}:{$FRONTEND_PORT}
+	}
+
+	# Redirect root to /app
+	handle / {
+		redir /app permanent
+	}
+}

@@ -1,0 +1,12 @@
+# Dev overlay — exposes individual service ports for local debugging.
+# Used automatically by infra/scripts/platform.mjs.
+
+services:
+
+  postgres:
+    ports:
+      - "${POSTGRES_PORT}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_PORT}:6379"
