@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "id": "498e9144-1498-4275-b9f6-bc03247aa895",
+    "slug": "nic",
+    "workflow": "vibe-app",
+    "queuedAt": "2026-04-02T06:53:01.476Z"
+  },
+  {
+    "id": "396e636d-01e4-467e-8add-8bdab5c0b792",
+    "slug": "nic-exp",
+    "workflow": "vibe-full-app",
+    "queuedAt": "2026-04-02T06:53:15.811Z",
+    "dependsOn": {
+      "type": "project-completion",
+      "sourceSlug": "nic"
+    }
+  },
+  {
+    "id": "e4caebc1-a6c0-4d9c-9a8c-2b1c49d4e460",
+    "slug": "dnc-companion",
+    "workflow": "vibe-full-app",
+    "queuedAt": "2026-04-02T06:53:44.877Z"
+  }
+]

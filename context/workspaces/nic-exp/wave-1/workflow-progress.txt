@@ -1,2 +1,1 @@
-[2026-04-02 05:00:48] Workflow initialized. 1 steps planned for wave 1.
-[2026-04-02 05:05:00] bootstrap-repo: worktree configurado em nic-exp/wave-1/worktree, branch harness/wave-1 (HEAD: 4f55f0ed), repo ja existia (git init nao necessario)
+[2026-04-02 06:52:41] Workflow initialized. 1 steps planned for wave 1.
