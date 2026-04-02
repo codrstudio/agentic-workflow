@@ -1,0 +1,6 @@
+[2026-04-02 01:57:34] Workflow initialized. 6 steps planned for wave 21.
+[2026-04-02] resolve-pull-conflicts: Diagnosticado — repo limpo (working tree clean), sem merge em andamento. Branch remoto ab-harness nao existe em origin (apenas main). origin/main identico ao HEAD local (a560119). Nenhum conflito a resolver.
+[2026-04-02 01:59:44] repo:pull via=agent branch=ab-harness result=ok
+[2026-04-01] compile-brainstorming: Sprint 19 brainstorming produzido. 12 novas discoveries (D-014..D-025) para PRP 25 — extração de componentes de gerenciamento de conversas do Hub para @codrstudio/agentic-chat. D-001..D-013 marcadas como implemented=true (sprint 18 completo). Artefatos: sprints/sprint-19/1-brainstorming/brainstorming.md + ranking.json.
+[2026-04-02 02:06:28] Step 1 (compile-brainstorming): Completed. ok
+[2026-04-02] derive-specs: 8 specs derivadas (S-108..S-115) cobrindo 12 discoveries (D-014..D-025) do PRP 25. Specs: S-108 primitivos shadcn, S-109 tipos/utils/useIsMobile, S-110 useConversations hook, S-111 componentes internos, S-112 ConversationList, S-113 ConversationBar, S-114 barrel exports, S-115 Hub refactor. Continuidade de IDs do sprint-18 (último: S-107). Artefatos: sprints/sprint-19/2-specs/*.md.
