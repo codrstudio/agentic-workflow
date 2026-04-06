@@ -566,8 +566,45 @@ export function ProjectInfoPage() {
                   </div>
                 )}
 
+                {/* Pasta do repo (quando existe no disco, mesmo sem config de repo) */}
+                {!project.repo && repoPath && (
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Repositório
+                      </h2>
+                      <button
+                        onClick={enterEditMode}
+                        className="p-1 rounded hover:bg-muted text-muted-foreground"
+                        title="Editar"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <dl>
+                      <InfoRow
+                        label="Pasta"
+                        value={repoPath}
+                        truncate={40}
+                        actions={
+                          <div className="flex items-center gap-0.5">
+                            <CopyButton value={repoPath} />
+                            <button
+                              onClick={openRepoFolder}
+                              className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/row:opacity-100"
+                              title="Abrir no Explorer"
+                            >
+                              <FolderOpen className="w-3 h-3" />
+                            </button>
+                          </div>
+                        }
+                      />
+                    </dl>
+                  </div>
+                )}
+
                 {/* Nenhum dado */}
-                {!project.repo && !project.source_folder && !project.target_folder && (!project.params || Object.keys(project.params).length === 0) && (
+                {!project.repo && !repoPath && !project.source_folder && !project.target_folder && (!project.params || Object.keys(project.params).length === 0) && (
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
