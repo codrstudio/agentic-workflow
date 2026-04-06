@@ -1,1 +1,20 @@
 [2026-04-02 06:52:41] Workflow initialized. 1 steps planned for wave 1.
+[2026-04-02 07:05:00] step-01-scaffold-react-app: COMPLETED
+  - Scaffold rect-app copiado para o worktree
+  - Namespace @scaffold/ → @nic-exp/ em todos os arquivos
+  - Backend removido (NIC nao tem backend proprio)
+  - Mocks removidos: mockUser, mockNotifications, profile page, notifications page
+  - .env configurado: PROJECT=nic-exp, backbone URL/API key/agent ID
+  - vite.config.ts atualizado: proxy /api/v1 → backbone, sem BACKEND_PORT
+  - @codrstudio/agentic-chat adicionado como dependencia
+  - npm run themes:build: OK (43 temas)
+  - npm run brand:derive dark: OK
+  - npm install: OK (1030 packages)
+  - npm run typecheck: PASS
+  - npm run build: PASS (vite build clean)
+[2026-04-02 07:03:08] Step 1 (scaffold-react-app): Completed. ok
+[2026-04-02] merge-worktree: COMPLETED
+  - Worktree (harness/wave-1) mergeado em main via fast-forward
+  - SHA do merge: 7fcc4073d4d3be0fefd7cda96c3ffdba1ade137c
+  - Worktree desregistrada (git worktree prune)
+  - Branch harness/wave-1 deletado
