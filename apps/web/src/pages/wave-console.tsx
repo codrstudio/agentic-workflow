@@ -99,7 +99,7 @@ function getEngineEventSummary(entry: ConversationEntry): string {
   return event
 }
 
-export function WaveConsole({ slug, waveNumber }: { slug: string; waveNumber: string }) {
+export function WaveConsole({ slug, waveNumber, isRunning = true }: { slug: string; waveNumber: string; isRunning?: boolean }) {
   const { subscribe } = useSSEContext()
 
   const [conversation, setConversation] = useState<ConversationEntry[]>([])
@@ -335,8 +335,13 @@ export function WaveConsole({ slug, waveNumber }: { slug: string; waveNumber: st
     <div className="flex flex-col h-full p-4 gap-3 max-w-4xl mx-auto w-full">
       {/* Top bar */}
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium whitespace-nowrap">
+        <span className="text-sm font-medium whitespace-nowrap flex items-center gap-2">
           Wave {waveNumber}
+          {!isRunning && (
+            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-500/15 text-zinc-500 dark:text-zinc-400">
+              offline
+            </span>
+          )}
         </span>
 
         <div className="flex items-center gap-1.5 shrink-0 ml-auto">
@@ -450,9 +455,15 @@ export function WaveConsole({ slug, waveNumber }: { slug: string; waveNumber: st
                         {formatRelative(item.timestamp)}
                       </span>
                       {item.entry.pending ? (
-                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-500/15 text-yellow-700 dark:text-yellow-400">
-                          pending
-                        </span>
+                        isRunning ? (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-yellow-500/15 text-yellow-700 dark:text-yellow-400">
+                            pending
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-500/15 text-zinc-500 dark:text-zinc-400">
+                            na fila
+                          </span>
+                        )
                       ) : (
                         <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-500/15 text-green-700 dark:text-green-400">
                           processed
@@ -549,7 +560,7 @@ export function WaveConsole({ slug, waveNumber }: { slug: string; waveNumber: st
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Digite uma mensagem para a engine…"
+          placeholder={isRunning ? "Digite uma mensagem para a engine…" : "Mensagem será enfileirada para a próxima run…"}
           disabled={sending}
           className="flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
         />
