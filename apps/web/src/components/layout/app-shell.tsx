@@ -11,11 +11,14 @@ import { Breadcrumb } from "@/components/layout/breadcrumb"
 import { useSSEContext, type SSEStatus } from "@/contexts/sse-context"
 import { SSEProvider } from "@/contexts/sse-context"
 import { useNavItems } from "@/components/layout/nav-items"
+import { CopilotDrawer } from "@/components/copilot/copilot-drawer"
 
 const COLLAPSED_KEY = "sidebar-collapsed"
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const navItems = useNavItems()
+  const { location } = useRouterState()
+  const isLibrary = location.pathname.startsWith("/library")
   const [collapsed, setCollapsed] = React.useState(() => {
     try {
       return localStorage.getItem(COLLAPSED_KEY) === "true"
@@ -87,6 +90,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* BottomNav — visible only on mobile (< 768px) */}
       <BottomNav />
+
+      {/* Copilot — only on library pages */}
+      {isLibrary && <CopilotDrawer />}
     </div>
     </SSEProvider>
   )
