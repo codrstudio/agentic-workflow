@@ -1,4 +1,0 @@
-[2026-04-02 06:46:11] Workflow initialized. 1 steps planned for wave 1.
-[2026-04-02 04:07:35] scaffold-react-app: Projeto NIC inicializado a partir do scaffold rect-app. Namespace @scaffold/ → @nic/. .env configurado com VITE_BACKBONE_URL/VITE_API_KEY/VITE_AGENT_ID. Brand assets copiados e brand:derive/themes:build executados. Derivação aplicada: removidos mocks (notifications, profile, mock-user, api/sse backend), menu atualizado para NIC, home page atualizada. typecheck e build passando (zero erros). Commit: ba8a54e.
-[2026-04-02 07:07:58] Step 1 (scaffold-react-app): Completed. ok
-[2026-04-02 04:10:06] merge-worktree: Merge da wave-1 para main concluído. SHA: d2d11e4478b72fc48579fea6b50bb2b9eb807fd0. Fast-forward merge (sem conflitos). Worktree removida, branch harness/wave-1 deletado.
