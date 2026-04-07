@@ -1,0 +1,6 @@
+name: create-react-app
+description: Inicializa projeto React a partir do scaffold rect-app (derivação + catálogo de snippets)
+
+steps:
+  - type: spawn-agent
+    task: scaffold-react-app

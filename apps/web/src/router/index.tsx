@@ -23,6 +23,14 @@ import { ProjectTaskEditPage } from "@/pages/project-task-edit"
 import { ProjectRunNewPage } from "@/pages/project-run-new"
 import { ProjectArtifactsPage } from "@/pages/project-artifacts"
 import { ProjectCrashesPage } from "@/pages/project-crashes"
+import { LibraryWorkflowsPage } from "@/pages/library-workflows"
+import { LibraryWorkflowDetailPage } from "@/pages/library-workflow-detail"
+import { LibraryTasksPage } from "@/pages/library-tasks"
+import { LibraryTaskDetailPage } from "@/pages/library-task-detail"
+import { LibraryAgentsPage } from "@/pages/library-agents"
+import { LibraryAgentDetailPage } from "@/pages/library-agent-detail"
+import { LibraryPlansPage } from "@/pages/library-plans"
+import { LibraryPlanDetailPage } from "@/pages/library-plan-detail"
 
 // Root route with context type
 const rootRoute = createRootRouteWithContext<{ auth: AuthContextValue }>()({
@@ -155,6 +163,63 @@ const projectCrashesRoute = createRoute({
   component: ProjectCrashesPage,
 })
 
+// Library routes
+const libraryRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library",
+  beforeLoad: () => {
+    throw redirect({ to: "/library/workflows" })
+  },
+})
+
+const libraryWorkflowsRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library/workflows",
+  component: LibraryWorkflowsPage,
+})
+
+const libraryWorkflowDetailRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library/workflows/$slug",
+  component: LibraryWorkflowDetailPage,
+})
+
+const libraryTasksRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library/tasks",
+  component: LibraryTasksPage,
+})
+
+const libraryTaskDetailRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library/tasks/$slug",
+  component: LibraryTaskDetailPage,
+})
+
+const libraryAgentsRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library/agents",
+  component: LibraryAgentsPage,
+})
+
+const libraryAgentDetailRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library/agents/$slug",
+  component: LibraryAgentDetailPage,
+})
+
+const libraryPlansRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library/plans",
+  component: LibraryPlansPage,
+})
+
+const libraryPlanDetailRoute = createRoute({
+  getParentRoute: () => authRoute,
+  path: "/library/plans/$slug",
+  component: LibraryPlanDetailPage,
+})
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   authRoute.addChildren([
@@ -174,6 +239,15 @@ const routeTree = rootRoute.addChildren([
     projectRunNewRoute,
     projectArtifactsRoute,
     projectCrashesRoute,
+    libraryRoute,
+    libraryWorkflowsRoute,
+    libraryWorkflowDetailRoute,
+    libraryTasksRoute,
+    libraryTaskDetailRoute,
+    libraryAgentsRoute,
+    libraryAgentDetailRoute,
+    libraryPlansRoute,
+    libraryPlanDetailRoute,
   ]),
 ])
 

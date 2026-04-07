@@ -13,6 +13,7 @@ import { authMiddleware } from './middleware/auth.js';
 import { resumeInterruptedWorkflows } from './lib/resume.js';
 import { monitorService } from './lib/monitor-service.js';
 import { loadPersistedQueue, runsStore } from './routes/runs.js';
+import { library } from './routes/library.js';
 
 const app = new Hono().basePath('/api/v1');
 
@@ -36,6 +37,7 @@ app.route('/events', events);
 app.route('/hub/engine-events', engineEvents);
 app.route('/pid', pid);
 app.route('/runs/active', activeRuns);
+app.route('/library', library);
 
 // Global: all in-memory runs (running/completed/failed)
 app.get('/runs/all', (c) => {

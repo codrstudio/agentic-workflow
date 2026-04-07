@@ -2,13 +2,16 @@ import { join } from 'node:path';
 import { readFile, mkdir, access, readdir, rm, copyFile } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
+import { z } from 'zod';
 import { WorkflowSchema, type Workflow } from '../schemas/workflow.js';
 import { ProjectConfigSchema, type ProjectConfig, type RepoConfig } from '../schemas/project.js';
 import { type WorkflowState, type WorkflowStepState } from '../schemas/workflow-state.js';
 import type { Plan } from '../schemas/tier.js';
 import { WorktreeManager, type WorktreeInfo } from './worktree-manager.js';
+import { AgentSpawner, type SpawnMeta } from './agent-spawner.js';
 import { PlanResolver } from './plan-resolver.js';
 import { StateManager, now } from './state-manager.js';
+import { TemplateRenderer } from './template-renderer.js';
 
 export interface ResolvedRepoConfig {
   url: string;
@@ -74,6 +77,106 @@ async function dirExists(path: string): Promise<boolean> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// bootstrapRepoViaAgent — spawns LLM in repoDir to handle git init/clone
+// ---------------------------------------------------------------------------
+
+const BootstrapRepoResponseSchema = z.object({
+  success: z.boolean(),
+  error: z.string().optional(),
+});
+
+const BOOTSTRAP_REPO_JSON_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    success: { type: 'boolean' },
+    error: { type: 'string' },
+  },
+  required: ['success'],
+};
+
+async function bootstrapRepoViaAgent(
+  workspaceDir: string,
+  repoDir: string,
+  slug: string,
+  projectConfig: ProjectConfig,
+  tasksDir: string,
+): Promise<void> {
+  const outputDir = join(workspaceDir, 'ignite', 'step-00-bootstrap-repo');
+  await mkdir(outputDir, { recursive: true });
+
+  const repoUrl = typeof projectConfig.repo === 'string'
+    ? projectConfig.repo
+    : projectConfig.repo?.url ?? null;
+  const repoConfig = typeof projectConfig.repo === 'object' ? projectConfig.repo : null;
+  const sourceBranch = repoConfig?.source_branch ?? 'main';
+  const targetBranch = repoConfig?.target_branch ?? `${slug}-harness`;
+
+  const taskContent = await readFile(join(tasksDir, 'bootstrap-repo.md'), 'utf-8').catch(() => null);
+  const renderer = new TemplateRenderer();
+  const taskBody = taskContent ? renderer.parseFrontmatter(taskContent).body : '';
+
+  const prompt = [
+    taskBody,
+    '',
+    '## Variáveis',
+    '',
+    `- **repo_dir**: \`${repoDir}\``,
+    `- **repo_url**: ${repoUrl ? `\`${repoUrl}\`` : '(nenhuma — criar repo local)'}`,
+    `- **source_branch**: \`${sourceBranch}\``,
+    `- **target_branch**: \`${targetBranch}\``,
+    `- **slug**: \`${slug}\``,
+    '',
+    '---',
+    '',
+    'Ao concluir, responda com JSON: `{ "success": true }` ou `{ "success": false, "error": "motivo" }`.',
+  ].join('\n');
+
+  const spawner = new AgentSpawner();
+  const meta: SpawnMeta = {
+    task: 'bootstrap-repo',
+    agent: 'direct',
+    wave: 0,
+    step: 0,
+    parent_pid: process.pid,
+    pid: 0,
+    started_at: now(),
+    timed_out: false,
+    model_used: 'sonnet',
+  };
+  await spawner.writeSpawnMeta(outputDir, meta);
+
+  const result = await spawner.spawnAgent({
+    prompt,
+    cwd: repoDir,
+    outputDir,
+    agentConfig: { model: 'sonnet', max_turns: 30 },
+    jsonSchema: BOOTSTRAP_REPO_JSON_SCHEMA,
+    onSpawn: (pid) => {
+      meta.pid = pid;
+      spawner.writeSpawnMeta(outputDir, meta);
+    },
+  });
+
+  meta.pid = result.pid;
+  meta.finished_at = now();
+  meta.exit_code = result.code;
+  meta.timed_out = result.timedOut;
+  await spawner.writeSpawnMeta(outputDir, meta);
+
+  if (result.code !== 0) {
+    throw new Error(`bootstrap-repo agent failed with exit code ${result.code}`);
+  }
+
+  const parsed = BootstrapRepoResponseSchema.safeParse(result.response);
+  if (!parsed.success || !parsed.data.success) {
+    const msg = parsed.success && typeof parsed.data.error === 'string'
+      ? parsed.data.error
+      : 'bootstrap-repo agent reported failure';
+    throw new Error(`bootstrap-repo failed: ${msg}`);
+  }
+}
+
 export async function ensureWorkspace(
   contextDir: string,
   slug: string,
@@ -95,49 +198,11 @@ export async function ensureWorkspace(
     });
   }
 
-  // Init or clone repo
+  // Init or clone repo via agent
   if (!(await dirExists(repoDir))) {
-    const repoUrl = typeof projectConfig.repo === 'string'
-      ? projectConfig.repo
-      : projectConfig.repo?.url;
-    const repoConfig = typeof projectConfig.repo === 'object' ? projectConfig.repo : null;
-
-    if (repoUrl) {
-      const cloneBranch = repoConfig?.source_branch
-        ? `--single-branch -b "${repoConfig.source_branch}"`
-        : '';
-      execSync(`git clone ${cloneBranch} "${repoUrl}" repo`, {
-        cwd: workspaceDir,
-        stdio: 'pipe',
-      });
-
-      // If structured repo config, set up target branch
-      if (repoConfig) {
-        const resolved = resolveRepoConfig(projectConfig);
-        if (resolved) {
-          try {
-            // Try checking out existing remote target branch
-            execSync(`git checkout "${resolved.target_branch}"`, {
-              cwd: repoDir,
-              stdio: 'pipe',
-            });
-          } catch {
-            // Target branch doesn't exist yet, create from source
-            execSync(
-              `git checkout -b "${resolved.target_branch}" "${resolved.source_branch}"`,
-              { cwd: repoDir, stdio: 'pipe' },
-            );
-          }
-        }
-      }
-    } else {
-      await mkdir(repoDir, { recursive: true });
-      execSync('git init', { cwd: repoDir, stdio: 'pipe' });
-      execSync('git commit --allow-empty -m "init: empty repository"', {
-        cwd: repoDir,
-        stdio: 'pipe',
-      });
-    }
+    await mkdir(repoDir, { recursive: true });
+    const tasksDir = join(contextDir, 'tasks');
+    await bootstrapRepoViaAgent(workspaceDir, repoDir, slug, projectConfig, tasksDir);
   }
 
   return { workspaceDir, repoDir };
@@ -266,13 +331,10 @@ export async function detectResumableWave(
     const isStoppedOrFailed = ws.status === 'stopped' || ws.status === 'failed';
 
     if (!hasIncomplete && !(isStoppedOrFailed && hasSkipped)) {
-      // All steps are done. Auto-heal: set status to 'completed' since the
-      // engine may have crashed after completing all steps but before writing
-      // the workflow-level 'completed' status.
       (ws as Record<string, unknown>).status = 'completed';
       const healPath = join(workspaceDir, `wave-${n}`, 'workflow-state.json');
       await state.writeJson(healPath, ws);
-      return null; // all steps truly done and not a stopped/failed wave with skipped work
+      return null;
     }
 
     return { waveNumber: n, workflowState: ws };

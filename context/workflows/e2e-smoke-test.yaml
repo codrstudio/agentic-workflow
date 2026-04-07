@@ -1,0 +1,6 @@
+name: e2e-smoke-test
+description: Sobe o app do zero e valida com Playwright que todas as paginas funcionam
+
+steps:
+  - type: spawn-agent
+    task: e2e-smoke-test

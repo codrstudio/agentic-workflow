@@ -1,0 +1,67 @@
+# Platform services — internal network only (no exposed ports).
+# Use docker-compose.platform.dev-ports.yml overlay for local dev access.
+
+name: ${PROJECT}-${ENVIRONMENT}
+
+services:
+
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    environment:
+      PUBLIC_PORT: ${PUBLIC_PORT}
+      FRONTEND_HOST: ${PROXY_FRONTEND_HOST}
+      FRONTEND_PORT: ${FRONTEND_PORT}
+      BACKEND_HOST: ${PROXY_BACKEND_HOST}
+      BACKEND_PORT: ${BACKEND_PORT}
+    ports:
+      - "${PUBLIC_PORT}:${PUBLIC_PORT}"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      internal:
+        aliases:
+          - caddy.internal
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:${PUBLIC_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - ../data/postgres:/var/lib/postgresql/data
+    networks:
+      internal:
+        aliases:
+          - postgres.internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - ../data/redis:/var/lib/redis/data
+    networks:
+      internal:
+        aliases:
+          - redis.internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  internal:
+    driver: bridge

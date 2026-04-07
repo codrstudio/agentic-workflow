@@ -13,7 +13,7 @@ import { OperatorQueue } from './operator-queue.js';
 import { PlanResolver } from './plan-resolver.js';
 import { AcrInjector } from './acr-injector.js';
 import { TokenUsageReporter } from './token-usage-reporter.js';
-import { detectNextWave, resolveSprintForWave, setupWave } from './bootstrap.js';
+import { detectNextWave, detectResumableWave, resolveSprintForWave, setupWave } from './bootstrap.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { WorkflowState } from '../schemas/workflow-state.js';
@@ -1207,22 +1207,47 @@ export class WorkflowRunner {
       to: workflowSlug,
     });
 
-    // Bootstrap new wave (awaited — wave must exist on disk before returning so monitor sees it)
-    const newWaveNumber = await detectNextWave(ctx.workspaceDir);
-    const childNeedsSprint = result.data.sprint === true;
-    const newSprintNumber = childNeedsSprint
-      ? await resolveSprintForWave(ctx.workspaceDir, ctx.repoDir, newWaveNumber)
-      : null;
-    const projectTaskPath = join(ctx.projectDir, '..', 'TASK.md');
-    const { waveDir, worktreeInfo, sprintDir } = await setupWave(
-      ctx.workspaceDir,
-      ctx.repoDir,
-      newWaveNumber,
-      newSprintNumber,
-      result.data,
-      ctx.targetBranch,
-      projectTaskPath,
-    );
+    // Check for resumable wave before creating a new one
+    const resumable = await detectResumableWave(ctx.workspaceDir);
+
+    let newWaveNumber: number;
+    let waveDir: string;
+    let worktreeDir: string;
+    let sprintDir: string | null;
+    let newSprintNumber: number | null;
+
+    if (resumable) {
+      // Reuse the resumable wave — don't create a new one
+      newWaveNumber = resumable.waveNumber;
+      waveDir = join(ctx.workspaceDir, `wave-${newWaveNumber}`);
+      worktreeDir = join(waveDir, 'worktree');
+      newSprintNumber = resumable.workflowState.sprint ?? null;
+      sprintDir = newSprintNumber != null
+        ? join(worktreeDir, 'sprints', `sprint-${newSprintNumber}`)
+        : null;
+
+      console.log(`  [spawn-workflow] Resuming wave-${newWaveNumber} for ${workflowSlug}`);
+    } else {
+      // Bootstrap new wave (awaited — wave must exist on disk before returning so monitor sees it)
+      newWaveNumber = await detectNextWave(ctx.workspaceDir);
+      const childNeedsSprint = result.data.sprint === true;
+      newSprintNumber = childNeedsSprint
+        ? await resolveSprintForWave(ctx.workspaceDir, ctx.repoDir, newWaveNumber)
+        : null;
+      const projectTaskPath = join(ctx.projectDir, '..', 'TASK.md');
+      const { waveDir: wd, worktreeInfo: wti, sprintDir: sd } = await setupWave(
+        ctx.workspaceDir,
+        ctx.repoDir,
+        newWaveNumber,
+        newSprintNumber,
+        result.data,
+        ctx.targetBranch,
+        projectTaskPath,
+      );
+      waveDir = wd;
+      worktreeDir = wti.path;
+      sprintDir = sd;
+    }
 
     // Fire-and-forget: child runs in isolated runner so stopRequested/backgroundPromises don't collide
     const childRunner = new WorkflowRunner();
@@ -1235,7 +1260,7 @@ export class WorkflowRunner {
       workflow: result.data,
       workflowSlug,
       waveDir,
-      worktreeDir: worktreeInfo.path,
+      worktreeDir,
       sprintDir,
       waveNumber: newWaveNumber,
       sprintNumber: newSprintNumber,

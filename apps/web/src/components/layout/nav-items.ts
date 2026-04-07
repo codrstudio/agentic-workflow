@@ -9,6 +9,11 @@ import {
   ListChecks,
   Activity,
   OctagonX,
+  BookOpen,
+  Workflow,
+  ClipboardList,
+  Bot,
+  SlidersHorizontal,
 } from "lucide-react"
 import type { ComponentType } from "react"
 
@@ -20,6 +25,7 @@ export interface NavItemDef {
 
 const GLOBAL_NAV_ITEMS: NavItemDef[] = [
   { to: "/projects", label: "Projetos", icon: FolderKanban },
+  { to: "/library/workflows", label: "Biblioteca", icon: BookOpen },
 ]
 
 function projectNavItems(slug: string): NavItemDef[] {
@@ -35,9 +41,21 @@ function projectNavItems(slug: string): NavItemDef[] {
   ]
 }
 
+const LIBRARY_NAV_ITEMS: NavItemDef[] = [
+  { to: "/projects", label: "Voltar", icon: ArrowLeft },
+  { to: "/library/workflows", label: "Workflows", icon: Workflow },
+  { to: "/library/tasks", label: "Tasks", icon: ClipboardList },
+  { to: "/library/agents", label: "Agents", icon: Bot },
+  { to: "/library/plans", label: "Plans", icon: SlidersHorizontal },
+]
+
 export function useNavItems(): NavItemDef[] {
   const routerState = useRouterState()
   const pathname = routerState.location.pathname
+
+  if (pathname.startsWith("/library")) {
+    return LIBRARY_NAV_ITEMS
+  }
 
   const match = pathname.match(/^\/projects\/([^/]+)/)
   if (match && match[1]) {

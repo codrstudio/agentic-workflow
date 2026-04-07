@@ -33,6 +33,7 @@ export interface WorkflowState {
   wave: number;
   sprint?: number | null;
   initialized_at: string;
+  status?: string;
   steps: WorkflowStateStep[];
 }
 
@@ -200,6 +201,7 @@ export async function listWaveDirs(workspaceDir: string): Promise<string[]> {
     });
 }
 
+
 export async function listStepDirs(waveDir: string): Promise<string[]> {
   let entries: string[];
   try {
@@ -272,10 +274,19 @@ export async function buildStepList(wavePath: string): Promise<StepSummary[]> {
       if (wfFailed && runtime.status === 'completed') {
         return { ...runtime, status: 'failed' as StepStatus };
       }
+      // If workflow failed/stopped but step still shows running, engine crashed mid-step
+      if (runtime.status === 'running' && (wfState.status === 'failed' || wfState.status === 'stopped')) {
+        return { ...runtime, status: 'failed' as StepStatus };
+      }
       return runtime;
     }
 
-    const wfStatus = (ws.status as StepStatus | undefined) ?? 'pending';
+    let wfStatus = (ws.status as StepStatus | undefined) ?? 'pending';
+    // If workflow itself is failed/stopped but step is still "running", the engine
+    // crashed before updating the step — correct it to "failed"
+    if (wfStatus === 'running' && (wfState.status === 'failed' || wfState.status === 'stopped')) {
+      wfStatus = 'failed';
+    }
     return {
       index: ws.index,
       task: ws.task,
