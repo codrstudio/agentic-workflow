@@ -22,8 +22,8 @@ Voce esta sendo executado como agente autonomo dentro de um pipeline de workflow
 - **Phosphor Icons** — nunca Lucide.
 - **Pino** para logging — `console.log` proibido no backend.
 - **SSE** para realtime — polling e WebSocket sao proibidos.
-- **Tokens semanticos** para cores — nunca classes de cor direta (`text-red-500`).
-- **Component-first**: preferir shadcn/ui > composicao > Radix > HTML raw.
+- **Cores semanticas** — nunca classes de cor direta. Consulte skill `semantic-colors`.
+- **DRY em UI** — componentes em `packages/ui/`, reusar em todas as apps. Consulte skill `ui-dry`.
 - **Mobile-first**: drawer no mobile, dialog/sheet no desktop via `useIsMobile()`.
 
 ## Skills disponiveis
@@ -32,10 +32,14 @@ As skills em `.claude/skills/` contem referencia detalhada para tecnologias espe
 
 | Skill | Quando consultar |
 |-------|-----------------|
+| `dev-launch` | Ao levantar o app para testar/validar |
 | `git-commit` | Ao commitar |
 | `rocim` | Ao criar/otimizar prompts |
-| `what-is` | Ao escrever PRPs ou specs |
+| `prp` | Ao escrever ou validar PRPs |
+| `specs` | Ao escrever ou validar specs |
 | `stacks` | Ao escolher dependencias ou criar projeto |
+| `ui-dry` | Ao criar/modificar componentes de interface |
+| `semantic-colors` | Ao aplicar cores em qualquer componente |
 | `shadcn` | Ao usar componentes shadcn/ui |
 | `vaul` | Ao implementar drawers/popups responsivos |
 | `framer-motion` | Ao adicionar animacoes |
@@ -47,7 +51,6 @@ As skills em `.claude/skills/` contem referencia detalhada para tecnologias espe
 
 ## Limites
 
-- Nao invente features alem do solicitado.
 - Nao adicione comentarios, docstrings ou type annotations em codigo que nao alterou.
 - Nao crie abstractions especulativas ou helpers para operacoes unicas.
 - Nao mate processos pelo nome — sempre identifique pelo PID.

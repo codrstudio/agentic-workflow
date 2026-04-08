@@ -286,55 +286,12 @@ Itens cujo `minTier` excede o do usuario devem ser filtrados.
 - Mobile content: `<main>` recebe `pb-14` (nao ficar atras da shortcut bar).
 - Transicao: `margin-left` animado com `transition-[margin-left] duration-200 ease-in-out`.
 
-## Component-first
+## Componentes e cores
 
-Hierarquia de decisao:
-1. **shadcn/ui** — usar o componente pronto
-2. **Composicao** — compor a partir de shadcn
-3. **Radix primitive** — quando shadcn nao cobre
-4. **HTML raw** — ultimo recurso
+Consulte as skills dedicadas:
+- **`ui-dry`** — hierarquia de decisao, onde criar componentes, packages/ui
+- **`semantic-colors`** — paleta semantica, tokens CSS, temas claro/escuro
 
-## Tailwind CSS 4 + monorepo
+### Tokens especificos do sidebar
 
-**Obrigatorio** no `index.css` de cada app:
-
-```css
-@source "../../../packages/ui/src";
-```
-
-Sem isso, classes de `packages/ui/` nao geram CSS.
-
-## Tokens semanticos
-
-Jamais cores diretas. Usar CSS variables.
-
-```
-ERRADO                              CERTO
-className="text-red-500"            className="text-destructive"
-className="bg-blue-100"             className="bg-accent"
-```
-
-### Tokens do sidebar
-
-`bg-sidebar`, `text-sidebar-foreground`, `bg-sidebar-accent`, `text-sidebar-accent-foreground`
-
-### Paleta semantica estendida
-
-| Token | Uso |
-|-------|-----|
-| `--x-faint` | palido |
-| `--x-muted` | acinzentado |
-| `--x-info` | informativo (ciano) |
-| `--x-notice` | aviso (azul) |
-| `--x-highlight` | destaque (violeta) |
-| `--x-success` | sucesso (verde) |
-| `--x-warning` | atencao (amarelo) |
-| `--x-alert` | alerta (laranja) |
-| `--x-error` | erro (vermelho) |
-| `--x-critical` | critico (roxo) |
-
-Valores calculados com **OKLCH** para uniformidade perceptual.
-
-## Temas
-
-`<ThemeProvider>` gerencia dark/light/system via classe no `<html>`. Toggle no `<AvatarMenu>` com tres opcoes.
+O sidebar tem tokens proprios: `bg-sidebar`, `text-sidebar-foreground`, `bg-sidebar-accent`, `text-sidebar-accent-foreground`.
