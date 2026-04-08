@@ -14,6 +14,10 @@ const ICON_MAP: Record<string, typeof Monitor> = {
   "code-wsl": Terminal,
   codium: Monitor,
   "codium-wsl": Terminal,
+  antigravity: Monitor,
+  "antigravity-wsl": Terminal,
+  cursor: Monitor,
+  "cursor-wsl": Terminal,
   explorer: FolderOpen,
 }
 

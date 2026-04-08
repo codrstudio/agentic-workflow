@@ -48,6 +48,20 @@ function detectEditors(): EditorOption[] {
     }
   }
 
+  if (commandExists('antigravity')) {
+    editors.push({ id: 'antigravity', label: 'Antigravity', cmd: 'antigravity', wsl: false });
+    if (hasWsl) {
+      editors.push({ id: 'antigravity-wsl', label: 'Antigravity (WSL)', cmd: 'antigravity', wsl: true });
+    }
+  }
+
+  if (commandExists('cursor')) {
+    editors.push({ id: 'cursor', label: 'Cursor', cmd: 'cursor', wsl: false });
+    if (hasWsl) {
+      editors.push({ id: 'cursor-wsl', label: 'Cursor (WSL)', cmd: 'cursor', wsl: true });
+    }
+  }
+
   editors.push({ id: 'explorer', label: 'Explorer', cmd: 'explorer.exe', wsl: false });
 
   cachedEditors = editors;
