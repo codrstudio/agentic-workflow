@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { readFile, mkdir, access, readdir, rm, copyFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, access, readdir, rm, copyFile, stat } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
@@ -361,6 +361,12 @@ export async function setupWave(
   const wtm = new WorktreeManager(repoDir);
   const worktreeInfo = wtm.create(worktreePath, branchName, targetBranch);
 
+  // Apply worktree template (skills, HARNESS.md, CLAUDE.md section)
+  await applyWorktreeTemplate(workspaceDir, worktreeInfo.path);
+
+  // Run claude init to generate project understanding in CLAUDE.md
+  runClaudeInit(worktreeInfo.path);
+
   // Ensure sprint scaffolding in worktree (only if workflow uses sprint)
   let sprintDir: string | null = null;
   if (sprintNumber != null) {
@@ -405,6 +411,134 @@ export async function setupWave(
   );
 
   return { waveDir, worktreeInfo, sprintDir };
+}
+
+// ---------------------------------------------------------------------------
+// Worktree template — copies assets/worktree.template/ into worktree
+// ---------------------------------------------------------------------------
+
+const HARNESS_SECTION_START = '<!-- agentic-workflow:start -->';
+const HARNESS_SECTION_END = '<!-- agentic-workflow:end -->';
+
+async function copyDirRecursive(src: string, dest: string): Promise<void> {
+  await mkdir(dest, { recursive: true });
+  const entries = await readdir(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = join(src, entry.name);
+    const destPath = join(dest, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirRecursive(srcPath, destPath);
+    } else {
+      await copyFile(srcPath, destPath);
+    }
+  }
+}
+
+/**
+ * Inject or update the harness section inside CLAUDE.md.
+ * If the file doesn't exist, create it with just the section.
+ * If the file exists but has no section, prepend it.
+ * If the file has the section, replace it in-place.
+ */
+async function upsertHarnessSection(
+  worktreePath: string,
+  templateDir: string,
+): Promise<void> {
+  const claudeMdPath = join(worktreePath, 'CLAUDE.md');
+  const sectionSrc = join(templateDir, 'CLAUDE.md');
+
+  let section: string;
+  try {
+    section = await readFile(sectionSrc, 'utf-8');
+  } catch {
+    return; // No template CLAUDE.md — skip
+  }
+
+  let existing = '';
+  try {
+    existing = await readFile(claudeMdPath, 'utf-8');
+  } catch {
+    // File doesn't exist — create with section only
+    await writeFile(claudeMdPath, section, 'utf-8');
+    return;
+  }
+
+  const startIdx = existing.indexOf(HARNESS_SECTION_START);
+  const endIdx = existing.indexOf(HARNESS_SECTION_END);
+
+  if (startIdx === -1 || endIdx === -1) {
+    // Section markers not found — prepend
+    await writeFile(claudeMdPath, section + '\n' + existing, 'utf-8');
+  } else {
+    // Replace existing section
+    const before = existing.slice(0, startIdx);
+    const after = existing.slice(endIdx + HARNESS_SECTION_END.length);
+    await writeFile(claudeMdPath, before + section.trim() + after, 'utf-8');
+  }
+}
+
+/**
+ * Copy the worktree template into the worktree.
+ * - .claude/skills/ and HARNESS.md are overwritten (we own them).
+ * - CLAUDE.md harness section is injected/updated without destroying user content.
+ */
+async function applyWorktreeTemplate(
+  workspaceDir: string,
+  worktreePath: string,
+): Promise<void> {
+  // workspaceDir = {root}/context/workspaces/{slug}
+  const contextDir = join(workspaceDir, '..', '..');
+  const templateDir = join(contextDir, '.templates', 'worktree');
+
+  try {
+    await stat(templateDir);
+  } catch {
+    return; // No template dir — skip
+  }
+
+  // 1. Copy .claude/skills/ (overwrite — we own these)
+  const srcSkills = join(templateDir, '.claude', 'skills');
+  try {
+    await stat(srcSkills);
+    await copyDirRecursive(srcSkills, join(worktreePath, '.claude', 'skills'));
+  } catch { /* no skills dir */ }
+
+  // 2. Copy HARNESS.md (overwrite — we own it)
+  const srcHarness = join(templateDir, 'HARNESS.md');
+  try {
+    await stat(srcHarness);
+    await copyFile(srcHarness, join(worktreePath, 'HARNESS.md'));
+  } catch { /* no HARNESS.md */ }
+
+  // 3. Upsert harness section in CLAUDE.md (preserve user content)
+  await upsertHarnessSection(worktreePath, templateDir);
+}
+
+/**
+ * Run `claude init` in the worktree to generate project understanding.
+ * Best-effort: if claude CLI is not available or fails, continue silently.
+ */
+function runClaudeInit(worktreePath: string): void {
+  try {
+    execSync('claude init --yes', {
+      cwd: worktreePath,
+      stdio: 'pipe',
+      timeout: 60_000,
+    });
+  } catch {
+    // claude init may not be available or may fail — not blocking
+  }
+}
+
+/**
+ * Public — refresh worktree template (skills, HARNESS.md, CLAUDE.md section).
+ * Called before each step so edits are picked up mid-wave.
+ */
+export async function refreshWorktreeSkills(
+  workspaceDir: string,
+  worktreePath: string,
+): Promise<void> {
+  await applyWorktreeTemplate(workspaceDir, worktreePath);
 }
 
 function stepTaskName(step: import('../schemas/workflow.js').WorkflowStep): string {
@@ -471,6 +605,9 @@ export async function bootstrap(
       const wtm = new WorktreeManager(repoDir);
       wtm.create(worktreePath, branchName, resolvedRepoConfig?.target_branch);
     }
+
+    // Refresh template on resume (picks up new/updated skills, HARNESS.md, CLAUDE.md section)
+    await applyWorktreeTemplate(workspaceDir, worktreePath);
 
     const resumedSprint = resumable.workflowState.sprint ?? null;
     let sprintDir: string | null = null;

@@ -13,7 +13,7 @@ import { OperatorQueue } from './operator-queue.js';
 import { PlanResolver } from './plan-resolver.js';
 import { AcrInjector } from './acr-injector.js';
 import { TokenUsageReporter } from './token-usage-reporter.js';
-import { detectNextWave, detectResumableWave, resolveSprintForWave, setupWave } from './bootstrap.js';
+import { detectNextWave, detectResumableWave, resolveSprintForWave, setupWave, refreshWorktreeSkills } from './bootstrap.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { WorkflowState } from '../schemas/workflow-state.js';
@@ -687,6 +687,9 @@ export class WorkflowRunner {
     stepIndex: number,
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string; response?: unknown }> {
+    // Refresh skills before each step (picks up edits between steps)
+    await refreshWorktreeSkills(ctx.workspaceDir, ctx.worktreeDir);
+
     switch (step.type) {
       case 'spawn-agent':
         if (step.task === 'merge-worktree') {
