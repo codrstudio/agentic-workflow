@@ -1,6 +1,7 @@
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useParams, Link, useNavigate } from "@tanstack/react-router"
-import { Pencil, Folder, FolderOpen, File, ChevronLeft, Plus, X, Loader2, Copy, Check } from "lucide-react"
+import { Pencil, Folder, File, ChevronLeft, Plus, X, Loader2, Copy, Check } from "lucide-react"
+import { OpenProjectMenu } from "@/components/open-project-menu"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@workspace/ui/components/status-badge"
 import { MarkdownViewer } from "@/components/ui/markdown-viewer"
@@ -197,10 +198,6 @@ export function ProjectInfoPage() {
       .then(r => r.ok ? r.json() as Promise<{ path: string }> : null)
       .then(data => { if (data) setRepoPath(data.path) })
       .catch(() => { /* workspace may not exist */ })
-  }, [slug])
-
-  const openRepoFolder = useCallback(() => {
-    void apiFetch(`/api/v1/projects/${slug}/open-repo`, { method: "POST" })
   }, [slug])
 
   const enterEditMode = () => {
@@ -520,13 +517,7 @@ export function ProjectInfoPage() {
                           actions={
                             <div className="flex items-center gap-0.5">
                               <CopyButton value={repoPath} />
-                              <button
-                                onClick={openRepoFolder}
-                                className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/row:opacity-100"
-                                title="Abrir no Explorer"
-                              >
-                                <FolderOpen className="w-3 h-3" />
-                              </button>
+                              <OpenProjectMenu slug={slug} />
                             </div>
                           }
                         />
@@ -589,13 +580,7 @@ export function ProjectInfoPage() {
                         actions={
                           <div className="flex items-center gap-0.5">
                             <CopyButton value={repoPath} />
-                            <button
-                              onClick={openRepoFolder}
-                              className="p-0.5 rounded hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/row:opacity-100"
-                              title="Abrir no Explorer"
-                            >
-                              <FolderOpen className="w-3 h-3" />
-                            </button>
+                            <OpenProjectMenu slug={slug} />
                           </div>
                         }
                       />
