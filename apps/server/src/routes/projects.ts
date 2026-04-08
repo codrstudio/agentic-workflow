@@ -337,7 +337,7 @@ app.get('/:slug/repo-path', async (c) => {
   }
 });
 
-// POST /api/v1/projects/:slug/open-repo — open repo folder in OS file manager
+// POST /api/v1/projects/:slug/open-repo — open repo folder in editor or file manager
 app.post('/:slug/open-repo', async (c) => {
   const slug = c.req.param('slug');
   const awRoot = getAwRoot();
@@ -350,10 +350,32 @@ app.post('/:slug/open-repo', async (c) => {
   }
 
   const normalized = path.resolve(repoDir);
-  const proc = spawn('explorer.exe', [normalized], { detached: true, stdio: 'ignore' });
+  const body = await c.req.json().catch(() => ({})) as { editor?: string; wsl?: boolean };
+  const editor = body.editor ?? 'explorer';
+  const wsl = body.wsl ?? false;
+
+  let cmd: string;
+  let args: string[];
+
+  if (editor === 'explorer') {
+    cmd = 'explorer.exe';
+    args = [normalized];
+  } else if (wsl) {
+    // Convert Windows path (D:\foo\bar) to WSL path (/mnt/d/foo/bar)
+    const drive = normalized[0]!.toLowerCase();
+    const rest = normalized.slice(2).replace(/\\/g, '/');
+    const wslPath = `/mnt/${drive}${rest}`;
+    cmd = editor; // 'code' or 'codium'
+    args = ['--remote', 'wsl+Ubuntu', wslPath];
+  } else {
+    cmd = editor; // 'code' or 'codium'
+    args = [normalized];
+  }
+
+  const proc = spawn(cmd, args, { detached: true, stdio: 'ignore', shell: true });
   proc.unref();
 
-  return c.json({ ok: true, path: normalized });
+  return c.json({ ok: true, path: normalized, editor, wsl });
 });
 
 app.route('/:slug/runs', runs);
