@@ -35,6 +35,10 @@ Produza `{sprint}/features.json` no formato:
 ]
 ```
 
+## Formato dos PRPs
+
+Consulte a skill `prp` para entender a estrutura de PRPs que voce esta decompondo em features.
+
 ## Regras
 
 - Cada feature deve ser implementavel em UMA sessao de agente (escopo pequeno)

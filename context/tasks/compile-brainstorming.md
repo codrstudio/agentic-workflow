@@ -48,6 +48,10 @@ Array com TODAS as discoveries desta wave (e anteriores, se existirem):
 
 Mínimo 5 items por wave. Cada item com score justificado.
 
+## Formato
+
+Consulte a skill `specs` para entender o formato padrao de specs que serao derivadas a partir deste brainstorming.
+
 ## Regras
 
 - Não invente funcionalidades além do que está descrito em TASK.md e sources/

@@ -14,7 +14,8 @@ Rode a suite de testes do projeto, diagnostique falhas e corrija o codigo.
 
 ## Protocolo
 
-1. Rode a suite de testes completa (ou o subset relevante para features recentes)
+1. Se os testes precisam do app rodando, siga a skill `dev-launch` para levantar o ambiente
+2. Rode a suite de testes completa (ou o subset relevante para features recentes)
 2. Para cada falha:
    - Leia o teste que falhou e o codigo sob teste
    - Diagnostique a causa raiz
@@ -22,7 +23,8 @@ Rode a suite de testes do projeto, diagnostique falhas e corrija o codigo.
    - Re-rode o teste para confirmar a correcao
 3. Rode typecheck e linter para validar que nada quebrou
 4. Repita ate tudo passar
-5. Commit com mensagem descrevendo o que quebrou e por que
+5. Se levantou o app, mate o dev server pelo PID (containers Docker devem continuar rodando)
+6. Commit seguindo a skill `git-commit`, descrevendo o que quebrou e por que
 
 ## Regras
 

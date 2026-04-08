@@ -7,45 +7,14 @@ description: Estuda como levantar o app, sobe dependencias e dev server, executa
 
 Levante o app do projeto do zero e execute um teste E2E com Playwright navegando pelas paginas para garantir que tudo funciona. Corrija qualquer problema encontrado.
 
-## Fase 1 — Estudo do projeto
+## Fase 1-3 — Levantar o app
 
-Antes de qualquer acao, entenda como o projeto funciona:
-
-1. Leia `package.json` na raiz do projeto (e em subdiretorios se for monorepo)
-   - Identifique scripts relevantes: `dev`, `start`, `build`, `platform:up`, `docker:up`, `compose:up`, etc.
-   - Identifique dependencias (node_modules existe? precisa rodar `npm install`?)
-2. Procure arquivos de infraestrutura:
-   - `docker-compose.yml` / `docker-compose.yaml` / `compose.yml` / `compose.yaml`
-   - `.env` / `.env.example` / `.env.local`
-   - `Dockerfile`
-3. Leia `README.md` se existir — pode conter instrucoes de setup
-4. Identifique a porta do dev server (vite.config, next.config, package.json scripts, etc.)
-
-**Registre suas descobertas** mentalmente antes de prosseguir. Voce precisa saber:
-- Comando para subir dependencias de infra (containers Docker)
-- Comando para instalar dependencias do projeto
-- Comando para rodar o dev server
-- Porta onde o app vai estar disponivel
-- Variaveis de ambiente necessarias
-
-## Fase 2 — Preparacao do ambiente
-
-5. Se existir `.env.example` mas nao `.env`, copie: `cp .env.example .env`
-6. Instale dependencias: `npm install` (ou o gerenciador de pacotes que o projeto usar)
-7. Se houver containers Docker necessarios:
-   - Prefira scripts do package.json: `npm run platform:up`, `npm run docker:up`, `npm run compose:up`
-   - Se nao houver script, use diretamente: `docker compose up -d`
-   - Aguarde os containers estarem healthy (verifique com `docker compose ps`)
-
-## Fase 3 — Subir o app
-
-8. Rode o dev server em background:
-   - Prefira scripts do package.json: `npm run dev`
-   - Rode com `&` ou redirecionando output para nao bloquear o terminal
-   - **Anote o PID** do processo para matar depois
-9. Aguarde o app estar pronto:
-   - Tente `curl -s -o /dev/null -w "%{http_code}" http://localhost:{porta}` ate retornar 200
-   - Timeout de 60 segundos — se nao subir, investigue os logs
+Siga a skill `dev-launch` para:
+1. Estudar o projeto (package.json, docker-compose, .env, porta)
+2. Copiar `.env` dos artefatos do projeto (`{project}/.env`) se existir
+3. Instalar dependencias
+4. Subir infra Docker
+5. Iniciar o dev server em background (anote o PID)
 
 ## Fase 4 — Smoke Test com Playwright
 
@@ -95,4 +64,4 @@ Antes de qualquer acao, entenda como o projeto funciona:
 - Teste E2E passando
 - Bugs corrigidos no codigo-fonte (se encontrados)
 - Screenshots de evidencia
-- Git commit com as correcoes (se houver)
+- Git commit seguindo a skill `git-commit` (se houver correcoes)

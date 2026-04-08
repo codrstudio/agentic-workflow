@@ -21,9 +21,8 @@ O loop de execucao ja selecionou o test case para voce. Seu trabalho e escrever 
 
 ### Ciclo de teste
 
-5. **Suba o app** — identifique o comando de dev (ex: `npm run dev`) e rode em background
-6. **Aguarde o app estar pronto** — verifique que o servidor responde (ex: `curl http://localhost:...`)
-7. **Escreva o teste Playwright** para o test case em `tests/e2e/` (ou diretorio equivalente do projeto)
+5. **Suba o app** — siga a skill `dev-launch` para levantar ambiente, infra Docker e dev server (anote o PID)
+6. **Escreva o teste Playwright** para o test case em `tests/e2e/` (ou diretorio equivalente do projeto)
 8. **Execute o teste** — `npx playwright test <arquivo>`
 9. **Analise os resultados**:
    - Se passou: marque como `passing` em `test-cases.json`
@@ -48,4 +47,4 @@ O loop de execucao ja selecionou o test case para voce. Seu trabalho e escrever 
 - Bugs de interface corrigidos no codigo-fonte
 - Console do browser limpo de erros
 - Test case atualizado para `passing` em `{sprint}/test-cases.json` com `completed_at`
-- Git commit com as correcoes e o teste
+- Git commit seguindo a skill `git-commit`

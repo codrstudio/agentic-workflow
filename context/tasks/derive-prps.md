@@ -26,6 +26,10 @@ Cada PRP deve conter:
 - **Limites** — o que NAO faz parte deste PRP
 - **Dependencias** — outros PRPs que precisam estar prontos antes
 
+## Formato
+
+Consulte a skill `prp` para entender a estrutura, caracteristicas e checklist de validacao de um PRP.
+
 ## Regras
 
 - PRPs sao sobre o APP (tabelas, APIs, telas) — nunca sobre o harness/engine

@@ -28,6 +28,10 @@ Cada spec deve conter:
 - **Telas** — componentes, fluxos de usuario (quando aplicavel)
 - **Criterios de aceite** — como validar que a spec foi implementada
 
+## Formato
+
+Consulte a skill `specs` para os 6 tipos de spec, convencoes de formato e checklist de qualidade.
+
 ## Regras
 
 - Cada spec deve ser auto-contida e implementavel por um agente coder
