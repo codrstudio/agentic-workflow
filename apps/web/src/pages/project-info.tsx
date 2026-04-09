@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react"
 import { useParams, Link, useNavigate } from "@tanstack/react-router"
-import { Pencil, Folder, File, ChevronLeft, Plus, X, Loader2, Copy, Check } from "lucide-react"
+import { Pencil, Folder, File, ChevronLeft, Plus, X, Loader2, Copy, Check, Star } from "lucide-react"
 import { OpenProjectMenu } from "@/components/open-project-menu"
 import { apiFetch } from "@/lib/api"
 import { StatusBadge } from "@workspace/ui/components/status-badge"
@@ -154,6 +154,13 @@ export function ProjectInfoPage() {
 
   const [repoPath, setRepoPath] = useState("")
 
+  const [isFavorite, setIsFavorite] = useState(() => {
+    try {
+      const favs = JSON.parse(localStorage.getItem("aw_favorites") ?? "[]") as { slug: string }[]
+      return favs.some((f) => f.slug === slug)
+    } catch { return false }
+  })
+
   const [editingMeta, setEditingMeta] = useState(false)
   const [metaEdit, setMetaEdit] = useState<MetaEdit | null>(null)
   const [metaSaving, setMetaSaving] = useState(false)
@@ -298,6 +305,19 @@ export function ProjectInfoPage() {
   ]
   const artifactDisplayName = (item: ArtifactItem) =>
     artifactsPath ? item.path.slice(artifactsPath.length + 1) : item.path
+  function toggleFavorite() {
+    if (!project) return
+    try {
+      const favs = JSON.parse(localStorage.getItem("aw_favorites") ?? "[]") as Project[]
+      const isFav = favs.some((f) => f.slug === project.slug)
+      const next = isFav
+        ? favs.filter((f) => f.slug !== project.slug)
+        : [...favs, { name: project.name, slug: project.slug, description: project.description, status: project.status }]
+      localStorage.setItem("aw_favorites", JSON.stringify(next))
+      setIsFavorite(!isFav)
+    } catch { /* ignore */ }
+  }
+
   const artifactParentPath = artifactsPath.includes("/")
     ? artifactsPath.slice(0, artifactsPath.lastIndexOf("/"))
     : ""
@@ -314,6 +334,17 @@ export function ProjectInfoPage() {
                 <div className="flex items-center gap-3 mb-1">
                   <h1 className="text-xl font-semibold">{project.name}</h1>
                   <StatusBadge status={project.status} />
+                  <button
+                    onClick={toggleFavorite}
+                    className="p-0.5 rounded transition-colors hover:bg-muted"
+                    aria-label={isFavorite ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                  >
+                    <Star
+                      className="w-4 h-4"
+                      fill={isFavorite ? "#eab308" : "none"}
+                      stroke={isFavorite ? "#eab308" : "currentColor"}
+                    />
+                  </button>
                 </div>
                 <p className="text-muted-foreground text-xs font-mono mb-2">{project.slug}</p>
                 {project.description && (

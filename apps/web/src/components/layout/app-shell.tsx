@@ -12,6 +12,7 @@ import { useSSEContext, type SSEStatus } from "@/contexts/sse-context"
 import { SSEProvider } from "@/contexts/sse-context"
 import { useNavItems } from "@/components/layout/nav-items"
 import { CopilotDrawer } from "@/components/copilot/copilot-drawer"
+import { RunningProjects } from "@/components/layout/running-projects"
 
 const COLLAPSED_KEY = "sidebar-collapsed"
 
@@ -77,6 +78,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <NavItem key={to} to={to} label={label} icon={Icon} collapsed={collapsed} />
           ))}
         </nav>
+
+        {/* Running projects quick-access */}
+        <RunningProjects collapsed={collapsed} />
 
         {/* User menu */}
         <UserMenu collapsed={collapsed} />
