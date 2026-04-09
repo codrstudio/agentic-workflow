@@ -32,6 +32,8 @@ export const WorkflowStateSchema = z.object({
   workflow: z.string(),
   wave: z.number(),
   sprint: z.number().nullable().optional(),
+  run_id: z.string().optional(),
+  prompt: z.string().optional(),
   initialized_at: z.string(),
   status: WorkflowStatusSchema.optional(),
   stopped_reason: z.string().optional(),

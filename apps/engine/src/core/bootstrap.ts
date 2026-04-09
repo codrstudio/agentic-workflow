@@ -293,9 +293,27 @@ export async function resolveSprintForWave(
  * Check if the latest wave has an incomplete workflow-state.json (for resume).
  * Returns the wave number and state if resumable, null otherwise.
  */
+/**
+ * Read the current run_id from server-run.json (written by the server before spawning).
+ */
+async function readCurrentRunId(workspaceDir: string): Promise<string | null> {
+  try {
+    const raw = await readFile(join(workspaceDir, 'server-run.json'), 'utf-8');
+    const meta = JSON.parse(raw) as { run_id?: string };
+    return meta.run_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+type ResumeDecision =
+  | { action: 'resume'; waveNumber: number; workflowState: WorkflowState }
+  | { action: 'cleanup'; waveNumber: number; reason: string }
+  | { action: 'new' };
+
 export async function detectResumableWave(
   workspaceDir: string,
-): Promise<{ waveNumber: number; workflowState: WorkflowState } | null> {
+): Promise<ResumeDecision> {
   let maxWave = 0;
   try {
     const entries = await readdir(workspaceDir);
@@ -307,10 +325,13 @@ export async function detectResumableWave(
       }
     }
   } catch {
-    return null;
+    return { action: 'new' };
   }
 
-  if (maxWave === 0) return null;
+  if (maxWave === 0) return { action: 'new' };
+
+  // Read current run_id from server-run.json to distinguish crash-retry vs new run
+  const currentRunId = await readCurrentRunId(workspaceDir);
 
   // Walk from highest to lowest, skipping empty waves (no workflow-state.json)
   for (let n = maxWave; n >= 1; n--) {
@@ -320,27 +341,87 @@ export async function detectResumableWave(
 
     // If workflow completed successfully, don't resume — start a new wave.
     if (ws.status === 'completed') {
-      return null;
+      return { action: 'new' };
     }
 
-    // 'stopped' is intentional pause — still resumable when user clicks "Retomar".
-    // 'failed' is also resumable — retry failed steps instead of skipping to a new wave.
-    // For stopped/failed waves, skipped steps will be reset to pending on resume.
+    // Check run_id mismatch BEFORE heal logic — a wave from a different run
+    // should be cleaned up so the wave number can be reused, even if all steps completed.
+    if (currentRunId && ws.run_id && ws.run_id !== currentRunId) {
+      return { action: 'cleanup', waveNumber: n, reason: 'superseded_by_new_run' };
+    }
+
+    // Intentionally stopped waves should be cleaned up so the next run reuses the wave number.
+    if (ws.status === 'stopped') {
+      return { action: 'cleanup', waveNumber: n, reason: 'stopped' };
+    }
+
     const hasIncomplete = ws.steps.some((s: WorkflowStepState) => s.status !== 'completed' && s.status !== 'skipped');
     const hasSkipped = ws.steps.some((s: WorkflowStepState) => s.status === 'skipped');
-    const isStoppedOrFailed = ws.status === 'stopped' || ws.status === 'failed';
+    const isFailed = ws.status === 'failed';
 
-    if (!hasIncomplete && !(isStoppedOrFailed && hasSkipped)) {
+    // All steps done (same run or no run tracking) — heal status to 'completed'
+    if (!hasIncomplete && !(isFailed && hasSkipped)) {
       (ws as Record<string, unknown>).status = 'completed';
-      const healPath = join(workspaceDir, `wave-${n}`, 'workflow-state.json');
-      await state.writeJson(healPath, ws);
-      return null;
+      await state.writeJson(statePath, ws);
+      return { action: 'new' };
     }
 
-    return { waveNumber: n, workflowState: ws };
+    return { action: 'resume', waveNumber: n, workflowState: ws };
   }
 
-  return null;
+  return { action: 'new' };
+}
+
+/**
+ * Compose sprint/TASK.md from project TASK.md + optional run-prompt.md.
+ * If run-prompt.md exists in workspace root, it's appended after the project description
+ * and then deleted (consumed once).
+ */
+async function composeSprintTaskMd(
+  workspaceDir: string,
+  sprintDir: string,
+  projectTaskPath?: string,
+): Promise<void> {
+  const parts: string[] = [];
+
+  // 1. Project description (TASK.md)
+  if (projectTaskPath) {
+    try {
+      const projectTask = await readFile(projectTaskPath, 'utf-8');
+      if (projectTask.trim()) parts.push(projectTask.trim());
+    } catch { /* TASK.md may not exist */ }
+  }
+
+  // 2. Run prompt (run-prompt.md in workspace root)
+  const runPromptPath = join(workspaceDir, 'run-prompt.md');
+  try {
+    const runPrompt = await readFile(runPromptPath, 'utf-8');
+    if (runPrompt.trim()) {
+      parts.push(`---\n\n# Run Prompt\n\n${runPrompt.trim()}`);
+    }
+    // Consume the file — each wave gets its own prompt
+    await rm(runPromptPath, { force: true });
+  } catch { /* run-prompt.md may not exist */ }
+
+  if (parts.length > 0) {
+    await writeFile(join(sprintDir, 'TASK.md'), parts.join('\n\n'), 'utf-8');
+  }
+}
+
+/**
+ * Consume run-prompt.md without a sprint dir — just delete it so the next wave doesn't reuse it.
+ * Optionally archives it into the wave dir for debugging.
+ */
+async function consumeRunPrompt(workspaceDir: string, waveDir: string): Promise<void> {
+  const runPromptPath = join(workspaceDir, 'run-prompt.md');
+  try {
+    const content = await readFile(runPromptPath, 'utf-8');
+    if (content.trim()) {
+      // Archive to wave dir for reference
+      await writeFile(join(waveDir, 'run-prompt.md'), content, 'utf-8');
+    }
+    await rm(runPromptPath, { force: true });
+  } catch { /* run-prompt.md may not exist */ }
 }
 
 export async function setupWave(
@@ -353,12 +434,20 @@ export async function setupWave(
   projectTaskPath?: string,
 ): Promise<{ waveDir: string; worktreeInfo: WorktreeInfo; sprintDir: string | null }> {
   const waveDir = join(workspaceDir, `wave-${waveNumber}`);
-  await mkdir(waveDir, { recursive: true });
-
-  // Create worktree inside wave dir
   const worktreePath = join(waveDir, 'worktree');
   const branchName = `harness/wave-${waveNumber}`;
   const wtm = new WorktreeManager(repoDir);
+
+  // If wave dir already exists (e.g. cleanup failed to fully delete on Windows),
+  // remove the stale worktree and directory before re-creating.
+  if (await dirExists(waveDir)) {
+    try { await wtm.remove(worktreePath, branchName, true); } catch { /* best effort */ }
+    try { await rm(waveDir, { recursive: true, force: true }); } catch { /* best effort */ }
+  }
+
+  await mkdir(waveDir, { recursive: true });
+
+  // Create worktree inside wave dir
   const worktreeInfo = wtm.create(worktreePath, branchName, targetBranch);
 
   // Apply worktree template (skills, HARNESS.md, CLAUDE.md section)
@@ -366,6 +455,13 @@ export async function setupWave(
 
   // Run claude init to generate project understanding in CLAUDE.md
   runClaudeInit(worktreeInfo.path);
+
+  // Read prompt before it gets consumed (composeSprintTaskMd/consumeRunPrompt delete it)
+  let runPrompt: string | undefined;
+  try {
+    const raw = await readFile(join(workspaceDir, 'run-prompt.md'), 'utf-8');
+    if (raw.trim()) runPrompt = raw.trim();
+  } catch { /* run-prompt.md may not exist */ }
 
   // Ensure sprint scaffolding in worktree (only if workflow uses sprint)
   let sprintDir: string | null = null;
@@ -375,19 +471,23 @@ export async function setupWave(
     await mkdir(join(sprintDir, '2-specs'), { recursive: true });
     await mkdir(join(sprintDir, '3-prps'), { recursive: true });
 
-    // Snapshot TASK.md into sprint for historical reference
-    if (projectTaskPath) {
-      try {
-        await copyFile(projectTaskPath, join(sprintDir, 'TASK.md'));
-      } catch { /* TASK.md may not exist — skip silently */ }
-    }
+    // Compose sprint TASK.md from project TASK.md + optional run prompt
+    await composeSprintTaskMd(workspaceDir, sprintDir, projectTaskPath);
+  } else {
+    // No sprint — still consume run-prompt.md if present (write to wave dir for reference)
+    await consumeRunPrompt(workspaceDir, waveDir);
   }
+
+  // Read current run_id from server-run.json (written by server before spawning)
+  const currentRunId = await readCurrentRunId(workspaceDir);
 
   // Create workflow-state.json deterministically from workflow steps
   const workflowState: WorkflowState = {
     workflow: workflow.name,
     wave: waveNumber,
     sprint: sprintNumber ?? null,
+    ...(currentRunId ? { run_id: currentRunId } : {}),
+    ...(runPrompt ? { prompt: runPrompt } : {}),
     initialized_at: now(),
     status: 'running',
     steps: workflow.steps.map((step, i) => ({
@@ -594,11 +694,28 @@ export async function bootstrap(
   const needsSprint = workflow.sprint === true;
 
   // Check for resumable wave before creating a new one
-  const resumable = await detectResumableWave(workspaceDir);
-  if (resumable) {
-    const waveDir = join(workspaceDir, `wave-${resumable.waveNumber}`);
+  const decision = await detectResumableWave(workspaceDir);
+
+  // Clean up superseded/stopped waves so the wave number can be reused
+  if (decision.action === 'cleanup') {
+    const deadWaveDir = join(workspaceDir, `wave-${decision.waveNumber}`);
+    const deadWorktree = join(deadWaveDir, 'worktree');
+    const deadBranch = `harness/wave-${decision.waveNumber}`;
+
+    // Remove git worktree first (handles .git locks), then delete the dir
+    const wtm = new WorktreeManager(repoDir);
+    try {
+      await wtm.remove(deadWorktree, deadBranch, true);
+    } catch { /* best effort — worktree may not exist */ }
+    try {
+      await rm(deadWaveDir, { recursive: true, force: true });
+    } catch { /* best effort */ }
+  }
+
+  if (decision.action === 'resume') {
+    const waveDir = join(workspaceDir, `wave-${decision.waveNumber}`);
     const worktreePath = join(waveDir, 'worktree');
-    const branchName = `harness/wave-${resumable.waveNumber}`;
+    const branchName = `harness/wave-${decision.waveNumber}`;
 
     // If worktree doesn't exist (engine died during setupWave), recreate it
     if (!(await dirExists(worktreePath))) {
@@ -609,7 +726,7 @@ export async function bootstrap(
     // Refresh template on resume (picks up new/updated skills, HARNESS.md, CLAUDE.md section)
     await applyWorktreeTemplate(workspaceDir, worktreePath);
 
-    const resumedSprint = resumable.workflowState.sprint ?? null;
+    const resumedSprint = decision.workflowState.sprint ?? null;
     let sprintDir: string | null = null;
     if (resumedSprint != null) {
       sprintDir = join(worktreePath, 'sprints', `sprint-${resumedSprint}`);
@@ -634,7 +751,7 @@ export async function bootstrap(
       projectDir,
       repoDir,
       worktreeInfo: { path: worktreePath, branch: branchName, head, bare: false },
-      waveNumber: resumable.waveNumber,
+      waveNumber: decision.waveNumber,
       waveDir,
       sprintNumber: resumedSprint,
       sprintDir,
@@ -643,7 +760,12 @@ export async function bootstrap(
     };
   }
 
-  const waveNumber = await detectNextWave(workspaceDir);
+  // For cleanup: reuse the cleaned-up wave number directly (detectNextWave may
+  // return wrong number if cleanup failed to fully delete the dir on Windows).
+  // For new: detect the next available wave number.
+  const waveNumber = decision.action === 'cleanup'
+    ? decision.waveNumber
+    : await detectNextWave(workspaceDir);
   const sprintNumber = needsSprint
     ? await resolveSprintForWave(workspaceDir, repoDir, waveNumber)
     : null;

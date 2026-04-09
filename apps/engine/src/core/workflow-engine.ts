@@ -1,5 +1,5 @@
 import { join, basename } from 'node:path';
-import { readFile, mkdir } from 'node:fs/promises';
+import { readFile, mkdir, rm } from 'node:fs/promises';
 import { readFileSync, writeFileSync, appendFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { parse as parseYaml } from 'yaml';
@@ -14,6 +14,7 @@ import { PlanResolver } from './plan-resolver.js';
 import { AcrInjector } from './acr-injector.js';
 import { TokenUsageReporter } from './token-usage-reporter.js';
 import { detectNextWave, detectResumableWave, resolveSprintForWave, setupWave, refreshWorktreeSkills } from './bootstrap.js';
+import { WorktreeManager } from './worktree-manager.js';
 import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { WorkflowState } from '../schemas/workflow-state.js';
@@ -1211,7 +1212,17 @@ export class WorkflowRunner {
     });
 
     // Check for resumable wave before creating a new one
-    const resumable = await detectResumableWave(ctx.workspaceDir);
+    const decision = await detectResumableWave(ctx.workspaceDir);
+
+    // Clean up superseded/stopped waves
+    if (decision.action === 'cleanup') {
+      const deadWaveDir = join(ctx.workspaceDir, `wave-${decision.waveNumber}`);
+      const deadWorktree = join(deadWaveDir, 'worktree');
+      const deadBranch = `harness/wave-${decision.waveNumber}`;
+      const wtm = new WorktreeManager(ctx.repoDir);
+      try { await wtm.remove(deadWorktree, deadBranch, true); } catch { /* best effort */ }
+      try { await rm(deadWaveDir, { recursive: true, force: true }); } catch { /* best effort */ }
+    }
 
     let newWaveNumber: number;
     let waveDir: string;
@@ -1219,12 +1230,12 @@ export class WorkflowRunner {
     let sprintDir: string | null;
     let newSprintNumber: number | null;
 
-    if (resumable) {
+    if (decision.action === 'resume') {
       // Reuse the resumable wave — don't create a new one
-      newWaveNumber = resumable.waveNumber;
+      newWaveNumber = decision.waveNumber;
       waveDir = join(ctx.workspaceDir, `wave-${newWaveNumber}`);
       worktreeDir = join(waveDir, 'worktree');
-      newSprintNumber = resumable.workflowState.sprint ?? null;
+      newSprintNumber = decision.workflowState.sprint ?? null;
       sprintDir = newSprintNumber != null
         ? join(worktreeDir, 'sprints', `sprint-${newSprintNumber}`)
         : null;
