@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { getAwRoot } from '../lib/paths.js';
 import { isPidAlive } from '../lib/pid-check.js';
+import { runsStore } from './runs.js';
 import {
   readJson,
   resolveLatestAttemptDir,
@@ -62,6 +63,17 @@ app.get('/', async (c) => {
         } catch { /* no features.json — not a real sprint */ }
       }
 
+      // Read workflow-state.json for prompt and workflow name
+      const wfState = await readJson(path.join(wavePath, 'workflow-state.json')).catch(() => null) as
+        { workflow?: string; prompt?: string; run_id?: string } | null;
+
+      // Fallback: if no prompt in workflow-state, try the runs store (covers pre-migration waves)
+      let prompt = wfState?.prompt ?? null;
+      if (!prompt && wfState?.run_id) {
+        const run = runsStore.get(wfState.run_id);
+        if (run?.prompt) prompt = run.prompt;
+      }
+
       return {
         wave_number: waveNumber,
         status: waveStatus,
@@ -71,6 +83,8 @@ app.get('/', async (c) => {
         steps: steps,
         has_sprint: hasSprint,
         sprint_name: hasSprint ? sprint!.sprintName : null,
+        workflow: wfState?.workflow ?? null,
+        prompt,
       };
     })
   );

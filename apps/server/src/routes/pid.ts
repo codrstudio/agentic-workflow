@@ -28,16 +28,27 @@ app.get('/:pid/alive', (c) => {
 });
 
 
-async function getRunSummary(slug: string): Promise<{ wave_status: StepStatus | null; last_output_age_ms: number | null }> {
+interface RunSummary {
+  wave_status: StepStatus | null;
+  last_output_age_ms: number | null;
+  wave_number: number | null;
+  steps_completed: number;
+  steps_total: number;
+}
+
+async function getRunSummary(slug: string): Promise<RunSummary> {
   const awRoot = getAwRoot();
   const workspaceDir = path.join(awRoot, 'context', 'workspaces', slug);
   const waveDirNames = await listWaveDirs(workspaceDir);
   const currentWaveDirName = waveDirNames[waveDirNames.length - 1];
-  if (!currentWaveDirName) return { wave_status: null, last_output_age_ms: null };
+  if (!currentWaveDirName) return { wave_status: null, last_output_age_ms: null, wave_number: null, steps_completed: 0, steps_total: 0 };
 
+  const waveNumber = parseInt(currentWaveDirName.replace('wave-', ''), 10);
   const wavePath = path.join(workspaceDir, currentWaveDirName);
   const steps = await buildStepList(wavePath);
   const wave_status = deriveWaveStatus(steps);
+  const steps_completed = steps.filter((s) => s.status === 'completed').length;
+  const steps_total = steps.length;
 
   const activeJsonlPath = await findActiveStepJsonl(wavePath);
   let last_output_age_ms: number | null = null;
@@ -48,7 +59,18 @@ async function getRunSummary(slug: string): Promise<{ wave_status: StepStatus | 
     } catch { /* ignore */ }
   }
 
-  return { wave_status, last_output_age_ms };
+  return { wave_status, last_output_age_ms, wave_number: waveNumber, steps_completed, steps_total };
+}
+
+async function getProjectName(slug: string): Promise<string | null> {
+  const awRoot = getAwRoot();
+  const projectFile = path.join(awRoot, 'context', 'projects', slug, 'project.json');
+  try {
+    const data = JSON.parse(await fs.readFile(projectFile, 'utf-8')) as { name?: string };
+    return data.name ?? null;
+  } catch {
+    return null;
+  }
 }
 
 // GET /api/v1/runs/active
@@ -72,8 +94,9 @@ active.get('/', async (c) => {
         const ws = await fs.readFile(path.join(workspacesDir, slug, 'workspace.json'), 'utf-8');
         const { engine_pid } = JSON.parse(ws) as { engine_pid?: number };
         if (!engine_pid || !isPidAlive(engine_pid)) return null;
-        const summary = await getRunSummary(slug).catch(() => ({ wave_status: null as StepStatus | null, last_output_age_ms: null as number | null }));
-        return { slug, alive: true, ...summary };
+        const summary = await getRunSummary(slug).catch(() => ({ wave_status: null, last_output_age_ms: null, wave_number: null, steps_completed: 0, steps_total: 0 } as RunSummary));
+        const name = await getProjectName(slug).catch(() => null);
+        return { slug, name, alive: true, ...summary };
       } catch {
         return null;
       }

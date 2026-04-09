@@ -23,6 +23,7 @@ export interface Run {
   exitCode?: number;
   intentionalStop?: boolean;
   retryCount?: number;
+  prompt?: string;
 }
 
 // Dependency: wait for a specific run or any run of a project to complete
@@ -35,6 +36,7 @@ export interface QueuedRun {
   slug: string;
   workflow: string;
   queuedAt: string;
+  prompt?: string;
   dependsOn?: RunDependency;
 }
 
@@ -105,13 +107,14 @@ function hasActiveRun(slug: string): boolean {
   return false;
 }
 
-function enqueueRun(slug: string, workflow: string, dependsOn?: RunDependency): QueuedRun {
+function enqueueRun(slug: string, workflow: string, opts?: { dependsOn?: RunDependency; prompt?: string }): QueuedRun {
   const item: QueuedRun = {
     id: randomUUID(),
     slug,
     workflow,
     queuedAt: new Date().toISOString(),
-    dependsOn,
+    ...(opts?.prompt ? { prompt: opts.prompt } : {}),
+    ...(opts?.dependsOn ? { dependsOn: opts.dependsOn } : {}),
   };
   const queue = pendingQueue.get(slug) ?? [];
   queue.push(item);
@@ -120,7 +123,7 @@ function enqueueRun(slug: string, workflow: string, dependsOn?: RunDependency): 
 
   eventBus.broadcast({
     type: 'run:queued',
-    data: { id: item.id, slug, workflow, position: queue.length, dependsOn: dependsOn ?? null },
+    data: { id: item.id, slug, workflow, position: queue.length, prompt: opts?.prompt ?? null, dependsOn: opts?.dependsOn ?? null },
     timestamp: new Date().toISOString(),
   });
 
@@ -149,7 +152,7 @@ function promoteNextQueued(slug: string): void {
     timestamp: new Date().toISOString(),
   });
 
-  startRun(next!.slug, next!.workflow).catch(() => {
+  startRun(next!.slug, next!.workflow, next!.prompt).catch(() => {
     eventBus.broadcast({
       type: 'run:failed',
       data: { runId: next!.id, slug: next!.slug, exitCode: null },
@@ -191,7 +194,7 @@ function promoteDependentRuns(completedRunId: string, completedSlug: string): vo
       timestamp: new Date().toISOString(),
     });
 
-    startRun(next!.slug, next!.workflow).catch(() => {
+    startRun(next!.slug, next!.workflow, next!.prompt).catch(() => {
       eventBus.broadcast({
         type: 'run:failed',
         data: { runId: next!.id, slug: next!.slug, exitCode: null },
@@ -437,7 +440,7 @@ async function writeServerCrashReport(
 
 const app = new Hono();
 
-export async function startRun(slug: string, workflow: string): Promise<{ runId: string; pid: number }> {
+export async function startRun(slug: string, workflow: string, prompt?: string): Promise<{ runId: string; pid: number }> {
   const awRoot = getAwRoot();
   const cliPath = path.join(awRoot, 'apps', 'engine', 'dist', 'cli.js');
   const workspaceDir = path.join(awRoot, 'context', 'workspaces', slug);
@@ -446,6 +449,13 @@ export async function startRun(slug: string, workflow: string): Promise<{ runId:
   const startedAt = new Date().toISOString();
 
   await writeServerRunMeta(workspaceDir, { run_mode: 'spawn', run_id: runId, started_at: startedAt });
+
+  // Write run prompt file for the engine to pick up during bootstrap
+  if (prompt) {
+    await fs.mkdir(workspaceDir, { recursive: true });
+    const promptPath = path.join(workspaceDir, 'run-prompt.md');
+    await fs.writeFile(promptPath, prompt, 'utf-8');
+  }
 
   const child = spawnEngineChild(awRoot, cliPath, slug, workflow);
 
@@ -463,6 +473,7 @@ export async function startRun(slug: string, workflow: string): Promise<{ runId:
     status: 'running',
     mode: 'spawn',
     startedAt,
+    ...(prompt ? { prompt } : {}),
   };
   runsStore.set(runId, run);
 
@@ -470,7 +481,7 @@ export async function startRun(slug: string, workflow: string): Promise<{ runId:
 
   eventBus.broadcast({
     type: 'run:started',
-    data: { runId, slug, workflow, pid },
+    data: { runId, slug, workflow, pid, prompt: prompt ?? null },
     timestamp: new Date().toISOString(),
   });
 
@@ -484,8 +495,8 @@ app.post('/', async (c) => {
     return c.json({ error: 'Project slug is required' }, 400);
   }
 
-  const body = await c.req.json<{ workflow: string; dependsOn?: RunDependency }>();
-  const { workflow, dependsOn } = body;
+  const body = await c.req.json<{ workflow: string; prompt?: string; dependsOn?: RunDependency }>();
+  const { workflow, prompt, dependsOn } = body;
 
   if (!workflow) {
     return c.json({ error: 'workflow is required' }, 400);
@@ -493,19 +504,19 @@ app.post('/', async (c) => {
 
   // If there's an explicit dependency, always enqueue (even if no active run)
   if (dependsOn) {
-    const item = enqueueRun(slug, workflow, dependsOn);
+    const item = enqueueRun(slug, workflow, { dependsOn, prompt });
     return c.json({ queued: true, id: item.id, dependsOn }, 202);
   }
 
   // If there's already an active run for this project, enqueue without dependency
   if (hasActiveRun(slug)) {
-    const item = enqueueRun(slug, workflow);
+    const item = enqueueRun(slug, workflow, { prompt });
     const queue = pendingQueue.get(slug) ?? [];
     return c.json({ queued: true, id: item.id, position: queue.length }, 202);
   }
 
   try {
-    const { runId, pid } = await startRun(slug, workflow);
+    const { runId, pid } = await startRun(slug, workflow, prompt);
     return c.json({ runId, pid }, 201);
   } catch (err) {
     return c.json({ error: (err as Error).message }, 500);
@@ -589,6 +600,54 @@ app.delete('/queue/:queueId', (c) => {
   });
 
   return c.json({ ok: true, remaining: queue.length });
+});
+
+// PUT /api/v1/projects/:slug/runs/queue/reorder
+app.put('/queue/reorder', async (c) => {
+  const slug = c.req.param('slug')!;
+  const body = await c.req.json<{ orderedIds: string[] }>();
+  const { orderedIds } = body;
+
+  if (!Array.isArray(orderedIds)) {
+    return c.json({ error: 'orderedIds must be an array' }, 400);
+  }
+
+  const queue = pendingQueue.get(slug);
+  if (!queue || queue.length === 0) {
+    return c.json({ error: 'Queue is empty' }, 404);
+  }
+
+  // Build map of existing items
+  const itemMap = new Map(queue.map((item) => [item.id, item]));
+
+  // Validate all IDs exist
+  for (const id of orderedIds) {
+    if (!itemMap.has(id)) {
+      return c.json({ error: `Queue item ${id} not found` }, 400);
+    }
+  }
+
+  // Reorder: put items in the order specified, then append any not mentioned
+  const reordered: QueuedRun[] = [];
+  const seen = new Set<string>();
+  for (const id of orderedIds) {
+    reordered.push(itemMap.get(id)!);
+    seen.add(id);
+  }
+  for (const item of queue) {
+    if (!seen.has(item.id)) reordered.push(item);
+  }
+
+  pendingQueue.set(slug, reordered);
+  persistQueue();
+
+  eventBus.broadcast({
+    type: 'run:queue-reordered',
+    data: { slug, orderedIds: reordered.map((i) => i.id) },
+    timestamp: new Date().toISOString(),
+  });
+
+  return c.json({ ok: true, queue: reordered });
 });
 
 export function isRunActive(runId: string): boolean {
