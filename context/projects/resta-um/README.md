@@ -1,0 +1,143 @@
+# Jogo Resta Um — Vite + React + shadcn/ui
+
+## Objetivo
+Criar um jogo completo de **Resta Um** (Peg Solitaire) no estilo tabuleiro inglês (cruz de 33 casas), totalmente funcional, com interface moderna usando **Vite + React + TypeScript + shadcn/ui**.
+
+---
+
+## Stack Técnica
+- **Vite** como bundler e dev server
+- - **React 18** com TypeScript
+- - **shadcn/ui** para componentes de UI (botões, cards, badges, dialogs)
+- - **Tailwind CSS** (já vem com shadcn) para estilização
+- - **Lucide React** para ícones
+- 
+- ---
+- 
+- ## Regras do Jogo
+- - Tabuleiro inglês: formato de cruz com 33 casas válidas
+- - Estado inicial: todas as casas com peça, exceto o centro (posição [3,3])
+- - Movimento válido: uma peça salta sobre uma peça adjacente (horizontal ou vertical) para uma casa vazia à frente, removendo a peça saltada
+- - Objetivo: deixar apenas 1 peça no tabuleiro, preferencialmente no centro
+- - Não pode mover peças diagonalmente
+- 
+- ---
+- 
+- ## Estrutura do Tabuleiro
+- O tabuleiro é uma grid 7x7 onde apenas certas posições são válidas (formato cruz):
+- 
+- ```
+- . . X X X . .
+- . . X X X . .
+- X X X X X X X
+- X X X X X X X
+- X X X X X X X
+- . . X X X . .
+- . . X X X . .
+- ```
+- 
+- Posições inválidas (cantos): linhas 0-1 e 5-6 nas colunas 0-1 e 5-6.
+- 
+- ---
+- 
+- ## Funcionalidades Obrigatórias
+- 
+- ### Gameplay
+- - Clique em uma peça para selecioná-la (highlight visual)
+- - Clique em um destino válido para executar o movimento
+- - Highlight dos destinos válidos ao selecionar uma peça
+- - Detecção automática de fim de jogo (sem movimentos disponíveis)
+- - Detecção de vitória (apenas 1 peça restante)
+- 
+- ### UI / UX
+- - Contador de peças restantes em tempo real
+- - Contador de movimentos realizados
+- - Botão "Reiniciar" para resetar o jogo
+- - Botão "Desfazer" (undo) para reverter o último movimento
+- - Modal/Dialog de fim de jogo com resultado (vitória ou derrota) e botão para jogar novamente
+- - Animação sutil ao mover e remover peças
+- - Layout responsivo (funciona em mobile e desktop)
+- 
+- ### Visual
+- - Tabuleiro centralizado na tela com visual de madeira ou estilo board game
+- - Peças com visual esférico/3D usando sombras CSS
+- - Peça selecionada com ring de destaque colorido
+- - Casas de destino válido com indicador visual (ponto ou highlight)
+- - Casas vazias com aparência de buraco/depressão
+- - Tema escuro ou neutro elegante
+- 
+- ---
+- 
+- ## Arquitetura de Código
+- 
+- ### Arquivos a criar:
+- - `src/lib/game.ts` — lógica pura do jogo (tipos, estado, movimentos, validações)
+- - `src/hooks/useGame.ts` — hook React com todo o estado e ações do jogo
+- - `src/components/Board.tsx` — componente do tabuleiro
+- - `src/components/Cell.tsx` — componente de cada casa do tabuleiro
+- - `src/components/GameInfo.tsx` — painel lateral com stats e botões
+- - `src/components/GameOverDialog.tsx` — modal de fim de jogo usando shadcn Dialog
+- - `src/App.tsx` — layout principal
+- 
+- ### Tipos TypeScript em `src/lib/game.ts`:
+- ```typescript
+- type CellState = 'invalid' | 'empty' | 'peg';
+- type Position = { row: number; col: number };
+- type Move = { from: Position; over: Position; to: Position };
+- type GameState = {
+-   board: CellState[][];
+-   selected: Position | null;
+-   validMoves: Move[];
+-   moveHistory: Move[];
+-   moveCount: number;
+-   pegsRemaining: number;
+-   status: 'playing' | 'won' | 'lost';
+- };
+- ```
+- 
+- ### Lógica em `src/lib/game.ts`:
+- - `createInitialBoard(): CellState[][]` — cria o tabuleiro inicial
+- - `isValidPosition(row, col): boolean` — verifica se posição existe no tabuleiro
+- - `getValidMovesFrom(board, pos): Move[]` — retorna movimentos válidos de uma posição
+- - `getAllValidMoves(board): Move[]` — todos os movimentos possíveis no estado atual
+- - `applyMove(board, move): CellState[][]` — aplica movimento e retorna novo tabuleiro
+- - `countPegs(board): number` — conta peças restantes
+- - `checkGameStatus(board): 'playing' | 'won' | 'lost'` — verifica estado do jogo
+- 
+- ---
+- 
+- ## Detalhes de Implementação
+- 
+- ### Cell.tsx
+- - Deve receber props: `state`, `isSelected`, `isValidTarget`, `onClick`
+- - Se `state === 'invalid'`: renderizar div transparente/invisível
+- - Se `state === 'empty'`: renderizar casa vazia (buraco)
+- - Se `state === 'peg'`: renderizar peça
+- - Se `isSelected`: aplicar ring/glow colorido na peça
+- - Se `isValidTarget`: mostrar indicador de movimento válido
+- 
+- ### useGame.ts
+- - Gerenciar seleção: primeiro clique seleciona peça, segundo clique executa movimento se válido ou troca seleção
+- - Implementar undo: guardar histórico de moves e reverter estado
+- - Recalcular movimentos válidos sempre que o board mudar
+- 
+- ---
+- 
+- ## Configuração do Projeto
+- 
+- O projeto já deve ter Vite + React + TypeScript configurado. Adicionar shadcn/ui com:
+- ```bash
+- npx shadcn@latest init
+- npx shadcn@latest add button card badge dialog
+- ```
+- 
+- Garantir que `tailwind.config.js` e `globals.css` estejam corretamente configurados com as variáveis CSS do shadcn.
+- 
+- ---
+- 
+- ## Critérios de Qualidade
+- - Código limpo, tipado e sem `any`
+- - Lógica de jogo separada da UI (sem lógica no JSX)
+- - Imutabilidade no estado do board (spread/map, sem mutação direta)
+- - Componentes pequenos e reutilizáveis
+- - Sem dependências desnecessárias além da stack definida
