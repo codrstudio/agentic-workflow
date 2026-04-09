@@ -373,35 +373,36 @@ export async function detectResumableWave(
 }
 
 /**
- * Compose sprint/TASK.md from project TASK.md + optional run-prompt.md.
- * If run-prompt.md exists in workspace root, it's appended after the project description
- * and then deleted (consumed once).
+ * Compose sprint/TASK.md from wave prompt + project README.md as context.
+ * TASK.md is the wave's task — the prompt the user provided.
+ * README.md is the project description, included as background context.
+ * If run-prompt.md exists in workspace root, it's consumed (deleted after read).
  */
 async function composeSprintTaskMd(
   workspaceDir: string,
   sprintDir: string,
-  projectTaskPath?: string,
+  projectReadmePath?: string,
 ): Promise<void> {
   const parts: string[] = [];
 
-  // 1. Project description (TASK.md)
-  if (projectTaskPath) {
-    try {
-      const projectTask = await readFile(projectTaskPath, 'utf-8');
-      if (projectTask.trim()) parts.push(projectTask.trim());
-    } catch { /* TASK.md may not exist */ }
-  }
-
-  // 2. Run prompt (run-prompt.md in workspace root)
+  // 1. Wave prompt (run-prompt.md in workspace root) — this IS the task
   const runPromptPath = join(workspaceDir, 'run-prompt.md');
   try {
     const runPrompt = await readFile(runPromptPath, 'utf-8');
-    if (runPrompt.trim()) {
-      parts.push(`---\n\n# Run Prompt\n\n${runPrompt.trim()}`);
-    }
+    if (runPrompt.trim()) parts.push(runPrompt.trim());
     // Consume the file — each wave gets its own prompt
     await rm(runPromptPath, { force: true });
   } catch { /* run-prompt.md may not exist */ }
+
+  // 2. Project description (README.md) — background context
+  if (projectReadmePath) {
+    try {
+      const projectDesc = await readFile(projectReadmePath, 'utf-8');
+      if (projectDesc.trim()) {
+        parts.push(`---\n\n# Projeto\n\n${projectDesc.trim()}`);
+      }
+    } catch { /* README.md may not exist */ }
+  }
 
   if (parts.length > 0) {
     await writeFile(join(sprintDir, 'TASK.md'), parts.join('\n\n'), 'utf-8');
@@ -431,7 +432,7 @@ export async function setupWave(
   sprintNumber: number | null,
   workflow: Workflow,
   targetBranch?: string,
-  projectTaskPath?: string,
+  projectReadmePath?: string,
 ): Promise<{ waveDir: string; worktreeInfo: WorktreeInfo; sprintDir: string | null }> {
   const waveDir = join(workspaceDir, `wave-${waveNumber}`);
   const worktreePath = join(waveDir, 'worktree');
@@ -471,8 +472,8 @@ export async function setupWave(
     await mkdir(join(sprintDir, '2-specs'), { recursive: true });
     await mkdir(join(sprintDir, '3-prps'), { recursive: true });
 
-    // Compose sprint TASK.md from project TASK.md + optional run prompt
-    await composeSprintTaskMd(workspaceDir, sprintDir, projectTaskPath);
+    // Compose sprint TASK.md from wave prompt + project README.md
+    await composeSprintTaskMd(workspaceDir, sprintDir, projectReadmePath);
   } else {
     // No sprint — still consume run-prompt.md if present (write to wave dir for reference)
     await consumeRunPrompt(workspaceDir, waveDir);
@@ -770,7 +771,7 @@ export async function bootstrap(
     ? await resolveSprintForWave(workspaceDir, repoDir, waveNumber)
     : null;
 
-  const projectTaskPath = join(contextDir, 'projects', projectSlug, 'TASK.md');
+  const projectReadmePath = join(contextDir, 'projects', projectSlug, 'README.md');
   const { waveDir, worktreeInfo, sprintDir } = await setupWave(
     workspaceDir,
     repoDir,
@@ -778,7 +779,7 @@ export async function bootstrap(
     sprintNumber,
     workflow,
     resolvedRepoConfig?.target_branch,
-    projectTaskPath,
+    projectReadmePath,
   );
 
   return {

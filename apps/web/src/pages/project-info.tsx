@@ -764,10 +764,10 @@ export function ProjectInfoPage() {
           </section>
         </div>
 
-        {/* Coluna direita: Prompt (TASK.md) */}
+        {/* Coluna direita: Descrição (README.md) */}
         <section className="w-full">
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-semibold">Prompt (TASK.md)</h2>
+            <h2 className="text-sm font-semibold">Descrição</h2>
             <Link
               to="/projects/$slug/task/edit"
               params={{ slug }}

@@ -144,7 +144,7 @@ app.post('/', async (c) => {
   if (body.description) projectJson['description'] = body.description;
 
   await fs.writeFile(path.join(projectDir, 'project.json'), JSON.stringify(projectJson, null, 2));
-  await fs.writeFile(path.join(projectDir, 'TASK.md'), '');
+  await fs.writeFile(path.join(projectDir, 'README.md'), '');
 
   return c.json({ slug: body.slug }, 201);
 });
@@ -182,26 +182,26 @@ app.patch('/:slug', async (c) => {
   return c.json(data);
 });
 
-// GET /api/v1/projects/:slug/task
+// GET /api/v1/projects/:slug/task — reads project README.md (project description)
 app.get('/:slug/task', async (c) => {
   const slug = c.req.param('slug');
   const awRoot = getAwRoot();
-  const taskFile = path.join(awRoot, 'context', 'projects', slug, 'TASK.md');
+  const readmeFile = path.join(awRoot, 'context', 'projects', slug, 'README.md');
   try {
-    const content = await fs.readFile(taskFile, 'utf-8');
+    const content = await fs.readFile(readmeFile, 'utf-8');
     return c.json({ content });
   } catch {
     return c.json({ content: '' });
   }
 });
 
-// PUT /api/v1/projects/:slug/task
+// PUT /api/v1/projects/:slug/task — writes project README.md (project description)
 app.put('/:slug/task', async (c) => {
   const slug = c.req.param('slug');
   const body = await c.req.json() as { content?: string };
   const awRoot = getAwRoot();
-  const taskFile = path.join(awRoot, 'context', 'projects', slug, 'TASK.md');
-  await fs.writeFile(taskFile, body.content ?? '');
+  const readmeFile = path.join(awRoot, 'context', 'projects', slug, 'README.md');
+  await fs.writeFile(readmeFile, body.content ?? '');
   return c.json({ ok: true });
 });
 

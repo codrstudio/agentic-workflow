@@ -1248,7 +1248,7 @@ export class WorkflowRunner {
       newSprintNumber = childNeedsSprint
         ? await resolveSprintForWave(ctx.workspaceDir, ctx.repoDir, newWaveNumber)
         : null;
-      const projectTaskPath = join(ctx.projectDir, '..', 'TASK.md');
+      const projectReadmePath = join(ctx.projectDir, '..', 'README.md');
       const { waveDir: wd, worktreeInfo: wti, sprintDir: sd } = await setupWave(
         ctx.workspaceDir,
         ctx.repoDir,
@@ -1256,7 +1256,7 @@ export class WorkflowRunner {
         newSprintNumber,
         result.data,
         ctx.targetBranch,
-        projectTaskPath,
+        projectReadmePath,
       );
       waveDir = wd;
       worktreeDir = wti.path;

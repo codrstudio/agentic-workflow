@@ -50,7 +50,7 @@ export function ProjectTaskEditPage() {
     <div className="flex flex-col h-full min-h-0 overflow-hidden p-6 gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-base font-semibold">
-          Editando TASK.md — <span className="font-mono text-muted-foreground">{slug}</span>
+          Editando README.md — <span className="font-mono text-muted-foreground">{slug}</span>
         </h1>
         <div className="flex items-center gap-2">
           {error && <p className="text-destructive text-xs">{error}</p>}
