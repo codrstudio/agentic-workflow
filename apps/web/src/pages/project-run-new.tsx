@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react"
-import { createPortal } from "react-dom"
+import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "@tanstack/react-router"
-import { Loader2, Play, X, ChevronRight, ChevronLeft, Link2, Clock } from "lucide-react"
+import { Loader2, Play, ChevronRight, ChevronLeft, Link2, Clock, Eye, EyeOff, SkipForward } from "lucide-react"
+import { MarkdownViewer } from "@/components/ui/markdown-viewer"
 import { apiFetch } from "@/lib/api"
 
 interface Workflow {
@@ -24,6 +24,7 @@ interface QueuedRun {
   slug: string
   workflow: string
   queuedAt: string
+  prompt?: string
   dependsOn?: RunDependency
 }
 
@@ -42,7 +43,7 @@ export function ProjectRunNewPage() {
   const { slug } = useParams({ from: "/_auth/projects/$slug/runs/new" })
   const navigate = useNavigate()
 
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
 
   // Step 1
   const [workflows, setWorkflows] = useState<Workflow[]>([])
@@ -51,7 +52,11 @@ export function ProjectRunNewPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedWf, setSelectedWf] = useState<string | null>(null)
 
-  // Step 2
+  // Step 2 — Prompt
+  const [prompt, setPrompt] = useState("")
+  const [showPreview, setShowPreview] = useState(false)
+
+  // Step 3 — Dependency
   const [depMode, setDepMode] = useState<DependencyMode>("immediate")
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [allActiveRuns, setAllActiveRuns] = useState<Run[]>([])
@@ -64,10 +69,8 @@ export function ProjectRunNewPage() {
   const [executeError, setExecuteError] = useState<string | null>(null)
   const [queued, setQueued] = useState(false)
 
-  const dialogRef = useRef<HTMLDivElement>(null)
-
   const handleClose = () => {
-    void navigate({ to: "/projects/$slug/info", params: { slug } })
+    void navigate({ to: "/projects/$slug/waves", params: { slug } })
   }
 
   useEffect(() => {
@@ -78,7 +81,7 @@ export function ProjectRunNewPage() {
     return () => window.removeEventListener("keydown", onKey)
   }, [slug])
 
-  // Load workflows + active runs for this project
+  // Load workflows + active runs
   useEffect(() => {
     setLoading(true)
     setLoadError(null)
@@ -94,9 +97,9 @@ export function ProjectRunNewPage() {
       .finally(() => setLoading(false))
   }, [slug])
 
-  // Load projects + all active/queued runs when entering step 2
+  // Load projects + all active/queued runs when entering step 3
   useEffect(() => {
-    if (step !== 2) return
+    if (step !== 3) return
     Promise.all([
       apiFetch("/api/v1/projects?limit=100")
         .then((r) => r.json() as Promise<{ projects: ProjectSummary[] }>)
@@ -108,7 +111,6 @@ export function ProjectRunNewPage() {
     ]).then(([projs, runs]) => {
       setProjects(projs)
       setAllActiveRuns(runs)
-      // Load queued runs for all projects
       Promise.all(
         projs.map((p) =>
           apiFetch(`/api/v1/projects/${p.slug}/runs/queue`)
@@ -138,7 +140,11 @@ export function ProjectRunNewPage() {
       const res = await apiFetch(`/api/v1/projects/${slug}/runs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workflow: selectedWf, dependsOn }),
+        body: JSON.stringify({
+          workflow: selectedWf,
+          ...(prompt.trim() ? { prompt: prompt.trim() } : {}),
+          dependsOn,
+        }),
       })
       if (!res.ok) {
         const body = (await res.json()) as { error?: string }
@@ -156,7 +162,6 @@ export function ProjectRunNewPage() {
     }
   }
 
-  // Runs available as dependency targets (active + queued, all projects)
   const dependableRuns = [
     ...allActiveRuns.map((r) => ({
       id: r.id,
@@ -176,309 +181,369 @@ export function ProjectRunNewPage() {
 
   const done = queued
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose()
-      }}
-    >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Nova Execução"
-        className="relative w-full max-w-lg mx-4 my-8 max-h-[calc(100vh-4rem)] bg-card border rounded-xl shadow-2xl flex flex-col"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b">
-          <h2 className="text-sm font-semibold">Nova Execução</h2>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-1 rounded hover:bg-muted text-muted-foreground transition-colors"
-            aria-label="Fechar"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+  const stepLabels = [
+    { n: 1, label: "Workflow" },
+    { n: 2, label: "Prompt" },
+    { n: 3, label: "Dependência" },
+  ] as const
 
-        {/* Step indicator */}
-        <div className="px-5 pt-4 pb-2 flex items-center gap-2 text-xs">
-          <span className={step === 1 ? "font-semibold text-foreground" : "text-muted-foreground"}>
-            {step === 1 ? "●" : "○"} Workflow
-          </span>
-          <span className="text-muted-foreground">────</span>
-          <span className={step === 2 ? "font-semibold text-foreground" : "text-muted-foreground"}>
-            {step === 2 ? "●" : "○"} Dependência
-          </span>
-        </div>
+  return (
+    <div className="flex flex-col h-full min-h-0 overflow-hidden p-6 gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-base font-semibold">
+          Nova Execução — <span className="font-mono text-muted-foreground">{slug}</span>
+        </h1>
+        <button
+          type="button"
+          onClick={handleClose}
+          className="px-3 py-1.5 rounded-md text-sm border hover:bg-muted"
+        >
+          Cancelar
+        </button>
+      </div>
 
-        {/* Body */}
-        <div className="px-5 py-3 flex flex-col gap-3 min-h-[140px] overflow-y-auto">
-          {step === 1 && (
-            <>
-              {loading ? (
-                <>
-                  <div className="h-14 bg-muted rounded-lg animate-pulse" />
-                  <div className="h-14 bg-muted rounded-lg animate-pulse" />
-                </>
-              ) : loadError ? (
-                <p className="text-destructive text-sm" role="alert">{loadError}</p>
-              ) : workflows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhum workflow disponível.</p>
-              ) : (
-                workflows.map((wf) => {
-                  const isRunning = activeRuns.some((r) => r.workflow === wf.slug)
-                  const isSelected = selectedWf === wf.slug
-                  return (
-                    <div
-                      key={wf.slug}
-                      onClick={() => setSelectedWf(wf.slug)}
-                      className={`border rounded-lg p-3.5 flex items-start gap-4 cursor-pointer transition-colors ${
-                        isSelected
-                          ? "border-primary ring-1 ring-primary bg-primary/5"
-                          : isRunning
-                            ? "border-blue-500/40 bg-blue-500/5"
-                            : "hover:border-muted-foreground/30"
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <h3 className="text-sm font-medium">{wf.name ?? wf.slug}</h3>
-                          {isRunning && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              Em execução
-                            </span>
-                          )}
-                        </div>
-                        {wf.description && (
-                          <p className="text-xs text-muted-foreground">{wf.description}</p>
-                        )}
-                        {wf.steps && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {wf.steps.length} step{wf.steps.length !== 1 ? "s" : ""}
-                          </p>
+      {/* Step indicator */}
+      <div className="flex items-center gap-2 text-xs">
+        {stepLabels.map(({ n, label }, i) => (
+          <span key={n} className="flex items-center gap-2">
+            {i > 0 && <span className="text-muted-foreground">────</span>}
+            <span className={step === n ? "font-semibold text-foreground" : "text-muted-foreground"}>
+              {step === n ? "●" : step > n ? "✓" : "○"} {label}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
+        {/* Step 1: Workflow selection */}
+        {step === 1 && (
+          <div className="max-w-lg flex flex-col gap-3">
+            {loading ? (
+              <>
+                <div className="h-14 bg-muted rounded-lg animate-pulse" />
+                <div className="h-14 bg-muted rounded-lg animate-pulse" />
+              </>
+            ) : loadError ? (
+              <p className="text-destructive text-sm" role="alert">{loadError}</p>
+            ) : workflows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum workflow disponível.</p>
+            ) : (
+              workflows.map((wf) => {
+                const isRunning = activeRuns.some((r) => r.workflow === wf.slug)
+                const isSelected = selectedWf === wf.slug
+                return (
+                  <div
+                    key={wf.slug}
+                    onClick={() => setSelectedWf(wf.slug)}
+                    className={`border rounded-lg p-3.5 flex items-start gap-4 cursor-pointer transition-colors ${
+                      isSelected
+                        ? "border-primary ring-1 ring-primary bg-primary/5"
+                        : isRunning
+                          ? "border-blue-500/40 bg-blue-500/5"
+                          : "hover:border-muted-foreground/30"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <h3 className="text-sm font-medium">{wf.name ?? wf.slug}</h3>
+                        {isRunning && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Em execução
+                          </span>
                         )}
                       </div>
+                      {wf.description && (
+                        <p className="text-xs text-muted-foreground">{wf.description}</p>
+                      )}
+                      {wf.steps && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {wf.steps.length} step{wf.steps.length !== 1 ? "s" : ""}
+                        </p>
+                      )}
                     </div>
-                  )
-                })
-              )}
-            </>
-          )}
-
-          {step === 2 && (
-            <div className="flex flex-col gap-4">
-              <p className="text-sm text-muted-foreground">Quando iniciar?</p>
-
-              {/* Immediate */}
-              <label
-                className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
-                  depMode === "immediate" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="dep"
-                  checked={depMode === "immediate"}
-                  onChange={() => setDepMode("immediate")}
-                  className="mt-0.5"
-                />
-                <div>
-                  <p className="text-sm font-medium">Próxima na fila</p>
-                  <p className="text-xs text-muted-foreground">
-                    {activeRuns.length > 0
-                      ? "Enfileira (já há execução ativa neste projeto)"
-                      : "Inicia agora"}
-                  </p>
-                </div>
-              </label>
-
-              {/* After specific run */}
-              <label
-                className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
-                  depMode === "specific-run" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="dep"
-                  checked={depMode === "specific-run"}
-                  onChange={() => setDepMode("specific-run")}
-                  className="mt-0.5"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-sm font-medium">Após execução específica</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Inicia quando uma execução em andamento ou enfileirada completar
-                  </p>
-                </div>
-              </label>
+                )
+              })
+            )}
+          </div>
+        )}
 
-              {depMode === "specific-run" && (
-                <div className="pl-7 flex flex-col gap-2">
-                  {dependableRuns.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhuma execução ativa ou enfileirada.</p>
+        {/* Step 2: Prompt editor */}
+        {step === 2 && (
+          <div className="flex-1 flex flex-col gap-2 min-h-0">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPreview((p) => !p)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                {showPreview ? "Ocultar preview" : "Mostrar preview"}
+              </button>
+              <span className="text-xs text-muted-foreground">
+                Descreva o que esta wave deve fazer (opcional)
+              </span>
+            </div>
+            <div className={`flex-1 grid min-h-0 gap-4 ${showPreview ? "grid-cols-2" : "grid-cols-1"}`}>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Descreva o objetivo desta execução..."
+                className="min-h-0 w-full resize-none overflow-y-auto rounded-md border border-border bg-background p-4 text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                spellCheck={false}
+                autoFocus
+              />
+              {showPreview && (
+                <div className="min-h-0 overflow-y-auto rounded-md border border-border bg-muted/30 p-4">
+                  {prompt.trim() ? (
+                    <MarkdownViewer content={prompt} />
                   ) : (
-                    <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
-                      {dependableRuns.map((r) => (
-                        <label
-                          key={r.id}
-                          className={`border rounded-md px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors text-sm ${
-                            selectedRunId === r.id
-                              ? "border-primary ring-1 ring-primary bg-primary/5"
-                              : "hover:border-muted-foreground/30"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="depRun"
-                            checked={selectedRunId === r.id}
-                            onChange={() => setSelectedRunId(r.id)}
-                          />
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {r.kind === "running" ? (
-                              <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />
-                            ) : (
-                              <Clock className="w-3 h-3 text-amber-500 shrink-0" />
-                            )}
-                            <span className="truncate font-mono text-xs">{r.label}</span>
-                            <span className={`text-[10px] px-1 py-0.5 rounded shrink-0 ${
-                              r.kind === "running"
-                                ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                            }`}>
-                              {r.kind === "running" ? "executando" : "na fila"}
-                            </span>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
+                    <p className="text-sm text-muted-foreground italic">Nenhum conteúdo para preview</p>
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
 
-              {/* After any project completion */}
-              <label
-                className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
-                  depMode === "project-completion" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="dep"
-                  checked={depMode === "project-completion"}
-                  onChange={() => setDepMode("project-completion")}
-                  className="mt-0.5"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
-                    <p className="text-sm font-medium">Após conclusão de projeto</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Inicia quando qualquer execução do projeto fonte completar
-                  </p>
+        {/* Step 3: Dependency */}
+        {step === 3 && (
+          <div className="max-w-lg flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">Quando iniciar?</p>
+
+            {/* Immediate */}
+            <label
+              className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
+                depMode === "immediate" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
+              }`}
+            >
+              <input
+                type="radio"
+                name="dep"
+                checked={depMode === "immediate"}
+                onChange={() => setDepMode("immediate")}
+                className="mt-0.5"
+              />
+              <div>
+                <p className="text-sm font-medium">Próxima na fila</p>
+                <p className="text-xs text-muted-foreground">
+                  {activeRuns.length > 0
+                    ? "Enfileira (já há execução ativa neste projeto)"
+                    : "Inicia agora"}
+                </p>
+              </div>
+            </label>
+
+            {/* After specific run */}
+            <label
+              className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
+                depMode === "specific-run" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
+              }`}
+            >
+              <input
+                type="radio"
+                name="dep"
+                checked={depMode === "specific-run"}
+                onChange={() => setDepMode("specific-run")}
+                className="mt-0.5"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-sm font-medium">Após execução específica</p>
                 </div>
-              </label>
+                <p className="text-xs text-muted-foreground">
+                  Inicia quando uma execução em andamento ou enfileirada completar
+                </p>
+              </div>
+            </label>
 
-              {depMode === "project-completion" && (
-                <div className="pl-7">
-                  <label className="text-xs text-muted-foreground mb-1 block">Projeto fonte</label>
-                  <select
-                    value={sourceSlug}
-                    onChange={(e) => setSourceSlug(e.target.value)}
-                    className="w-full bg-background border rounded-md px-3 py-1.5 text-sm"
-                  >
-                    {projects.map((p) => (
-                      <option key={p.slug} value={p.slug}>
-                        {p.name} ({p.slug})
-                      </option>
+            {depMode === "specific-run" && (
+              <div className="pl-7 flex flex-col gap-2">
+                {dependableRuns.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nenhuma execução ativa ou enfileirada.</p>
+                ) : (
+                  <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto">
+                    {dependableRuns.map((r) => (
+                      <label
+                        key={r.id}
+                        className={`border rounded-md px-3 py-2 flex items-center gap-2 cursor-pointer transition-colors text-sm ${
+                          selectedRunId === r.id
+                            ? "border-primary ring-1 ring-primary bg-primary/5"
+                            : "hover:border-muted-foreground/30"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="depRun"
+                          checked={selectedRunId === r.id}
+                          onChange={() => setSelectedRunId(r.id)}
+                        />
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          {r.kind === "running" ? (
+                            <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />
+                          ) : (
+                            <Clock className="w-3 h-3 text-amber-500 shrink-0" />
+                          )}
+                          <span className="truncate font-mono text-xs">{r.label}</span>
+                          <span className={`text-[10px] px-1 py-0.5 rounded shrink-0 ${
+                            r.kind === "running"
+                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                              : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                          }`}>
+                            {r.kind === "running" ? "executando" : "na fila"}
+                          </span>
+                        </div>
+                      </label>
                     ))}
-                  </select>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                  </div>
+                )}
+              </div>
+            )}
 
-        {/* Footer */}
-        <div className="px-5 pb-5 pt-3 border-t flex flex-col gap-2">
-          {executeError && (
-            <p className="text-destructive text-xs" role="alert">{executeError}</p>
-          )}
-          {queued && (
-            <p className="text-amber-600 dark:text-amber-400 text-xs">
-              {depMode === "immediate"
-                ? "Execução enfileirada. Será iniciada quando a execução atual terminar."
-                : depMode === "specific-run"
-                  ? "Execução enfileirada. Será iniciada quando a execução selecionada completar."
-                  : "Execução enfileirada. Será iniciada quando o projeto fonte completar."}
-            </p>
-          )}
-          <div className="flex gap-2 justify-between">
-            <div>
-              {step === 2 && !done && (
-                <button
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm border hover:bg-muted transition-colors"
+            {/* After project completion */}
+            <label
+              className={`border rounded-lg p-3.5 flex items-start gap-3 cursor-pointer transition-colors ${
+                depMode === "project-completion" ? "border-primary ring-1 ring-primary bg-primary/5" : "hover:border-muted-foreground/30"
+              }`}
+            >
+              <input
+                type="radio"
+                name="dep"
+                checked={depMode === "project-completion"}
+                onChange={() => setDepMode("project-completion")}
+                className="mt-0.5"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5">
+                  <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  <p className="text-sm font-medium">Após conclusão de projeto</p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Inicia quando qualquer execução do projeto fonte completar
+                </p>
+              </div>
+            </label>
+
+            {depMode === "project-completion" && (
+              <div className="pl-7">
+                <label className="text-xs text-muted-foreground mb-1 block">Projeto fonte</label>
+                <select
+                  value={sourceSlug}
+                  onChange={(e) => setSourceSlug(e.target.value)}
+                  className="w-full bg-background border rounded-md px-3 py-1.5 text-sm"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  Voltar
-                </button>
-              )}
-            </div>
-            <div className="flex gap-2">
+                  {projects.map((p) => (
+                    <option key={p.slug} value={p.slug}>
+                      {p.name} ({p.slug})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="flex flex-col gap-2 border-t pt-3">
+        {executeError && (
+          <p className="text-destructive text-xs" role="alert">{executeError}</p>
+        )}
+        {queued && (
+          <p className="text-amber-600 dark:text-amber-400 text-xs">
+            {depMode === "immediate"
+              ? "Execução enfileirada. Será iniciada quando a execução atual terminar."
+              : depMode === "specific-run"
+                ? "Execução enfileirada. Será iniciada quando a execução selecionada completar."
+                : "Execução enfileirada. Será iniciada quando o projeto fonte completar."}
+          </p>
+        )}
+        <div className="flex gap-2 justify-between">
+          <div>
+            {step > 1 && !done && (
               <button
                 type="button"
-                onClick={handleClose}
-                className="px-3 py-1.5 rounded-md text-sm border hover:bg-muted transition-colors"
+                onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm border hover:bg-muted transition-colors"
               >
-                {done ? "Fechar" : "Cancelar"}
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Voltar
               </button>
-              {step === 1 && (
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleClose}
+              className="px-3 py-1.5 rounded-md text-sm border hover:bg-muted transition-colors"
+            >
+              {done ? "Fechar" : "Cancelar"}
+            </button>
+
+            {/* Step 1 → Step 2 */}
+            {step === 1 && (
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={!selectedWf}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Próximo
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            {/* Step 2 → Step 3 */}
+            {step === 2 && (
+              <>
                 <button
                   type="button"
-                  onClick={() => setStep(2)}
-                  disabled={!selectedWf}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  onClick={() => { setPrompt(""); setStep(3) }}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm border hover:bg-muted transition-colors text-muted-foreground"
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                  Pular
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStep(3)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
                 >
                   Próximo
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
-              )}
-              {step === 2 && !done && (
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={executing || (depMode === "specific-run" && !selectedRunId)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {executing ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : depMode !== "immediate" ? (
-                    <Link2 className="w-3.5 h-3.5" />
-                  ) : (
-                    <Play className="w-3.5 h-3.5" />
-                  )}
-                  {depMode !== "immediate"
+              </>
+            )}
+
+            {/* Step 3: confirm */}
+            {step === 3 && !done && (
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={executing || (depMode === "specific-run" && !selectedRunId)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {executing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : depMode !== "immediate" ? (
+                  <Link2 className="w-3.5 h-3.5" />
+                ) : (
+                  <Play className="w-3.5 h-3.5" />
+                )}
+                {depMode !== "immediate"
+                  ? "Enfileirar"
+                  : activeRuns.length > 0
                     ? "Enfileirar"
-                    : activeRuns.length > 0
-                      ? "Enfileirar"
-                      : "Executar"}
-                </button>
-              )}
-            </div>
+                    : "Executar"}
+              </button>
+            )}
           </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   )
 }
