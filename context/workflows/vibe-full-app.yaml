@@ -11,12 +11,12 @@ steps:
     schema:
       type: object
       properties:
-        stop:
+        go:
           type: boolean
         reason:
           type: string
-      required: [stop, reason]
-    stop_on: "r => r.stop"
+      required: [go, reason]
+    stop_on: "r => !r.go"
 
   - type: spawn-agent
     task: derive-specs

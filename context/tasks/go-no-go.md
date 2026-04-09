@@ -18,9 +18,9 @@ Avalie o Value Map produzido na etapa anterior e decida se o ciclo continua (GO)
 
 1. Pontue todos os pain/gain de 1-10
 2. Analise discoveries desta wave:
-   - Maioria abaixo de 3 E nenhuma acima de 7 nao implementada → **STOP**
-   - Discoveries acima de 7 nao implementadas → **GO**
-3. **Wave 1 é SEMPRE GO** — retorne `stop: false` incondicionalmente se `{wave_number}` for 1. Primeiras waves têm valor intrínseco e não devem ser bloqueadas pela análise
+   - Discoveries acima de 7 não implementadas → **GO** (`go: true`)
+   - Maioria abaixo de 3 E nenhuma acima de 7 não implementada → **STOP** (`go: false`)
+3. **Wave 1 é SEMPRE GO** — retorne `go: true` incondicionalmente se `{wave_number}` for 1. Primeiras waves têm valor intrínseco e não devem ser bloqueadas pela análise
 
 ## Artefato
 
@@ -58,10 +58,11 @@ Retorne exclusivamente um JSON com:
 
 ```json
 {
-  "stop": false,
+  "go": true,
   "reason": "Justificativa de uma linha"
 }
 ```
 
-- `stop: true` apenas quando os critérios indicam STOP (maioria de discoveries baixas, sem altas implementadas)
-- `reason` deve ser descritivo (ex: "Todas as discoveries abaixo de 3, nenhuma acima de 7 implementada" ou "Discoveries de alto valor pendentes de implementação")
+- `go: true` — continuar (há discoveries de alto valor pendentes)
+- `go: false` — parar (maioria de discoveries baixas, sem altas não-implementadas)
+- `reason` deve ser descritivo (ex: "Discoveries de alto valor pendentes de implementação" ou "Todas as discoveries abaixo de 3, nenhuma acima de 7 não-implementada")
