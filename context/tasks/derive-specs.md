@@ -6,28 +6,22 @@ needs: sprint
 
 # Derive Specs
 
-Derive especificacoes tecnicas a partir do brainstorming e ranking desta wave.
+Derive especificacoes tecnicas a partir do brainstorming e ranking desta wave, seguindo a skill `specs`.
 
 ## Inputs
 
-1. Leia `{worktree}/.claude/skills/specs/SKILL.md` — padrao obrigatorio de formato, tipos e checklist de qualidade
-2. Leia `{sprint}/1-brainstorming/brainstorming.md` — dores, ganhos e priorizacao
-3. Leia `{sprint}/1-brainstorming/ranking.json` — priorize discoveries com score mais alto nao implementadas
-4. Leia docs em `{project}` para contexto de stack e infraestrutura
-5. Escaneie `{repo}/sprints/` — leia specs de sprints anteriores para formato, convencoes e IDs
+1. Leia `{worktree}/.claude/skills/specs/SKILL.md` — a skill e a fonte de verdade sobre tipos, formato, IDs, dependencias entre specs e checklist de qualidade. **Obedeca a skill literalmente.**
+2. Leia `{sprint}/1-brainstorming/brainstorming.md` e `{sprint}/1-brainstorming/ranking.json` — entenda dores, ganhos e priorizacao.
+3. Leia docs em `{project}` e o codigo em `{worktree}` o suficiente para entender stack e contexto.
+4. Escaneie `{repo}/sprints/` — specs de sprints anteriores mostram convencoes vigentes e ate onde os IDs chegaram.
 
 ## Output
 
-Produza specs em `{sprint}/2-specs/` — um arquivo `.md` por spec.
-
-Cada spec deve seguir um dos 6 tipos definidos na skill `specs` (lida no passo 1 dos Inputs). A skill define nome de arquivo, estrutura, prefixos de ID e checklist de qualidade — siga-a fielmente.
-
-Escolha o tipo de spec adequado para cada discovery. Se uma discovery precisa de mais de um tipo (ex: ER + Feature Spec), produza arquivos separados.
-
-IDs continuam de onde o sprint anterior parou (ex: S-005 se anterior terminou em S-004).
+Produza specs em `{sprint}/2-specs/`, um arquivo `.md` por spec, nomes e formato ditados pela skill.
 
 ## Regras
 
-- Cada spec deve ser auto-contida e implementavel por um agente coder
-- Specs devem ser INCREMENTAIS — adicionar ao que ja existe, nao reescrever
-- Referenciar corretamente a stack do projeto (leia o codigo se necessario)
+- A skill decide **quais tipos sao obrigatorios**, **quais sao opcionais**, **em que ordem** produzir e **como os IDs se relacionam entre tipos**. Nao tome essas decisoes aqui.
+- Specs sao **incrementais**: continuem de onde o sprint anterior parou, nao reescrevam.
+- Cada spec deve ser auto-contida e implementavel por um agente coder.
+- Referencie a stack real do projeto — leia o codigo se tiver duvida.
