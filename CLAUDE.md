@@ -62,6 +62,7 @@ There are no test scripts configured. No linter is configured for engine/server/
 
 - **PROIBIDO polling. Polling gasta trafego de rede demais a toa e nós temos custo por trafego.**
 - **Use SSE para realtime**
+- **PROIBIDO usar `alert()`, `confirm()`, `prompt()` ou qualquer diálogo nativo do browser.** Cada browser renderiza esses diálogos de forma diferente e quebra o look & feel. Sempre construa modais próprios (ex: via Radix Dialog) com a identidade visual do app.
 
 ## Layout de páginas (UI)
 
