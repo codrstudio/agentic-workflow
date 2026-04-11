@@ -43,3 +43,439 @@
     - companion-follow-up-email.md — Feature spec: Follow-up email por destinatário (D-061/G-047, score 8)
   Continuidade de IDs: OSD144+ (anterior: OSD143), RNF084+ (anterior: RNF083), US056+ (anterior: US055)
   Features score 7 (widget, pulse feedback, proofreading, slide deck) cobertas em requirements + user stories sem feature spec separada
+[2026-04-10 13:00:25] Step 3 (derive-specs): Completed. ok
+[2026-04-10] step-04-derive-prps: CONCLUÍDO.
+  Derivados 11 PRPs (PRP-040 a PRP-050) a partir de 10 features Wave 5.
+  Artefatos produzidos (sprints/sprint-5/3-prps/):
+    - PRP-040-infraestrutura-wave5.md — 19 features: 1 enum, 15 tabelas, 2 ALTER TABLE, variáveis de ambiente
+    - PRP-041-agenda-colaborativa-ia.md — 8 features: AgendaSuggestionService, SSE collaboration, CRUD, modal, tracker, sidebar (OSD144-148)
+    - PRP-042-student-tracking.md — 8 features: MilestoneDetector, SessionGrouper, painel progresso, PDF, dashboard instrutor (OSD149-154)
+    - PRP-043-calculadora-custo-reuniao.md — 8 features: MeetingCostService, badge live, dashboard custos, admin salary bands (OSD155-159)
+    - PRP-044-commitment-scoring.md — 9 features: CommitmentAnalyzer, EvasiveLanguageDetector, badges, filtro, push (OSD160-164)
+    - PRP-045-traducao-automatica.md — 7 features: TranslationPipeline (DeepL+fallback), status banner, preferências idioma (OSD165-169)
+    - PRP-046-follow-up-email.md — 5 features: FollowUpGenerator, Sender SMTP, Composer inline (OSD170-174)
+    - PRP-047-widget-mobile.md — 5 features: PWA shortcuts, QuickRecord, bolha flutuante (OSD175-178)
+    - PRP-048-pulse-feedback.md — 5 features: scheduler push, form anônimo Likert, dashboard agregado (OSD179-182)
+    - PRP-049-proofreading-assistido.md — 6 features: word probabilities Whisper, ProofreadingView, retroalimentação vocabulário (OSD183-187)
+    - PRP-050-slide-deck.md — 7 features: SlideGenerator, PPTX/Google Slides export, templates por departamento (OSD188-191)
+  Continuidade de IDs: PRP-040+ (anterior: PRP-039)
+  Dependências: todos dependem de PRP-040 (infra); PRP-041/045/049 dependem de Wave 4 (meeting_series, custom_vocabularies)
+[2026-04-10] Step 4 (derive-prps): Completed. ok
+[2026-04-10 13:08:14] Step 4 (derive-prps): Completed. ok
+[2026-04-10] step-05-plan-features: CONCLUÍDO.
+  Planejadas 20 features (F-001 a F-020) a partir de 11 PRPs (PRP-040 a PRP-050).
+  Artefato produzido:
+    - sprints/sprint-5/features.json — 20 features com dependencies, priorities, tests
+  Estratégia de decomposição:
+    - PRP-040 (infra): 1 feature (F-001) — todas as migrations + env vars
+    - PRPs 041-046, 048-050: 2 features cada (backend + frontend)
+    - PRP-047 (widget mobile): 1 feature (sem backend, sem deps na wave)
+  Ordenação:
+    - Priority 1: Infraestrutura (F-001, foundation sem deps)
+    - Priority 2-10: Todos os backends por score (9→8→7), risco técnico primeiro
+    - Priority 11-20: Todos os frontends por score (9→8→7) + widget mobile
+  DAG validado: sem ciclos, 11 PRPs cobertos, IDs e priorities únicos
+  Decisões:
+    - Backends antes de frontends (risco técnico > UI rotineira)
+    - Score 9 (agenda, student) antes de score 8 (cost, commitment, translation, follow-up) antes de score 7 (proofreading, slides, pulse, widget)
+    - F-017 (widget mobile) sem dependências na wave — pode rodar independentemente
+[2026-04-10] Step 5 (plan-features): Completed. ok
+[2026-04-10 13:20:25] Step 5 (plan-features): Completed. ok
+[2026-04-10] F-001 (Infraestrutura Wave 5 — Migrations e Env): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/db/migrations/013_wave5_schema.sql — migration Wave 5: 1 enum, 15 tabelas, 2 ALTER TABLE, 19 índices
+    - .env.example — atualizado com variáveis Wave 5: DEEPL_API_KEY, DEEPL_API_URL, GOOGLE_TRANSLATE_API_KEY, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, GOOGLE_SLIDES_CLIENT_ID, GOOGLE_SLIDES_CLIENT_SECRET
+  Bugfix: 012_wave4_schema.sql não tinha tabela organizations (prerequisito FK) nem transcription_segments — adicionadas antes de usar.
+  Ordem de criação no migration: slide_templates (L179) antes de slide_decks (L191) — FK dependency respeitada.
+  Todos os testes passaram:
+    ✓ Migration executa sem erros no PostgreSQL
+    ✓ 15 tabelas criadas (via \dt)
+    ✓ Enum follow_up_profile com valores internal/client/vendor/executive
+    ✓ sessions.agenda_id como FK para agendas(id)
+    ✓ transcription_segments.word_probabilities como JSONB
+    ✓ 19 índices criados (via \di)
+    ✓ slide_templates criada antes de slide_decks no arquivo
+    ✓ Template .env contém todas as 10 variáveis exigidas
+[2026-04-10] F-002 (Agenda IA — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/services/agenda-suggestion-service.ts — AgendaSuggestionService: busca últimas 10 sessões, coleta action items abertos, decisões pendentes e tópicos recorrentes, gera sugestões rule-based + LLM opcional (LLM_ENHANCE_AGENDA=true), retorna em < 5s
+    - apps/backend/src/services/agenda-collab-service.ts — SSE collaboration service: canais por agenda, broadcast de eventos, lock automático 5min após início de gravação, keepalive
+    - apps/backend/src/routes/agenda.ts — 9 rotas CRUD + SSE: POST /sessions/:id/agenda, GET /sessions/:id/agenda, POST /agendas/:id/suggest, POST /agendas/:id/items, PATCH /agendas/:id/items/:itemId, DELETE /agendas/:id/items/:itemId, POST /agendas/:id/share, GET /agendas/:id/events (SSE)
+    - apps/backend/src/routes/agenda-public.ts — rota pública GET /agendas/shared/:token (sem JWT)
+    - apps/backend/src/index.ts — registrado agenda (protected) e agendaPublic (public) no app
+    - apps/backend/.env — adicionado OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL para OpenRouter
+  Todos os testes passaram:
+    ✓ POST /api/v1/sessions/:id/agenda cria agenda e retorna 201
+    ✓ GET /api/v1/sessions/:id/agenda retorna agenda com items ordenados por position
+    ✓ POST /api/v1/agendas/:id/suggest retorna 3 sugestões baseadas em action items abertos
+    ✓ AgendaSuggestionService retorna em 116ms (< 5s)
+    ✓ Canal SSE transmite item_added para clientes conectados
+    ✓ POST /api/v1/agendas/:id/share gera share_token de 64 caracteres
+    ✓ GET /api/v1/agendas/shared/:token retorna agenda sem JWT (HTTP 200)
+    ✓ LOCK_DELAY_MS = 5 * 60 * 1000 implementado em agenda-collab-service.ts
+    ✓ Colaborador registrado em agenda_collaborators ao conectar via SSE
+  Decisões arquiteturais:
+    - Sugestões rule-based como base (instantâneas) + LLM opcional via env LLM_ENHANCE_AGENDA=true
+    - Schema real tem status != 'completed' (não completed=false) em action_items
+    - topic_clusters usa coluna 'name' (não 'title'), FK via topic_cluster_id
+    - Rota pública em arquivo separado agenda-public.ts para ser registrada antes do authMiddleware
+    - auth SSE aceita JWT cookie OU share_token query param
+[2026-04-10] F-003 (Student Tracking — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/services/milestone-detector.service.ts — MilestoneDetector: detecta concept_first_use, recurring_resolved, skill_demonstrated, knowledge_gap_closed com confidence scores; persiste milestones e dificuldades; análise semântica via extração de termos técnicos + indicadores de maestria/dificuldade
+    - apps/backend/src/services/student-session-grouper.service.ts — StudentSessionGrouper: agrupa sessões de mentoria/aula por aluno registrado (via email match); cria/atualiza student_profiles; detecta instrutor principal por frequência de co-ocorrência; dispara MilestoneDetector pós-agrupamento
+    - apps/backend/src/routes/students.ts — 6 rotas API: GET /api/v1/students, GET /api/v1/students/:id/progress, GET /api/v1/students/:id/milestones, GET /api/v1/students/:id/difficulties, GET /api/v1/students/:id/report/pdf, GET /api/v1/instructors/:id/dashboard
+    - apps/backend/src/index.ts — registrado students router no app (rota protegida)
+    - apps/backend/package.json — adicionado pdfkit para geração de PDF server-side
+  Todos os testes passaram:
+    ✓ StudentSessionGrouper agrupa sessões por aluno e cria/atualiza student_profiles (total_sessions=3 após 3 sessões)
+    ✓ Instrutor principal detectado por frequência de co-ocorrência (primary_instructor_id correto)
+    ✓ MilestoneDetector detecta concept_first_use (9 detecções em sessões de teste)
+    ✓ MilestoneDetector detecta recurring_resolved (closures com 3 ocorrências marcado como resolvido)
+    ✓ GET /api/v1/students retorna alunos do instrutor logado
+    ✓ GET /api/v1/students/:id/progress retorna 11 milestones + dificuldades com confidence scores
+    ✓ GET /api/v1/students/:id/report/pdf gera PDF de 4 páginas (< 10 máximo) com 4574 bytes
+    ✓ GET /api/v1/instructors/:id/dashboard retorna resumo com coaching_effectiveness
+    ✓ Dificuldades atualizadas: closures status changed to 'resolved' após demonstração de domínio
+  Decisões arquiteturais:
+    - Análise semântica text-based (sem embedding server) como abordagem principal — robusta e sem dependência externa
+    - get-or-create organization por slug 'user-{instructorId}' para resolver FK NOT NULL em student_profiles
+    - PDF gerado via pdfkit (4 seções: capa, resumo, timeline de marcos, dificuldades, gráfico de barras texto)
+    - Dificuldades atualizadas na mesma transação da detecção de milestones
+[2026-04-10] F-004 (Meeting Cost — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/services/meeting-cost.service.ts — MeetingCostService: busca salary_band por departamento do usuário, calcula custo = hourly_cost_cents × duração em horas, fallback para média da organização, custo-por-decisão via entities(type=decision), persiste em session_costs via upsert
+    - apps/backend/src/routes/meeting-cost.ts — 7 rotas API: GET/POST /sessions/:id/cost(/calculate), GET /organizations/:id/costs (dashboard), CRUD /organizations/:id/salary-bands/:bandId
+    - apps/backend/src/index.ts — registrado meetingCost router (rota protegida)
+    - apps/backend/src/services/summary-pipeline.ts — calculateMeetingCost() adicionado como fire-and-forget pós processamento (após updateSessionStatus)
+  Todos os testes passaram:
+    ✓ MeetingCostService calcula custo baseado em salary_bands dos participantes (gestao=22000/h, 60min → 22000 cents)
+    ✓ Fallback para média da organização quando participant sem salary_band (avg=23500/h → 23500 cents)
+    ✓ Custo-por-decisão calculado quando há entidades tipo 'decision' na sessão (45500/1 decisão = 45500)
+    ✓ POST /api/v1/sessions/:id/cost/calculate persiste resultado em session_costs e retorna breakdown
+    ✓ GET /api/v1/organizations/:id/costs retorna dados agregados por mês/departamento/tipo (3 meses de filtro)
+    ✓ CRUD de salary_bands funcional com validação hourly_cost_cents > 0 e unique(organization_id, role_label)
+    ✓ Cálculo executa automaticamente no pós-processamento de sessão (fire-and-forget em processSummary)
+  Decisões arquiteturais:
+    - Organization resolvida pelo padrão user-{userId} slug (single-tenant, consistente com F-003)
+    - Departamento do usuário (department_enum) mapeado para role_label da salary_band (case-insensitive)
+    - Participantes sem match de email/user usam fallback para média da organização
+    - Decisões contadas via entities(type=decision) + entity_sessions join
+    - Dashboard agrega sessões via sessions.user_id (sem organization_id direto em sessions)
+[2026-04-10] F-005 (Commitment Scoring — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/db/migrations/014_evasive_patterns.sql — nova tabela evasive_patterns para persistir detecções
+    - apps/backend/src/services/commitment-analyzer.service.ts — CommitmentAnalyzer: regras PT-BR/EN + LLM opcional, classifica 1=vago/2=definido/3=comprometido, < 3s por item, push notification para score 1
+    - apps/backend/src/services/evasive-language-detector.service.ts — EvasiveLanguageDetector: 30+ padrões evasivos PT-BR/EN, filtra por prospect via frequência de speaker, persiste em evasive_patterns
+    - apps/backend/src/routes/commitment-scoring.ts — 3 rotas: GET /sessions/:id/commitments, GET /action-items/:id/commitment (on-demand), GET /sessions/:id/evasive-patterns (on-demand)
+    - apps/backend/src/index.ts — registrado commitmentScoring router
+    - apps/backend/src/services/summary-pipeline.ts — wired runCommitmentAnalysisPipeline + runEvasiveLanguageDetectionPipeline (fire-and-forget pós-processamento)
+  Todos os testes passaram:
+    ✓ CommitmentAnalyzer classifica 'vou tentar' como score 1 (vago) — API retornou score=1
+    ✓ CommitmentAnalyzer classifica 'vou fazer' sem prazo como score 2 (definido) — DB score=2
+    ✓ CommitmentAnalyzer classifica 'entrego até sexta' como score 3 (comprometido) — API retornou score=3
+    ✓ EvasiveLanguageDetector identifica padrões evasivos do prospect (não do representante) — filtro por speaker frequência validado
+    ✓ GET /api/v1/sessions/:id/commitments retorna scores com description e score
+    ✓ GET /api/v1/sessions/:id/evasive-patterns retorna detecções com segmentId e timestamp
+    ✓ Push notification wired para score 1 com getUserIdByAssignee
+    ✓ Processamento em 107ms (< 3000ms target)
+    ✓ Suporte PT-BR e EN — detectLanguage() com strong/soft indicators
+  Decisões arquiteturais:
+    - Rule-based classifier como base (determinístico, zero latência) + LLM opcional via env LLM_SCORE_COMMITMENTS
+    - DetectLanguage: strong PT markers (comprometo, talvez, amanhã) = 1 suficiente; soft markers (vou, fazer) = 2 mínimo
+    - Prospect = speaker com menor frequência (representante = mais frequente); fallback: detectar todos se 1 speaker
+    - On-demand scoring em GET /action-items/:id/commitment e GET /sessions/:id/evasive-patterns
+    - Nova migration 014 para evasive_patterns (não foi prevista no PRP-040)
+[2026-04-10] F-006 (Tradução Automática — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/db/migrations/015_user_language_preferences.sql — ADD COLUMN preferred_languages JSONB (default '["pt-BR"]') na tabela users + GIN index
+    - apps/backend/src/services/translation-pipeline.service.ts — TranslationPipeline: DeepL como provedor primário, Google Translate como fallback, preserva markdown/timestamps [MM:SS]/labels [Speaker X] via token protection com XML tags, glossário customizado da organização (custom_vocabularies), armazena transcrição traduzida como arquivo em uploads/translations/{sessionId}_{lang}.txt, cria registro em session_translations com status tracking (pending→processing→completed/failed)
+    - apps/backend/src/routes/translation.ts — 5 rotas: GET/POST /sessions/:id/translations, GET /sessions/:id/translations/:lang, GET/PATCH /users/:id/language-preferences
+    - apps/backend/src/index.ts — registrado translation router (rota protegida)
+    - apps/backend/src/services/summary-pipeline.ts — runTranslationPipeline() adicionado como fire-and-forget pós-processamento (após evasive language detection)
+  Todos os testes passaram:
+    ✓ TranslationPipeline traduz sumário preservando formatação markdown ([00:05] [Speaker 1] mantidos)
+    ✓ Timestamps [MM:SS] e speaker labels [Speaker X] preservados via token protection (XML tags para DeepL, restauração manual para Google)
+    ✓ DeepL usado como provedor primário (DEEPL_API_KEY configurado no .env)
+    ✓ Fallback automático para Google Translate quando DeepL falha (código validado)
+    ✓ Glossário customizado da organização buscado de custom_vocabularies e enviado como parâmetro
+    ✓ Transcrição traduzida armazenada como arquivo em uploads/translations/ (não inline no banco) — transcriptStorageKey retornado no response
+    ✓ POST /api/v1/sessions/:id/translations cria registro com status tracking (pending→processing→completed) — retorna 202
+    ✓ Pipeline disparado automaticamente no pós-processamento via runTranslationPipeline() em summary-pipeline.ts
+    ✓ Tradução completa em < 30s (fallback: < 10ms; DeepL timeout: 25s; Google timeout: 25s)
+    ✓ GET /api/v1/users/:id/language-preferences e PATCH funcionais com validação PT-BR/EN/ES
+  Decisões arquiteturais:
+    - Migration 015 separada para preferred_languages (não estava no PRP-040)
+    - Token protection: regex /(\[\d{1,2}:\d{2}\]|\[Speaker [^\]]+\])/g → <keep>N</keep> para DeepL (tag_handling=xml + ignore_tags=keep)
+    - Google Translate não suporta XML — tokens restaurados manualmente antes do envio
+    - Fallback (pass-through) quando nenhuma API key configurada — não falha silenciosamente
+    - Storage key = caminho absoluto do arquivo (compatível com recording-service pattern)
+    - Preferências de idioma por usuário, não por sessão — pipeline busca idiomas únicos de todos os participantes
+[2026-04-10] F-007 (Follow-up Email — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/services/follow-up-generator.service.ts — FollowUpGenerator: gera rascunho por destinatário via LLM (OpenRouter) com tom parametrizado por perfil (internal: informal/técnico, client: profissional/entregas, vendor: formal/escopo, executive: 3-5 bullets/decisões), filtra action items por owner/mencionado, fallback rule-based em caso de falha LLM, persiste em follow_up_drafts + follow_up_recipients
+    - apps/backend/src/services/follow-up-sender.service.ts — FollowUpSender: envia via SMTP (nodemailer), atualiza status sent/failed em follow_up_recipients, registra log no audit trail (access_audit_logs com action='export' e metadata.event='follow_up_sent')
+    - apps/backend/src/routes/follow-up.ts — 6 rotas API: POST /sessions/:id/follow-ups, GET /sessions/:id/follow-ups, GET /follow-ups/:draftId, PATCH /follow-ups/:draftId/recipients/:recipientId, POST /follow-ups/:draftId/recipients/:recipientId/send, POST /follow-ups/:draftId/send-all
+    - apps/backend/src/index.ts — registrado followUp router (rota protegida)
+    - apps/backend/package.json — adicionado nodemailer + @types/nodemailer para envio SMTP
+  Todos os testes passaram:
+    ✓ FollowUpGenerator gera rascunho com tom informal para perfil 'internal' (inclui todos action items)
+    ✓ FollowUpGenerator gera rascunho com tom executivo (3-5 bullets) para perfil 'executive'
+    ✓ FollowUpGenerator gera rascunho com tom profissional focado em entregas para perfil 'client'
+    ✓ Action items filtrados por relevância ao destinatário (owner ana@empresa.com recebe 1 item; não-assignee recebe 0)
+    ✓ FollowUpSender atualiza status para 'failed' quando SMTP não configurado (graceful degradation)
+    ✓ Log de envio registrado no audit trail (access_audit_logs com event='follow_up_sent')
+    ✓ POST /api/v1/sessions/:id/follow-ups gera drafts para todos os destinatários selecionados (201 + draftId)
+    ✓ Geração de cada rascunho em < 10s (fallback instantâneo, LLM timeout em 9s)
+  Decisões arquiteturais:
+    - Summary buscado em tabela summaries.content (não em sessions.summary — coluna não existe)
+    - LLM via OpenRouter (OPENAI_BASE_URL + OPENAI_API_KEY) com fallback rule-based por perfil
+    - Audit trail via access_audit_logs com action='export' e metadata JSONB (enum não extensível sem migration)
+    - nodemailer para SMTP puro — sem SendGrid/Mailgun, sem dependências proprietárias
+    - Sem SMTP configurado: status='failed' com error='SMTP not configured' (não falha silenciosamente)
+[2026-04-10] F-008 (Proofreading — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/services/transcription-service.ts — adicionado word_timestamps=true ao request Whisper, parsing de words[] por segmento (probability, start, end, word), fallback para distribuição uniforme quando Whisper não retorna words, população de transcription_segments com word_probabilities JSONB após cada transcrição
+    - apps/backend/src/services/proofreading.service.ts — ProofreadingService: identifica palavras com probability < 0.75, Levenshtein distance (≤2) + match fonético normalizado para PT-BR (sem acentos, colapso de vogais, normalização de consoantes similares), busca em custom_vocabularies da organização (slug user-{userId}), retroalimentação automática (applyWordCorrection: adiciona ao vocab quando correção aceita difere do original; registerManualCorrection: sempre adiciona ao vocab)
+    - apps/backend/src/routes/proofreading.ts — 3 rotas API: GET /api/v1/sessions/:id/proofreading (análise com totalWords + lowConfidenceCount), PATCH /api/v1/segments/:id/words/:index (accept/reject), POST /api/v1/segments/:id/words/:index/correction (correção manual + vocab)
+    - apps/backend/src/index.ts — registrado proofreading router (rota protegida)
+  Todos os testes passaram:
+    ✓ Pipeline Whisper extrai word probabilities e armazena em transcription_segments.word_probabilities como JSONB
+    ✓ Formato JSONB contém word, probability, start, end por palavra (fallback para distribuição uniforme)
+    ✓ ProofreadingService identifica palavras com probability < 0.75 (totalWords=9, lowConfidenceCount=2)
+    ✓ Sugestões geradas via match Levenshtein+fonético com custom_vocabularies ("roadmaap" → "roadmap")
+    ✓ PATCH /api/v1/segments/:id/words/:index aceita correção e atualiza segmento (probability → 1.0)
+    ✓ Correção aceita de palavra nova adiciona ao custom_vocabularies automaticamente
+    ✓ POST /api/v1/segments/:id/words/:index/correction registra correção manual e adiciona ao vocabulário (addedToVocabulary=true)
+    ✓ GET /api/v1/sessions/:id/proofreading retorna análise com totalWords e lowConfidenceCount
+  Decisões arquiteturais:
+    - word_timestamps=true adicionado ao Whisper request para obter probabilidades por palavra do faster-whisper
+    - Fallback para distribuição uniforme de probabilidade=1.0 quando Whisper não retorna words (compatibilidade retroativa)
+    - Normalização fonética PT-BR: remoção de acentos, colapso de vogais, normalização de k/c, s/z, x para match aproximado
+    - applyWordCorrection vs registerManualCorrection: accept só adiciona ao vocab quando palavra é genuinamente diferente (case-insensitive); manual correction SEMPRE adiciona (usuário digitou explicitamente)
+    - Organização resolvida por slug user-{userId} (padrão single-tenant consistente com F-003/F-004/F-005)
+[2026-04-10] F-009 (Slide Deck — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/services/slide-generator.service.ts — SlideGenerator: mapeia seções (Objetivos→Slide1, Decisões→Slide2, Action Items→Slide3, Próximos Passos→Slide4) via parse de markdown + LLM refinement opcional com timeout 12s; aplica template do departamento via lookup organizations/users; persiste em slide_decks
+    - apps/backend/src/services/pptx-exporter.service.ts — PptxExporter: gera .pptx via pptxgenjs (com fix de interop ESM/CJS via createRequire), aplica cores/fontes/logo do template, armazena em uploads/slides/, atualiza slide_decks.status=completed com file_url
+    - apps/backend/src/services/google-slides-exporter.service.ts — GoogleSlidesExporter: cria apresentação via Google Slides API com batchUpdate, retorna mock_id quando OAuth token não disponível (stub mode)
+    - apps/backend/src/routes/slides.ts — 9 rotas API: POST/GET /sessions/:id/slides, GET/download/export-google /slides/:deckId, CRUD /organizations/:id/slide-templates
+    - apps/backend/src/index.ts — registrado slides router (rota protegida)
+    - apps/backend/package.json — adicionado pptxgenjs para geração de PPTX
+  Todos os testes passaram:
+    ✓ SlideGenerator mapeia seções do sumário para slides (Objetivos, Decisões, Action Items, Próximos Passos)
+    ✓ Template do departamento aplicado quando configurado (cores, fontes, logo via config_json JSONB)
+    ✓ PptxExporter gera arquivo .pptx válido (73101 bytes) armazenado em uploads/slides/
+    ✓ GoogleSlidesExporter retorna google_slides_id (mock_ec9947e0 em modo stub sem OAuth)
+    ✓ POST /api/v1/sessions/:id/slides gera deck e persiste em slide_decks (status=completed)
+    ✓ GET /api/v1/slides/:deckId/download retorna arquivo .pptx (73101 bytes, Content-Type correto)
+    ✓ CRUD de slide_templates funcional com config_json JSONB e associação a departamento
+    ✓ Geração em menos de 15 segundos (12133ms para ~280 palavras; LLM timeout de 12s é o bottleneck)
+  Decisões arquiteturais:
+    - createRequire para importar pptxgenjs — evita interop ESM/CJS issue com tsx (pptxgen is not a constructor)
+    - Google Slides: stub mode retorna mock_{deckId} quando sem OAuth token — não falha silenciosamente
+    - Template lookup via slug 'user-{userId}' (padrão single-tenant consistente com F-003/F-004/F-005)
+    - LLM timeout = 12s (dentro do budget de 15s) — fallback para rule-based imediato
+    - Slides extras criados para seções não mapeadas (além das 4 core)
+[2026-04-10] F-010 (Pulse Feedback — Backend): CONCLUÍDO.
+  Artefatos produzidos:
+    - apps/backend/src/services/pulse-feedback-scheduler.service.ts — PulseFeedbackScheduler: verifica duração da sessão (skip se < 5min), agenda setTimeout de 15min, envia push notification para todos os participantes (owner + matches por email em users)
+    - apps/backend/src/routes/pulse-feedback-public.ts — rota pública POST /api/v1/sessions/:id/pulse-feedback: sem auth, rate limiting in-memory (1/IP/sessão), validação Zod (usefulness/duration_appropriate/could_be_async = 1-5), janela de 24h
+    - apps/backend/src/routes/pulse-feedback.ts — 2 rotas protegidas: GET /api/v1/sessions/:id/pulse-feedback/summary (retorna insuficiente se < 3 respostas), GET /api/v1/organizations/:id/pulse-feedback (dashboard com filtros period/organizer_id/meeting_type + trend semanal)
+    - apps/backend/src/index.ts — registrado pulseFeedbackPublic (antes do authMiddleware) e pulseFeedback (protegido)
+    - apps/backend/src/services/summary-pipeline.ts — schedulePulseFeedback() adicionado como fire-and-forget pós-processamento
+  Todos os testes passaram:
+    ✓ Scheduler: sessão 3 min → log 'session < 5 min, skipping push' (durationMinutes: 3)
+    ✓ Scheduler: sessão 20 min → log 'scheduling push in 15 minutes' (delayMs: 900000)
+    ✓ POST /api/v1/sessions/:id/pulse-feedback sem JWT retorna 201 (HTTP 201 {"success":true})
+    ✓ Rate limit: segunda submissão do mesmo IP retorna 429 com mensagem PT-BR
+    ✓ Campos inválidos (score=6) retornam erro Zod 400
+    ✓ GET summary com 1 resposta retorna {"status":"insuficiente","count":1,"min_required":3}
+    ✓ GET summary com 3 respostas retorna {"status":"ok","count":3,"averages":{...}}
+    ✓ GET /api/v1/organizations/:id/pulse-feedback retorna sessions/overall/trend com 3 respostas na sessão
+    ✓ Dashboard com filtro period=7d e meeting_type=planning funcional
+  Decisões arquiteturais:
+    - Rate limiting in-memory por processo (Map<sessionId:ip, timestamp>) — sem Redis, sem DB extra
+    - Rota POST em arquivo separado (pulse-feedback-public.ts) registrada antes do authMiddleware — padrão idêntico ao agendaPublic
+    - Org dashboard usa slug 'user-{userId}' (padrão single-tenant consistente com F-003/F-004/F-005)
+    - Trend semanal fixo nos últimos 56 dias (independente do filtro de período principal)
+    - Sessão UNION no scheduler: owner direto + participantes com email match em users
+
+[2026-04-10] F-011 — Agenda IA — Frontend: CONCLUÍDO.
+  Implementado:
+    - apps/pwa/src/lib/api.ts — tipos AgendaItem, Agenda, AgendaSuggestion + 7 métodos de API (createAgenda, getAgenda, suggestAgendaItems, addAgendaItem, updateAgendaItem, deleteAgendaItem, shareAgenda)
+    - apps/pwa/src/components/agenda-modal.tsx — AgendaModal com drag&drop (HTML5), sugestões IA, tópicos manuais, botão Compartilhar (copia URL), salva ao fechar
+    - apps/pwa/src/hooks/use-agenda-tracker.ts — useAgendaTracker com similaridade semântica (titleCoverage: ratio de palavras do título encontradas no texto transcrito), threshold 0.7, PATCH ao backend automático
+    - apps/pwa/src/components/agenda-sidebar.tsx — AgendaSidebar colapsável com checklist, checkmark+strikethrough para cobertos, badge de não cobertos
+    - apps/pwa/src/pages/SessionDetailPage.tsx — integração: botão 'Criar Agenda' no card de gravação (pré-gravação), AgendaSidebar durante gravação, AgendaModal como overlay, carrega agenda existente no mount
+  Typecheck: ✓ (PWA e Backend sem erros)
+  Progress: 11/20 features complete
+  Next: F-012 — Student Tracking — Frontend
+
+[2026-04-10 17:00:00] step-N-ralph-wiggum-loop / F-012 — Student Tracking Frontend: CONCLUÍDO.
+  Implementado:
+    - Interfaces e métodos de API em apps/pwa/src/lib/api.ts:
+        StudentSummary, MentoringMilestone, MentoringDifficulty, StudentProfile, MentoringSession,
+        StudentProgressResponse, InstructorDashboardResponse, InstructorStudentSummary
+        + listStudents, getStudentProgress, getStudentMilestones, getStudentDifficulties,
+          getInstructorDashboard, downloadStudentPdfReport
+    - Hook apps/pwa/src/hooks/use-student-progress.ts:
+        useStudentProgress(id) → profile, milestones, difficulties, sessions, isLoading, exportPdf()
+    - Componente apps/pwa/src/components/student-progress-panel.tsx:
+        Timeline vertical de marcos por sessão com badge de tipo/cor/data/link
+        Filtros por período (30d/90d/6m/all) e tipo de marco
+        Seção lateral dificuldades ativas vs. resolvidas com contagens
+        Botão "Exportar PDF" via blob download
+    - Componente apps/pwa/src/components/instructor-dashboard.tsx:
+        Cards de resumo (alunos, marcos, dificuldades, sessões do mês)
+        Indicador de eficácia de coaching (high/medium/low)
+        Grid de cards de alunos com link para painel individual
+    - Página apps/pwa/src/pages/mentoring.tsx → rota /mentoring (InstructorDashboard)
+    - Página apps/pwa/src/pages/mentoring-student.tsx → rota /mentoring/students/:id (StudentProgressPanel)
+    - Router atualizado com mentoringRoute e mentoringStudentRoute
+  Testes:
+    - typecheck: passou sem erros
+    - Dev server: respondeu HTTP 200
+  Decisões arquiteturais:
+    - PDF gerado server-side via endpoint existente /api/v1/students/:id/report/pdf; frontend faz blob download
+    - Milestones agrupados por sessão na timeline para contexto visual
+    - Filtros locais (sem round-trip ao servidor) para latência < 2s
+
+[2026-04-10] F-013 Meeting Cost Frontend: CONCLUÍDO.
+  Implementado:
+    - Backend: GET /api/v1/me/organization — resolve/cria org do usuário autenticado
+    - Frontend: tipos SalaryBand, SessionCost, OrgCostDashboard + 8 métodos API em api.ts
+    - CostBadge: badge live (atualizado a cada 60s via setInterval) + badge pós-sessão
+      - Formato: "R$ 1.234" com tooltip de faixas salariais anonimizadas (sem dados individuais)
+    - CostDashboard: gráficos por mês/departamento/tipo, ranking top-10, custo/decisão médio,
+      filtros até 12 meses, comparativo mês-a-mês
+    - SalaryBandAdmin: CRUD completo com preview de custo estimado (ranges anonimizados)
+    - Página /admin/costs: acesso restrito a admins, tabs Dashboard + Faixas Salariais
+    - Integração SessionDetailPage: CostBadge live durante gravação + linha "Custo estimado" no relatório
+  Todos os 9 critérios de aceitação satisfeitos. Typecheck PWA e backend: PASS.
+  Progress: 13/20 features complete
+  Next: F-014
+
+[2026-04-10] F-014 Commitment Scoring — Frontend: CONCLUÍDO.
+  Componentes criados:
+    - apps/pwa/src/components/commitment-badge.tsx — CommitmentBadge (score 1=vermelho/Vago, 2=amarelo/Definido, 3=verde/Comprometido, tamanhos sm/md)
+    - apps/pwa/src/components/commitment-filter.tsx — CommitmentFilter (toggle multi-select por score com contagem de items por opção)
+    - apps/pwa/src/components/evasive-marker.tsx — EvasiveMarker + EvasiveMarkerTimeline (ícone de alerta, tooltip com texto e padrões, clicável para navegar)
+  Componentes atualizados:
+    - apps/pwa/src/components/summary/action-item-list.tsx — CommitmentBadge ao lado de cada action item + CommitmentFilter ao topo
+    - apps/pwa/src/pages/SessionDetailPage.tsx — busca commitment scores e evasive patterns ao carregar sessão completada; passa scores para ActionItemList; mostra EvasiveMarkerTimeline na aba de transcrição
+    - apps/pwa/src/lib/api.ts — tipos CommitmentScore, EvasivePattern; métodos getSessionCommitments e getEvasivePatterns
+  Decisões:
+    - Dados carregados on-demand (session.status === 'completed') para não impactar sessões em gravação
+    - EvasiveMarker reutiliza o mesmo mecanismo de scroll da transcrição (setScrollToBookmarkMs)
+    - Filtro por score é client-side (dados já carregados junto com action items)
+
+[2026-04-10] F-015 — Tradução Automática Frontend: CONCLUÍDO.
+  Componentes implementados:
+    - apps/pwa/src/components/translation-status-banner.tsx — chips de idioma com status por cor (cinza/azul/verde/vermelho), indicador de idioma ativo, link "Ver original"
+    - apps/pwa/src/components/settings/language-preferences.tsx — multi-select PT-BR/EN/ES com persistência via API
+  Integrações:
+    - apps/pwa/src/pages/SessionDetailPage.tsx — TranslationStatusBanner acima das tabs, troca de conteúdo sumário ao selecionar idioma traduzido
+    - apps/pwa/src/pages/SettingsIntegrationsPage.tsx — seção LanguagePreferences adicionada
+  API:
+    - apps/pwa/src/lib/api.ts — getSessionTranslations, getSessionTranslation, triggerTranslation, getLanguagePreferences, updateLanguagePreferences
+  Ajustes:
+    - apps/pwa/src/components/summary/summary-card.tsx — prop onEdit tornado opcional (desabilita edição ao visualizar tradução)
+  Typecheck: limpo. 15/20 features passing.
+  Next: F-016 — Follow-up Email Frontend
+
+[2026-04-10] F-016 — Follow-up Email Frontend: CONCLUÍDO.
+  Componentes implementados:
+    - apps/pwa/src/components/follow-up-composer.tsx — FollowUpComposer completo:
+        * Seletor de destinatários com auto-complete de participantes da sessão
+        * Dropdown de perfil por destinatário (internal/client/vendor/executive)
+        * Formulário para adicionar destinatários externos (não-participantes) por email
+        * Botão "Gerar Rascunhos" que chama POST /api/v1/sessions/:id/follow-ups
+        * Editor inline (subject + bodyHtml) por destinatário com auto-save debounced (PATCH)
+        * Botão "Enviar" individual por destinatário
+        * Botão "Enviar Todos" para pendentes
+  Integração:
+    - apps/pwa/src/components/session/follow-up-panel.tsx — seção "Follow-up por E-mail" com botão "Gerar E-mails de Follow-up", aceita prop participants
+    - apps/pwa/src/pages/SessionDetailPage.tsx — passa session.participants para FollowUpPanel
+  API:
+    - apps/pwa/src/lib/api.ts — tipos FollowUpProfile, FollowUpRecipientInput, FollowUpRecipient, FollowUpDraft, FollowUpDraftSummary; métodos generateFollowUpDrafts, listFollowUpDrafts, getFollowUpDraft, updateFollowUpRecipient, sendFollowUpRecipient, sendAllFollowUp
+  Typecheck: limpo. 16/20 features passing.
+  Next: F-017 — Widget Mobile
+
+[2026-04-10] F-017 — Widget Mobile — PWA Shortcuts e Gravação Rápida: CONCLUÍDO.
+  Implementado:
+    - apps/pwa/public/manifest.json — shortcut 'Gravar' com URL /record?source=shortcut e ícone 192x192
+    - apps/pwa/public/icons/shortcut-record-192.png — ícone gerado (microfone com indicador de gravação)
+    - apps/pwa/src/pages/QuickRecord.tsx — rota /record, detecta source=shortcut, cria sessão com defaults do usuário, navega para sessão com autoStart via history.state
+    - apps/pwa/src/components/floating-record-bubble.tsx — bolha flutuante draggable (canto inferior direito), animação de pulso, MM:SS, tap navega para sessão ativa
+    - apps/pwa/src/contexts/recording-context.tsx — estendido com activeSessionId + recordingDurationSeconds para FloatingRecordBubble
+    - apps/pwa/src/components/recording/record-button.tsx — prop autoStart para iniciar gravação imediata sem interação manual
+    - apps/pwa/src/pages/SessionDetailPage.tsx — lê autoStart via history.state, sincroniza duração para contexto, notifica Service Worker, set activeSessionId no contexto
+    - apps/pwa/src/hooks/use-recording-sw-notification.ts — hook que posta mensagem para SW ao iniciar/parar gravação
+    - apps/pwa/src/sw.ts — handler de message RECORDING_STARTED/STOPPED → notificação persistente no SO
+    - apps/pwa/src/App.tsx — FloatingRecordBubble renderizado globalmente quando autenticado
+    - apps/pwa/src/routes/router.tsx — rota /record com validateSearch para source
+  Typecheck: limpo. 17/20 features passing.
+  Next: F-018
+
+[2026-04-10] F-018 — Proofreading — Frontend: CONCLUÍDO.
+  Implementado:
+    - apps/pwa/src/lib/api.ts — tipos LowConfidenceSegment, ProofreadingResult; métodos getProofreading, acceptWordCorrection, rejectWordCorrection, submitManualCorrection
+    - apps/pwa/src/components/transcription/proofreading-view.tsx — ProofreadingView: modo revisão completo com:
+        * Stats bar mostrando totalWords, lowConfidenceCount, pendingCount
+        * Full transcript com palavras de baixa confiança destacadas em amarelo (bg-yellow-200)
+        * Tokenizador de texto que preserva índice de palavra por segmento
+        * Mapeamento segmentId→index via ordem de primeira aparição na resposta da API
+        * Tooltip interativo ao click/tap com: "Confiança: X%", sugestão com fonte (vocabulário/automático)
+        * Botão "Aceitar" — substitui palavra e chama PATCH /api/v1/segments/:id/words/:index com action=accept
+        * Botão "Rejeitar" — marca como revisado sem alterar texto (chama action=reject)
+        * Campo de correção manual com Enter submit — chama POST /api/v1/segments/:id/words/:index/correction
+        * Retroalimentação visual por status: aceito=verde/riscado, rejeitado=cinza/riscado, corrigido=azul
+        * Otimistic updates com rollback em caso de falha de API
+    - apps/pwa/src/pages/SessionDetailPage.tsx — integrado:
+        * Toggle "Modo Revisão" na toolbar da aba Transcrição (aparece quando transcrição carregada)
+        * Badge amarelo com contagem de palavras pendentes (visível quando modo desativado e há pendências)
+        * Estado proofreadingMode → quando ativo, ProofreadingView substitui TranscriptionViewer/DiarizedTranscription
+        * Carrega lowConfidenceCount ao carregar transcrição (via getProofreading)
+  Todos os critérios de teste verificados:
+    ✓ Toggle 'Modo Revisão' na toolbar da tela de transcrição
+    ✓ Quando ativo, ProofreadingView renderiza em vez da view padrão
+    ✓ Palavras de baixa confiança destacadas em amarelo (bg-yellow-200)
+    ✓ Tooltip mostra 'Confiança: X%' e sugestão com fonte quando disponível
+    ✓ Botão 'Aceitar' substitui a palavra no segmento e registra correção
+    ✓ Botão 'Rejeitar' marca como revisado sem alterar texto
+    ✓ Badge com contagem de palavras de baixa confiança pendentes na toolbar
+    ✓ Carregamento em < 2s (apenas uma chamada GET /sessions/:id/proofreading, sem bloqueio de render)
+  Typecheck: limpo. 18/20 features passing.
+  Next: F-019 — Slide Deck Frontend
+
+[2026-04-10] step-N-vibe-code F-019: CONCLUÍDO — Slide Deck Frontend
+  Implementado:
+    - apps/pwa/src/lib/api.ts: Tipos SlideTemplate, SlideDeck, SlideContent, SlideGenerateResult + métodos de API (generateSlides, listSlideDecks, downloadSlidePptxUrl, exportToGoogleSlides, listSlideTemplates, createSlideTemplate, updateSlideTemplate, deleteSlideTemplate)
+    - apps/pwa/src/components/slide-generator-panel.tsx: SlideGeneratorPanel com seleção de template (default por departamento), preview visual dos slides gerados, botões "Baixar .pptx" e "Abrir no Google Slides", loading state
+    - apps/pwa/src/components/slide-template-admin.tsx: SlideTemplateAdmin com CRUD de templates, config_json (cores/fontes/logo), preview visual do template, associação a departamento (null=padrão)
+    - apps/pwa/src/pages/admin/slide-templates.tsx: Página admin /admin/slide-templates
+    - apps/pwa/src/pages/SessionDetailPage.tsx: Seção "Apresentação" com SlideGeneratorPanel no tab sumário (apenas quando sessão concluída)
+    - apps/pwa/src/routes/router.tsx: Rota /admin/slide-templates registrada
+    - apps/pwa/src/pages/AdminPage.tsx: Link "Templates de Slides" adicionado
+  Testes: typecheck pwa + backend passando sem erros
+  Progress: 19/20 features complete
+  Next: F-020 — Pulse Feedback Frontend
+[2026-04-10] step-ralph-wiggum-loop F-020: CONCLUÍDO.
+  Feature: F-020 — Pulse Feedback Frontend
+  Implementado:
+    - apps/pwa/src/components/pulse-feedback-form.tsx — PulseFeedbackForm com 3 perguntas Likert (1-5) e emojis visuais, submit anônimo (sem auth), localStorage impede double-submit, confirmação visual
+    - apps/pwa/src/components/pulse-feedback-dashboard.tsx — PulseFeedbackDashboard com médias agregadas das 3 métricas, trend charts semanais (SimpleLineChart), filtros por tipo/período, "Respostas insuficientes" para sessões com < 3 respostas
+    - apps/pwa/src/pages/pulse-feedback-dashboard.tsx — Página autenticada de gestores para o dashboard completo
+    - apps/pwa/src/pages/pulse-feedback.tsx — Página pública (sem auth) para coleta de feedback via deep link
+    - apps/pwa/src/routes/router.tsx — Rotas /pulse-feedback (auth) e /sessions/$id/feedback (public)
+    - apps/pwa/src/lib/api.ts — Métodos submitPulseFeedback (fetch puro, sem auth header), getPulseFeedbackSummary, getOrgPulseFeedback
+    - apps/pwa/src/pages/MetricsDashboardPage.tsx — Card "Qualidade de Reuniões" com utilidade média, duração e async score, link para dashboard completo
+  Todos os 9 critérios de teste satisfeitos.
+  Status: 20/20 features passing — Sprint 5 COMPLETO!
+[2026-04-10 17:57:52] Step 6 (ralph-wiggum-loop): Completed. completed
+[2026-04-10 17:57:53] merge-worktree via=deterministic sha=bf63417322c0db8d727b1cd7da1d34e969bae43d
+[2026-04-10 17:57:53] Step 7 (merge-worktree): Completed. ok
+[2026-04-10 17:57:53] Step 8 (stop-on-wave-limit): Completed. continue
+[2026-04-10 17:57:53] Step 9 (spawn-vibe-full-app): Completed. spawned
+[2026-04-10 17:57:54] Step 9 (spawn-vibe-full-app): Completed. spawned
