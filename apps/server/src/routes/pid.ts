@@ -7,6 +7,7 @@ import {
   buildStepList,
   deriveWaveStatus,
   findActiveStepJsonl,
+  readWorkflowState,
   type StepStatus,
 } from '../lib/wave-state.js';
 import { getAwRoot } from '../lib/paths.js';
@@ -94,6 +95,19 @@ active.get('/', async (c) => {
         const ws = await fs.readFile(path.join(workspacesDir, slug, 'workspace.json'), 'utf-8');
         const { engine_pid } = JSON.parse(ws) as { engine_pid?: number };
         if (!engine_pid || !isPidAlive(engine_pid)) return null;
+
+        // engine_pid is never cleared from workspace.json, so a stale-but-recycled PID
+        // (or an engine still alive but past this workspace) would otherwise leak
+        // completed runs into the active list. Trust workflow-state.json as the
+        // authoritative per-workspace run status.
+        const workspaceDir = path.join(workspacesDir, slug);
+        const waveDirNames = await listWaveDirs(workspaceDir);
+        const currentWaveDirName = waveDirNames[waveDirNames.length - 1];
+        if (currentWaveDirName) {
+          const wfState = await readWorkflowState(path.join(workspaceDir, currentWaveDirName));
+          if (wfState?.status && wfState.status !== 'running') return null;
+        }
+
         const summary = await getRunSummary(slug).catch(() => ({ wave_status: null, last_output_age_ms: null, wave_number: null, steps_completed: 0, steps_total: 0 } as RunSummary));
         const name = await getProjectName(slug).catch(() => null);
         return { slug, name, alive: true, ...summary };
