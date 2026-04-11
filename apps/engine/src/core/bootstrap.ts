@@ -644,8 +644,9 @@ export async function refreshWorktreeSkills(
 
 function stepTaskName(step: import('../schemas/workflow.js').WorkflowStep): string {
   switch (step.type) {
-    case 'spawn-agent': return step.task;
-    case 'ralph-wiggum-loop': return step.task;
+    case 'spawn-agent':
+    case 'ralph-wiggum-loop':
+      return step.task ?? step.name ?? 'inline';
     case 'chain-workflow': return `chain-${step.workflow}`;
     case 'spawn-workflow': return `spawn-${step.workflow}`;
     case 'stop-on-wave-limit': return 'stop-on-wave-limit';

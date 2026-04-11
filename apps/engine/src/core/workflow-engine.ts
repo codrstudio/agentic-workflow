@@ -15,7 +15,7 @@ import { AcrInjector } from './acr-injector.js';
 import { TokenUsageReporter } from './token-usage-reporter.js';
 import { detectNextWave, detectResumableWave, resolveSprintForWave, setupWave, refreshWorktreeSkills } from './bootstrap.js';
 import { WorktreeManager } from './worktree-manager.js';
-import { WorkflowSchema, type Workflow, type WorkflowStep } from '../schemas/workflow.js';
+import { WorkflowSchema, type Workflow, type WorkflowStep, type SpawnAgentStep, type FeatureLoopStep } from '../schemas/workflow.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { WorkflowState } from '../schemas/workflow-state.js';
 import type { Feature } from '../schemas/feature.js';
@@ -385,7 +385,7 @@ export class WorkflowRunner {
    */
   async spawnMergeBackground(ctx: WorkflowRunnerContext): Promise<void> {
     const mergeDir = join(ctx.waveDir, 'merge');
-    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePromptFromTaskSlug('merge-worktree', ctx);
     const resolved = this.resolveSpawnModelEffort('merge-worktree', taskFrontmatter, frontmatter, ctx.plan);
 
     const resolvedModel = await this.modelResolver.resolve({
@@ -469,7 +469,7 @@ export class WorkflowRunner {
    */
   async spawnMerge(ctx: WorkflowRunnerContext): Promise<{ exitCode: number }> {
     const mergeDir = join(ctx.waveDir, 'merge');
-    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('merge-worktree', ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePromptFromTaskSlug('merge-worktree', ctx);
     const resolved = this.resolveSpawnModelEffort('merge-worktree', taskFrontmatter, frontmatter, ctx.plan);
 
     const resolvedModel = await this.modelResolver.resolve({
@@ -549,7 +549,7 @@ export class WorkflowRunner {
 
   private stepSlug(step: WorkflowStep): string {
     switch (step.type) {
-      case 'spawn-agent': return step.task;
+      case 'spawn-agent': return step.task ?? step.name ?? 'inline';
       case 'ralph-wiggum-loop': return 'ralph-wiggum-loop';
       case 'chain-workflow': return `chain-${step.workflow}`;
       case 'spawn-workflow': return `spawn-${step.workflow}`;
@@ -655,10 +655,10 @@ export class WorkflowRunner {
   }
 
   private async composePrompt(
-    taskSlug: string,
+    step: SpawnAgentStep | FeatureLoopStep,
     ctx: WorkflowRunnerContext,
-  ): Promise<{ prompt: string; agentName: string; frontmatter: Record<string, unknown>; taskFrontmatter: import('../schemas/task.js').TaskFrontmatter }> {
-    const task = await this.spawner.resolveTask(taskSlug, ctx.tasksDir);
+  ): Promise<{ prompt: string; agentName: string; frontmatter: Record<string, unknown>; taskFrontmatter: import('../schemas/task.js').TaskFrontmatter; taskSlug: string }> {
+    const { resolved: task, slug: taskSlug } = await this.spawner.resolveTaskFromStep(step, ctx.tasksDir);
     this.validateTaskNeeds(taskSlug, task.frontmatter.needs, ctx);
     const agentName = task.frontmatter.agent;
     const { frontmatter, body: agentBody } = await this.spawner.resolveAgentProfile(agentName, ctx.agentsDir);
@@ -670,7 +670,33 @@ export class WorkflowRunner {
     const taskMdSection = await this.readTaskMd(ctx.sprintDir);
     const prompt = `${agentPrompt}\n\n---\n\n# Task: ${taskSlug}\n\n${taskPrompt}${taskMdSection}${acrSection}`;
 
-    return { prompt, agentName, frontmatter, taskFrontmatter: task.frontmatter };
+    return { prompt, agentName, frontmatter, taskFrontmatter: task.frontmatter, taskSlug };
+  }
+
+  private composePromptFromTaskSlug(
+    taskSlug: string,
+    ctx: WorkflowRunnerContext,
+  ) {
+    return this.composePrompt(
+      { type: 'spawn-agent', task: taskSlug } as SpawnAgentStep,
+      ctx,
+    );
+  }
+
+  private assertTaskOrPrompt(
+    step: SpawnAgentStep | FeatureLoopStep,
+    stepIndex: number,
+  ): void {
+    if (!step.task && !step.prompt) {
+      throw new Error(
+        `${step.type} step ${stepIndex} must provide either "task" or "prompt"`,
+      );
+    }
+    if (step.task && step.prompt) {
+      throw new Error(
+        `${step.type} step ${stepIndex} cannot have both "task" and "prompt"`,
+      );
+    }
   }
 
   private async readTaskMd(sprintDir: string | null): Promise<string> {
@@ -693,13 +719,15 @@ export class WorkflowRunner {
 
     switch (step.type) {
       case 'spawn-agent':
+        this.assertTaskOrPrompt(step, stepIndex);
         if (step.task === 'merge-worktree') {
           return this.executeMergeWorktreeHybrid(stepIndex, ctx);
         }
-        return this.executeSpawnAgent(step.task, step.model, step.schema, step.stop_on, stepIndex, ctx);
+        return this.executeSpawnAgent(step, stepIndex, ctx);
 
       case 'ralph-wiggum-loop':
-        return this.executeFeatureLoop(step.task, step.model, stepIndex, ctx, step.features_file);
+        this.assertTaskOrPrompt(step, stepIndex);
+        return this.executeFeatureLoop(step, stepIndex, ctx);
 
       case 'chain-workflow':
         return this.executeChainWorkflow(step.workflow, ctx);
@@ -716,17 +744,17 @@ export class WorkflowRunner {
   }
 
   private async executeSpawnAgent<T extends z.infer<typeof SpawnAgentResponseSchema> = z.infer<typeof SpawnAgentResponseSchema>>(
-    taskSlug: string,
-    stepModel: string | undefined,
-    customSchema: Record<string, unknown> | undefined,
-    stopOn: string | undefined,
+    step: SpawnAgentStep,
     stepIndex: number,
     ctx: WorkflowRunnerContext,
     responseSchema: z.ZodType<T> = SpawnAgentResponseSchema as z.ZodType<T>,
   ): Promise<{ exitCode: number; reason: string; response?: T }> {
-    const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: taskSlug }));
+    const stepModel = step.model;
+    const customSchema = step.schema;
+    const stopOn = step.stop_on;
+    const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, step));
     const attemptDir = await this.state.resolveNextAttemptDir(stepDir);
-    const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt(taskSlug, ctx);
+    const { prompt, agentName, frontmatter, taskFrontmatter, taskSlug } = await this.composePrompt(step, ctx);
     const resolved = this.resolveSpawnModelEffort(taskSlug, taskFrontmatter, frontmatter, ctx.plan);
 
     const stepName = taskSlug;
@@ -881,7 +909,7 @@ export class WorkflowRunner {
       const pullDir = join(ctx.waveDir, 'repo-pull');
       await mkdir(pullDir, { recursive: true });
 
-      const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePrompt('resolve-pull-conflicts', ctx);
+      const { prompt, agentName, frontmatter, taskFrontmatter } = await this.composePromptFromTaskSlug('resolve-pull-conflicts', ctx);
       const resolved = this.resolveSpawnModelEffort('resolve-pull-conflicts', taskFrontmatter, frontmatter, ctx.plan);
 
       const resolvedModel = await this.modelResolver.resolve({
@@ -971,7 +999,7 @@ export class WorkflowRunner {
     stepIndex: number,
     ctx: WorkflowRunnerContext,
   ): Promise<{ exitCode: number; reason: string; response?: unknown }> {
-    const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: 'merge-worktree' }));
+    const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'spawn-agent', task: 'merge-worktree' } as SpawnAgentStep));
     const branchName = `harness/wave-${ctx.waveNumber}`;
     const targetBranch = ctx.targetBranch ?? 'main';
     const progressPath = join(ctx.waveDir, 'workflow-progress.txt');
@@ -1068,10 +1096,7 @@ export class WorkflowRunner {
       };
 
       return this.executeSpawnAgent(
-        'merge-worktree',
-        undefined,
-        customSchema,
-        undefined,
+        { type: 'spawn-agent', task: 'merge-worktree', schema: customSchema } as SpawnAgentStep,
         stepIndex,
         ctx,
         MergeWorktreeResponseSchema,
@@ -1080,12 +1105,13 @@ export class WorkflowRunner {
   }
 
   private async executeFeatureLoop(
-    taskSlug: string,
-    stepModel: string | undefined,
+    step: FeatureLoopStep,
     stepIndex: number,
     ctx: WorkflowRunnerContext,
-    featuresFile?: string,
   ): Promise<{ exitCode: number; reason: string }> {
+    const featuresFile = step.features_file;
+    const taskSlug = step.task ?? step.name ?? 'inline';
+
     // Feature loop always needs sprint (features.json lives in sprint dir)
     if (ctx.sprintDir == null) {
       throw new Error(
@@ -1093,7 +1119,7 @@ export class WorkflowRunner {
       );
     }
 
-    const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, { type: 'ralph-wiggum-loop', task: taskSlug }));
+    const stepDir = join(ctx.waveDir, this.stepDirName(stepIndex, step));
     await mkdir(stepDir, { recursive: true });
 
     // Determine attempt number by counting existing attempt-N/ dirs
@@ -1121,7 +1147,7 @@ export class WorkflowRunner {
     }
 
     const loop = new FeatureLoop(this.notifier, this.acrInjector, this.tokenReporter);
-    return loop.execute(taskSlug, {
+    return loop.execute(step, {
       worktreeDir: ctx.worktreeDir,
       sprintDir: ctx.sprintDir!,
       stepDir: loopDir,

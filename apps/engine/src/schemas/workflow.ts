@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TaskFrontmatterSchema } from './task.js';
 
 const WorkflowStepBase = z.object({
   name: z.string().optional(),
@@ -6,16 +7,27 @@ const WorkflowStepBase = z.object({
   model_fallback: z.string().optional(),
 });
 
+const InlineTaskFields = {
+  prompt: z.string().optional(),
+  agent: z.enum(['coder', 'researcher', 'general']).optional(),
+  description: z.string().optional(),
+  effort: z.enum(['low', 'medium', 'high']).optional(),
+  tier: TaskFrontmatterSchema.shape.tier,
+  needs: z.array(z.enum(['sprint'])).optional(),
+} as const;
+
 export const SpawnAgentStepSchema = WorkflowStepBase.extend({
   type: z.literal('spawn-agent'),
-  task: z.string(),
+  task: z.string().optional(),
+  ...InlineTaskFields,
   schema: z.record(z.unknown()).optional(),
   stop_on: z.string().optional(),
 });
 
 export const FeatureLoopStepSchema = WorkflowStepBase.extend({
   type: z.literal('ralph-wiggum-loop'),
-  task: z.string(),
+  task: z.string().optional(),
+  ...InlineTaskFields,
   features_file: z.string().optional(),
 });
 

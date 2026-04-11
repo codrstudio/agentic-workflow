@@ -11,6 +11,7 @@ import type { AcrInjector } from './acr-injector.js';
 import type { TokenUsageReporter } from './token-usage-reporter.js';
 import { TIER_MAP, type Plan, type TierSlug } from '../schemas/tier.js';
 import type { Feature } from '../schemas/feature.js';
+import type { FeatureLoopStep } from '../schemas/workflow.js';
 import type { EngineEvent, EngineEventType } from '../schemas/event.js';
 import type { LoopState } from '../schemas/loop-state.js';
 import { ModelResolver } from './model-resolver.js';
@@ -69,12 +70,12 @@ export class FeatureLoop {
   ) {}
 
   async execute(
-    taskSlug: string,
+    step: FeatureLoopStep,
     ctx: FeatureLoopContext,
     opts: FeatureLoopOptions = {},
   ): Promise<{ exitCode: number; reason: string }> {
     const { sprintDir, stepDir, worktreeDir } = ctx;
-    const featuresFileName = opts.featuresFile ?? 'features.json';
+    const featuresFileName = opts.featuresFile ?? step.features_file ?? 'features.json';
     const featuresPath = join(sprintDir, featuresFileName);
     const loopStatePath = join(stepDir, 'loop.json');
 
@@ -97,8 +98,8 @@ export class FeatureLoop {
       pid: process.pid,
     });
 
-    // Resolve task and agent profile once
-    const task = await this.spawner.resolveTask(taskSlug, ctx.tasksDir);
+    // Resolve task (from file or inline) and agent profile once
+    const { resolved: task, slug: taskSlug } = await this.spawner.resolveTaskFromStep(step, ctx.tasksDir);
     const agentName = task.frontmatter.agent;
     const { frontmatter: agentFrontmatter, body: agentBody } = await this.spawner.resolveAgentProfile(agentName, ctx.agentsDir);
 

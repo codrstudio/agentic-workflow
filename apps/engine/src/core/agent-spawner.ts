@@ -6,6 +6,9 @@ import { TemplateRenderer } from './template-renderer.js';
 import { now } from './state-manager.js';
 import { writeStagnationReport } from './engine-logger.js';
 import type { TaskFrontmatter } from '../schemas/task.js';
+import type { SpawnAgentStep, FeatureLoopStep } from '../schemas/workflow.js';
+
+export type TaskBearingStep = SpawnAgentStep | FeatureLoopStep;
 
 const DEFAULT_INACTIVITY_TIMEOUT_MS = 30 * 60_000; // 30 minutes
 
@@ -66,6 +69,37 @@ export interface SpawnMeta {
 
 export class AgentSpawner {
   private renderer = new TemplateRenderer();
+
+  async resolveTaskFromStep(
+    step: TaskBearingStep,
+    tasksDir: string,
+  ): Promise<{ resolved: ResolvedTask; slug: string; inline: boolean }> {
+    if (step.task) {
+      const resolved = await this.resolveTask(step.task, tasksDir);
+      return { resolved, slug: step.task, inline: false };
+    }
+
+    if (!step.prompt) {
+      throw new Error(
+        `${step.type} step must provide either "task" or "prompt"`,
+      );
+    }
+
+    const frontmatter: TaskFrontmatter = {
+      agent: step.agent ?? 'general',
+      description: step.description ?? '',
+      ...(step.model ? { model: step.model as TaskFrontmatter['model'] } : {}),
+      ...(step.effort ? { effort: step.effort } : {}),
+      ...(step.tier ? { tier: step.tier } : {}),
+      ...(step.needs ? { needs: step.needs } : {}),
+    };
+
+    return {
+      resolved: { frontmatter, body: step.prompt },
+      slug: step.name ?? 'inline',
+      inline: true,
+    };
+  }
 
   async resolveTask(taskSlug: string, tasksDir: string): Promise<ResolvedTask> {
     const taskPath = join(tasksDir, `${taskSlug}.md`);
