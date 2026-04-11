@@ -1,0 +1,57 @@
+{
+  "folders": [
+    {
+      "id": "f_mntijzgagcf2",
+      "name": "Sandbox",
+      "order": 1,
+      "projects": [
+        "demonstrativo",
+        "velha",
+        "scaffold",
+        "resta-um",
+        "sandbox",
+        "sample"
+      ]
+    },
+    {
+      "id": "f_mntimoy32q4o",
+      "name": "CODR Studio",
+      "order": 2,
+      "projects": [
+        "agenda-fisioterapeuta"
+      ]
+    },
+    {
+      "id": "f_mntinbkte96v",
+      "name": "Processa",
+      "order": 3,
+      "projects": [
+        "appbuilder",
+        "coletivos",
+        "processa-anlise-de-abertura-de-projetos-erp",
+        "nic",
+        "nic-exp"
+      ]
+    },
+    {
+      "id": "f_mntipc7y4eh4",
+      "name": "KeepCoding",
+      "order": 4,
+      "projects": [
+        "keephub-v0.1",
+        "keepcoding-bmc",
+        "borracharia-24h"
+      ]
+    },
+    {
+      "id": "f_mntiprjikhc6",
+      "name": "Dice&Cards",
+      "order": 5,
+      "projects": [
+        "dnc-companion",
+        "dicecards-companion",
+        "dnc-era"
+      ]
+    }
+  ]
+}

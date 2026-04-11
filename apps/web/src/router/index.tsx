@@ -31,6 +31,7 @@ import { LibraryAgentsPage } from "@/pages/library-agents"
 import { LibraryAgentDetailPage } from "@/pages/library-agent-detail"
 import { LibraryPlansPage } from "@/pages/library-plans"
 import { LibraryPlanDetailPage } from "@/pages/library-plan-detail"
+import { ErrorState, NotFoundState } from "@/components/error-state"
 
 // Root route with context type
 const rootRoute = createRootRouteWithContext<{ auth: AuthContextValue }>()({
@@ -74,6 +75,9 @@ const projectsRoute = createRoute({
   getParentRoute: () => authRoute,
   path: "/projects",
   component: ProjectsPage,
+  validateSearch: (search: Record<string, unknown>) => ({
+    folder: typeof search.folder === "string" ? search.folder : undefined,
+  }),
 })
 
 const projectNewRoute = createRoute({
@@ -255,6 +259,8 @@ export const router = createRouter({
   routeTree,
   basepath: "/web",
   context: { auth: undefined! },
+  defaultErrorComponent: ({ error, reset }) => <ErrorState error={error} reset={reset} />,
+  defaultNotFoundComponent: () => <NotFoundState />,
 })
 
 declare module "@tanstack/react-router" {
