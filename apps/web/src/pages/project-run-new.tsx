@@ -67,7 +67,6 @@ export function ProjectRunNewPage() {
   // Submit
   const [executing, setExecuting] = useState(false)
   const [executeError, setExecuteError] = useState<string | null>(null)
-  const [queued, setQueued] = useState(false)
 
   const handleClose = () => {
     void navigate({ to: "/projects/$slug/waves", params: { slug } })
@@ -150,11 +149,6 @@ export function ProjectRunNewPage() {
         const body = (await res.json()) as { error?: string }
         throw new Error(body.error ?? "Failed to start run")
       }
-      if (res.status === 202) {
-        setQueued(true)
-        setExecuting(false)
-        return
-      }
       void navigate({ to: "/projects/$slug/waves", params: { slug } })
     } catch (e: unknown) {
       setExecuteError(e instanceof Error ? e.message : "Failed")
@@ -179,11 +173,9 @@ export function ProjectRunNewPage() {
     })),
   ]
 
-  const done = queued
-
   const stepLabels = [
-    { n: 1, label: "Workflow" },
-    { n: 2, label: "Prompt" },
+    { n: 1, label: "Prompt" },
+    { n: 2, label: "Workflow" },
     { n: 3, label: "Dependência" },
   ] as const
 
@@ -217,8 +209,8 @@ export function ProjectRunNewPage() {
 
       {/* Body */}
       <div className="flex-1 flex flex-col gap-3 min-h-0 overflow-y-auto">
-        {/* Step 1: Workflow selection */}
-        {step === 1 && (
+        {/* Step 2: Workflow selection */}
+        {step === 2 && (
           <div className="max-w-lg flex flex-col gap-3">
             {loading ? (
               <>
@@ -271,8 +263,8 @@ export function ProjectRunNewPage() {
           </div>
         )}
 
-        {/* Step 2: Prompt editor */}
-        {step === 2 && (
+        {/* Step 1: Prompt editor */}
+        {step === 1 && (
           <div className="flex-1 flex flex-col gap-2 min-h-0">
             <div className="flex items-center gap-2">
               <button
@@ -453,18 +445,9 @@ export function ProjectRunNewPage() {
         {executeError && (
           <p className="text-destructive text-xs" role="alert">{executeError}</p>
         )}
-        {queued && (
-          <p className="text-amber-600 dark:text-amber-400 text-xs">
-            {depMode === "immediate"
-              ? "Execução enfileirada. Será iniciada quando a execução atual terminar."
-              : depMode === "specific-run"
-                ? "Execução enfileirada. Será iniciada quando a execução selecionada completar."
-                : "Execução enfileirada. Será iniciada quando o projeto fonte completar."}
-          </p>
-        )}
         <div className="flex gap-2 justify-between">
           <div>
-            {step > 1 && !done && (
+            {step > 1 && (
               <button
                 type="button"
                 onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
@@ -481,28 +464,15 @@ export function ProjectRunNewPage() {
               onClick={handleClose}
               className="px-3 py-1.5 rounded-md text-sm border hover:bg-muted transition-colors"
             >
-              {done ? "Fechar" : "Cancelar"}
+              Cancelar
             </button>
 
-            {/* Step 1 → Step 2 */}
+            {/* Step 1 (Prompt) → Step 2 */}
             {step === 1 && (
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                disabled={!selectedWf}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Próximo
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            )}
-
-            {/* Step 2 → Step 3 */}
-            {step === 2 && (
               <>
                 <button
                   type="button"
-                  onClick={() => { setPrompt(""); setStep(3) }}
+                  onClick={() => { setPrompt(""); setStep(2) }}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm border hover:bg-muted transition-colors text-muted-foreground"
                 >
                   <SkipForward className="w-3.5 h-3.5" />
@@ -510,7 +480,7 @@ export function ProjectRunNewPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(2)}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
                 >
                   Próximo
@@ -519,8 +489,21 @@ export function ProjectRunNewPage() {
               </>
             )}
 
+            {/* Step 2 (Workflow) → Step 3 */}
+            {step === 2 && (
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                disabled={!selectedWf}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Próximo
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             {/* Step 3: confirm */}
-            {step === 3 && !done && (
+            {step === 3 && (
               <button
                 type="button"
                 onClick={handleConfirm}
