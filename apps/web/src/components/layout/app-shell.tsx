@@ -169,8 +169,8 @@ function UserMenu({ collapsed }: { collapsed: boolean }) {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
 
-  const username = user.isAuthenticated ? user.username : ""
-  const role = user.isAuthenticated ? user.role : ""
+  const username = (user.isAuthenticated ? user.username : "") ?? ""
+  const role = (user.isAuthenticated ? user.role : "") ?? ""
   const initials = username.slice(0, 2).toUpperCase() || "?"
 
   return (
