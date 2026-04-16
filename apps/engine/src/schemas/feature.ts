@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const FeatureStatusSchema = z.enum([
-  'failing', 'passing', 'skipped', 'pending', 'in_progress', 'blocked'
+  'failing', 'passing', 'skipped', 'exhausted', 'pending', 'in_progress', 'blocked'
 ]);
 
 export const FeatureSchema = z.object({
@@ -17,6 +17,7 @@ export const FeatureSchema = z.object({
   retries: z.number().int().nonnegative().optional(),
   completed_at: z.string().datetime().optional(),
   skip_reason: z.string().optional(),
+  exhausted_reason: z.string().optional(),
   prp_path: z.string().optional(),
   task: z.string().optional(),
 }).passthrough();

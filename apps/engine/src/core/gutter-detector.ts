@@ -4,7 +4,7 @@ import type { Feature } from '../schemas/feature.js';
 export type RollbackMode = 'stash' | 'reset' | 'none';
 
 export interface GutterAction {
-  action: 'retry' | 'rollback_and_retry' | 'skip';
+  action: 'retry' | 'rollback_and_retry' | 'skip' | 'exhaust';
   reason: string;
   rollbackResult?: string;
 }
@@ -28,8 +28,8 @@ export class GutterDetector {
 
     if (retries >= maxRetries * 2) {
       return {
-        action: 'skip',
-        reason: `Exceeded ${maxRetries * 2} retries, permanently skipping`,
+        action: 'exhaust',
+        reason: `Exceeded ${maxRetries * 2} retries, marking as exhausted`,
       };
     }
 
@@ -93,6 +93,12 @@ export class GutterDetector {
     if (gutterAction.action === 'skip') {
       f.status = 'skipped';
       f.skip_reason = gutterAction.reason;
+      return;
+    }
+
+    if (gutterAction.action === 'exhaust') {
+      f.status = 'exhausted';
+      f.exhausted_reason = gutterAction.reason;
       return;
     }
 

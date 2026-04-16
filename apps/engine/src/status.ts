@@ -500,9 +500,11 @@ async function printWaveDetail(waveNum: number, steps: StepInfo[], features?: Fe
       const done = features ? features.filter(f => f.status === 'passing').length : l.done;
       const total = features ? features.length : l.total;
       const skipped = features ? features.filter(f => f.status === 'skipped').length : (l.total - l.remaining - l.done);
-      const remaining = total - done - skipped;
+      const exhausted = features ? features.filter(f => f.status === 'exhausted').length : 0;
+      const remaining = total - done - skipped - exhausted;
       let loopExtra = `(iter ${l.iteration}, ${done}/${total} done`;
       if (skipped > 0) loopExtra += `, ${skipped} skip`;
+      if (exhausted > 0) loopExtra += `, ${exhausted} exhausted`;
       if (remaining > 0) loopExtra += `, ${remaining} left`;
       loopExtra += ')';
       extra += '  ' + chalk.gray(loopExtra);
@@ -526,6 +528,7 @@ function printFeatures(features: Feature[], sprintNumber: number | null): void {
       case 'passing': colorFn = chalk.green; break;
       case 'failing': colorFn = chalk.red; break;
       case 'skipped': colorFn = chalk.yellow; break;
+      case 'exhausted': colorFn = chalk.magenta; break;
       case 'in_progress': colorFn = chalk.blue; break;
       case 'blocked': colorFn = chalk.gray; break;
       case 'pending': colorFn = chalk.gray; break;
@@ -539,6 +542,9 @@ function printFeatures(features: Feature[], sprintNumber: number | null): void {
     }
     if (status === 'skipped' && f.skip_reason) {
       extra += `  (${f.skip_reason})`;
+    }
+    if (status === 'exhausted' && (f as Record<string, unknown>).exhausted_reason) {
+      extra += `  (${(f as Record<string, unknown>).exhausted_reason as string})`;
     }
 
     console.log(`    ${chalk.bold(id)} ${name} ${colorFn(status)}${extra}`);

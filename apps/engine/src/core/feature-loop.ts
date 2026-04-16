@@ -107,13 +107,14 @@ export class FeatureLoop {
       const features = await this.state.loadFeatures(featuresPath) as Feature[];
       const passing = features.filter((f) => f.status === 'passing').length;
       const skipped = features.filter((f) => f.status === 'skipped').length;
+      const exhausted = features.filter((f) => f.status === 'exhausted').length;
       const loopState: LoopState = {
         status: overrides.status ?? (this.iteration === 0 ? 'starting' : 'running'),
         pid: process.pid,
         iteration: this.iteration,
         total: features.length,
         done: passing,
-        remaining: features.length - passing - skipped,
+        remaining: features.length - passing - skipped - exhausted,
         features_done: this.featuresDone,
         started_at: this.startedAt,
         updated_at: now(),
@@ -128,6 +129,19 @@ export class FeatureLoop {
     await writeLoopState({ status: 'starting' });
 
     const initialFeatures = await this.state.loadFeatures(featuresPath) as Feature[];
+
+    // On resume: reset exhausted features back to pending so they get retried
+    const exhaustedFeatures = initialFeatures.filter((f) => f.status === 'exhausted');
+    if (exhaustedFeatures.length > 0) {
+      for (const f of exhaustedFeatures) {
+        const m = f as Record<string, unknown>;
+        m.status = 'pending';
+        m.retries = 0;
+        delete m.exhausted_reason;
+      }
+      await this.state.saveFeatures(featuresPath, initialFeatures);
+    }
+
     await this.emitEvent('loop:start', ctx, { task: taskSlug, total: initialFeatures.length });
 
     const checkStop = async (): Promise<boolean> => {
@@ -170,7 +184,7 @@ export class FeatureLoop {
             await this.emitEvent('loop:end', ctx, { reason: 'deps_impossible' });
             return { exitCode: 1, reason: 'deps_impossible' };
           }
-          const nonTerminal = features.filter((f) => f.status !== 'passing' && f.status !== 'skipped');
+          const nonTerminal = features.filter((f) => f.status !== 'passing' && f.status !== 'skipped' && f.status !== 'exhausted');
           if (nonTerminal.length > 0) {
             const ids = nonTerminal.map((f) => `${f.id}(${f.status})`).join(', ');
             const reason = `completed_with_pending: ${ids}`;

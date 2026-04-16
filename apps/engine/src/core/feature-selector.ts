@@ -13,7 +13,7 @@ export class FeatureSelector {
     }
 
     for (const f of features) {
-      if (f.status === 'passing' || f.status === 'skipped') continue;
+      if (f.status === 'passing' || f.status === 'skipped' || f.status === 'exhausted') continue;
 
       const deps = f.dependencies ?? [];
       if (deps.length === 0) {
@@ -84,7 +84,7 @@ export class FeatureSelector {
    */
   hasImpossibleDeps(features: Feature[]): boolean {
     const remaining = features.filter(
-      (f) => f.status !== 'passing' && f.status !== 'skipped',
+      (f) => f.status !== 'passing' && f.status !== 'skipped' && f.status !== 'exhausted',
     );
     if (remaining.length === 0) return false;
     return remaining.every((f) => f.status === 'blocked');
